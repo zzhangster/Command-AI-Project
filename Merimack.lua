@@ -1,7 +1,7 @@
 --[[
   This behavior tree code was taken from our Zelda AI project for CMPS 148 at UCSC.
   It is for the most part unmodified, and comments are available for each function.
-  Behavior tree code credited to Kevin Cameron
+  Behavior tree code credited to https://gist.github.com/mrunderhill89/
 ]]--
 BT = {}
 BT.__index = BT
@@ -1365,7 +1365,7 @@ function AttackDoctrineCreateAntiSurfaceShipMissionAction(args)
 
     -- Create Recon Mission
     createdMission = ScenEdit_AddMission(side.name,args.shortKey.."_asuw_miss_"..tostring(missionNumber),"patrol",{type="naval",zone={rp1.name,rp2.name,rp3.name,rp4.name}})
-    ScenEdit_SetMission(side.name,createdMission.name,{checkOPA=false,checkWWR=true,activeEMCON=true,oneThirdRule=false,flightSize=2})
+    ScenEdit_SetMission(side.name,createdMission.name,{checkOPA=false,checkWWR=false,activeEMCON=true,oneThirdRule=false,flightSize=2})
 
     -- Recon and Uav To Assign
     if numberOfAirToAssign > totalAirUnitsToAssign then
@@ -1405,7 +1405,7 @@ function AttackDoctrineUpdateAntiSurfaceShipMissionAction(args)
 
     -- Take First One For Now
     updatedMission = ScenEdit_GetMission(side.name,missions[1])
-    hostileContactBoundingBox = FindBoundingBoxForGivenContacts(side.name,totalHostileContacts,aoPoints,4)
+    hostileContactBoundingBox = FindBoundingBoxForGivenContacts(side.name,totalHostileContacts,aoPoints,3)
 
     -- Update Every 5 Minutes Or Greater
     ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_asuw_miss_"..tostring(missionNumber).."_rp_1", lat=hostileContactBoundingBox[1].latitude, lon=hostileContactBoundingBox[1].longitude})
@@ -2296,6 +2296,7 @@ function InitializeMerimackMonitorAI(sideGuid,shortSideKey)
     offensiveDoctrineSeletor:addChild(attackDoctrineSelector)
     offensiveDoctrineSeletor:addChild(supportAEWDoctrineSelector)
     offensiveDoctrineSeletor:addChild(supportTankerDoctrineSelector)
+    offensiveDoctrineSeletor:addChild(defendDoctrineSelector)
 
     -- Defensive Selector
     defensiveDoctrineSeletor:addChild(defendDoctrineSelector)
