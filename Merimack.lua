@@ -197,14 +197,30 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 -- Generic Helper Functions
 --------------------------------------------------------------------------------------------------------------------------------
+function InternationalDecimalConverter(value)
+	if type(value) == "number" then
+		return value
+	else 
+		local convert = string.gsub(value,",",".")
+		return convert
+	end
+end
+
 function MakeLatLong(latitude,longitude)
     local instance = {}
-    instance.latitude = latitude
-    instance.longitude = longitude
+    instance.latitude = InternationalDecimalConverter(latitude)
+    instance.longitude = InternationalDecimalConverter(longitude)
     return instance
 end
 
 function MidPointCoordinate(lat1,lon1,lat2,lon2)
+	-- Internationalize
+	lat1 = InternationalDecimalConverter(lat1)
+	lon1 = InternationalDecimalConverter(lon1)
+	lat2 = InternationalDecimalConverter(lat2)
+	lon2 = InternationalDecimalConverter(lon2)
+
+	-- Local
     local dLon = math.rad(lon2 - lon1)
     
     -- Convert to radians
@@ -476,21 +492,21 @@ function GetSAMAndShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,unitGuid)
 end
 
 function GetAirAndShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,unitGuid,airRange)
-    local contactPoint = GetAirNoNavZoneThatContaintsUnit(sideGuid,shortSideKey,unitGuid,airRange)
+    local contactPoint = GetShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,unitGuid)
     if contactPoint ~= nil then
         return contactPoint
     else
-        contactPoint = GetShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,unitGuid)
+        contactPoint = GetAirNoNavZoneThatContaintsUnit(sideGuid,shortSideKey,unitGuid,airRange)
         return contactPoint
     end
 end
 
 function GetAirAndSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,unitGuid,airRange)
-    local contactPoint = GetAirNoNavZoneThatContaintsUnit(sideGuid,shortSideKey,unitGuid,airRange)
+    local contactPoint = GetSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,unitGuid)
     if contactPoint ~= nil then
-        return contactPoint
+        return contactPoint 
     else
-        contactPoint = GetSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,unitGuid)
+        contactPoint = GetAirNoNavZoneThatContaintsUnit(sideGuid,shortSideKey,unitGuid,airRange)
         return contactPoint
     end
 end
@@ -724,6 +740,21 @@ function GetTotalFreeBusyAirSeadInventory(sideShortKey)
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
+-- Get Total Air Attack Inventory
+--------------------------------------------------------------------------------------------------------------------------------
+function GetTotalFreeAirAttackInventory(sideShortKey)
+    return CombineTablesNew(GetFreeAirAttackInventory(sideShortKey),GetFreeAirMultiroleInventory(sideShortKey))
+end
+
+function GetTotalBusyAirAttackInventory(sideShortKey)
+    return CombineTablesNew(GetBusyAirAttackInventory(sideShortKey),GetBusyAirMultiroleInventory(sideShortKey))
+end
+
+function GetTotalFreeBusyAirAttackInventory(sideShortKey)
+    return CombineTablesNew(GetTotalFreeAirAttackInventory(sideShortKey),GetTotalBusyAirAttackInventory(sideShortKey))
+end
+
+--------------------------------------------------------------------------------------------------------------------------------
 -- Get Total Air Tanker Inventory
 --------------------------------------------------------------------------------------------------------------------------------
 function GetTotalFreeBusyTankerInventory(sideShortKey)
@@ -792,6 +823,14 @@ function GetHostileSAMContacts(sideShortKey)
     return GetGUID(sideShortKey.."_sam_con_H")
 end
 
+function GetUnknownLandContacts(sideShortKey)
+    return GetGUID(sideShortKey.."_land_con_X")
+end
+
+function GetHostileLandContacts(sideShortKey)
+    return GetGUID(sideShortKey.."_land_con_H")
+end
+
 --------------------------------------------------------------------------------------------------------------------------------
 -- Get Contact Strength
 --------------------------------------------------------------------------------------------------------------------------------
@@ -812,6 +851,10 @@ end
 
 function GetHostileSAMContactsStrength(sideShortKey)
     return #GetHostileSAMContacts(sideShortKey)
+end
+
+function GetHostileLandContactsStrength(sideShortKey)
+    return #GetHostileLandContacts(sideShortKey)
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
@@ -1319,7 +1362,7 @@ function AttackDoctrineUpdateAirMissionAction(args)
         local missionUnit = ScenEdit_GetUnit({side=side.name, guid=v})
         local unitRetreatPoint = GetSAMAndShipNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid)
         if unitRetreatPoint ~= nil then
-        	ScenEdit_SpecialMessage("Blue Force", "AttackDoctrineUpdateAirMissionAction")
+        	--ScenEdit_SpecialMessage("Blue Force", "AttackDoctrineUpdateAirMissionAction")
             missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
             ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "no" })
         else
@@ -1399,7 +1442,7 @@ function AttackDoctrineUpdateAntiSurfaceShipMissionAction(args)
     local numberOfAAWToAssign = #totalFreeBusyInventory
 
     -- Condition Check
-    if #totalFreeBusyInventory == 0 or #missions == 0 or (currentTime - lastTimeStamp) < 5 * 60 then
+    if #totalFreeBusyInventory == 0 or #missions == 0 or (currentTime - lastTimeStamp) < 3 * 60 then
         return false
     end
 
@@ -1512,7 +1555,7 @@ function AttackDoctrineUpdateSeadMissionAction(args)
     local lastTimeStamp = GetTimeStampForGUID(args.shortKey.."_sead_miss_ts")
 
     -- Condition Check
-    if #totalFreeBusyInventory == 0 or #missions == 0 or (currentTime - lastTimeStamp) < 5 * 60 then
+    if #totalFreeBusyInventory == 0 or #missions == 0 or (currentTime - lastTimeStamp) < 3 * 60 then
         return false
     end
 
@@ -1556,6 +1599,120 @@ function AttackDoctrineUpdateSeadMissionAction(args)
     -- Return False
     return false
 end
+
+function AttackDoctrineCreateLandAttackMissionAction(args)
+    -- Local Values
+    local side = VP_GetSide({guid=args.guid})
+    local missions = GetGUID(args.shortKey.."_land_miss")
+    local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
+    local totalFreeInventory = GetFreeAirAttackInventory(args.shortKey)
+    local totalHostileContacts = GetHostileLandContacts(args.shortKey)
+    local totalAirUnitsToAssign = GetHostileLandContactsStrength(args.shortKey) * 2
+    local numberOfAirToAssign = #totalFreeInventory
+    local missionNumber = 1
+    local rp1,rp2,rp3,rp4 = ""
+    local hostileContactCoordinates = {}
+    local hostileContactBoundingBox = {}
+    local createdMission = {}
+
+    -- ScenEdit_SpecialMessage("Blue Force", "AttackDoctrineCreateSeadMissionAction")
+
+    -- Condition Check
+    if #missions > 0 or #totalFreeInventory == 0 or GetHostileSAMContactsStrength(args.shortKey) == 0 then
+        return false
+    end
+
+    -- Set Contact Bounding Box Variables
+    hostileContactBoundingBox = FindBoundingBoxForGivenContacts(side.name,totalHostileContacts,aoPoints,4)
+
+    -- Set Reference Points
+    rp1 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_land_miss_"..tostring(missionNumber).."_rp_1", lat=hostileContactBoundingBox[1].latitude, lon=hostileContactBoundingBox[1].longitude})
+    rp2 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_land_miss_"..tostring(missionNumber).."_rp_2", lat=hostileContactBoundingBox[2].latitude, lon=hostileContactBoundingBox[2].longitude})
+    rp3 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_land_miss_"..tostring(missionNumber).."_rp_3", lat=hostileContactBoundingBox[3].latitude, lon=hostileContactBoundingBox[3].longitude})
+    rp4 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_land_miss_"..tostring(missionNumber).."_rp_4", lat=hostileContactBoundingBox[4].latitude, lon=hostileContactBoundingBox[4].longitude})
+
+    -- Create Recon Mission
+    createdMission = ScenEdit_AddMission(side.name,args.shortKey.."_land_miss_"..tostring(missionNumber),"patrol",{type="land",zone={rp1.name,rp2.name,rp3.name,rp4.name}})
+    ScenEdit_SetMission(side.name,createdMission.name,{checkOPA=false,checkWWR=true,activeEMCON=true,oneThirdRule=false,flightSize=2})
+
+    -- Recon and Uav To Assign
+    if numberOfAirToAssign > totalAirUnitsToAssign then
+        numberOfAirToAssign = totalAirUnitsToAssign
+    end
+
+    -- Assign Up to numberOfAirToAssign
+    for i = 1,numberOfAirToAssign do
+        ScenEdit_AssignUnitToMission(totalFreeInventory[i],createdMission.guid)
+    end
+
+    -- Add Guid
+    AddGUID(args.shortKey.."_land_miss",createdMission.name)
+
+    -- Return True For Mission Created
+    return true
+end
+
+function AttackDoctrineUpdateLandAttackMissionAction(args)
+    -- Locals
+    local side = VP_GetSide({guid=args.guid})
+    local missions = GetGUID(args.shortKey.."_land_miss")
+    local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
+    local totalFreeBusyInventory = GetTotalFreeBusyAirAttackInventory(args.shortKey)
+    local totalHostileContacts = GetHostileLandContacts(args.shortKey)
+    local updatedMission = {}
+    local missionNumber = 1
+    local totalAAWUnitsToAssign = GetHostileLandContactsStrength(args.shortKey) * 2
+    local numberOfAAWToAssign = #totalFreeBusyInventory
+    -- Times
+    local currentTime = ScenEdit_CurrentTime()
+    local lastTimeStamp = GetTimeStampForGUID(args.shortKey.."_land_miss_ts")
+
+    -- Condition Check
+    if #totalFreeBusyInventory == 0 or #missions == 0 or (currentTime - lastTimeStamp) < 3 * 60 then
+        return false
+    end
+
+    -- Take First One For Now
+    updatedMission = ScenEdit_GetMission(side.name,missions[1])
+    hostileContactBoundingBox = FindBoundingBoxForGivenContacts(side.name,totalHostileContacts,aoPoints,4)
+
+    -- Update Every 5 Minutes Or Greater
+    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_land_miss_"..tostring(missionNumber).."_rp_1", lat=hostileContactBoundingBox[1].latitude, lon=hostileContactBoundingBox[1].longitude})
+    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_land_miss_"..tostring(missionNumber).."_rp_2", lat=hostileContactBoundingBox[2].latitude, lon=hostileContactBoundingBox[2].longitude})
+    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_land_miss_"..tostring(missionNumber).."_rp_3", lat=hostileContactBoundingBox[3].latitude, lon=hostileContactBoundingBox[3].longitude})
+    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_land_miss_"..tostring(missionNumber).."_rp_4", lat=hostileContactBoundingBox[4].latitude, lon=hostileContactBoundingBox[4].longitude})
+
+    -- Recon and Uav To Assign
+    totalAAWUnitsToAssign = totalAAWUnitsToAssign - #updatedMission.unitlist
+    if numberOfAAWToAssign > totalAAWUnitsToAssign then
+        numberOfAAWToAssign = totalAAWUnitsToAssign
+    end
+
+    -- Assign Up to numberOfReconToAssign
+    for i = 1,numberOfAAWToAssign do
+        ScenEdit_AssignUnitToMission(totalFreeBusyInventory[i],updatedMission.guid)
+    end
+
+    -- Find Area And Return Point
+    local missionUnits = updatedMission.unitlist
+    for k,v in pairs(missionUnits) do
+        local missionUnit = ScenEdit_GetUnit({side=side.name, guid=v})
+        local unitRetreatPoint = GetAllNoNavZoneThatContaintsUnit(args.guid,args.shortKey,missionUnit.guid,80)
+        if unitRetreatPoint ~= nil then
+            missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
+            ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "no" })
+        else
+            ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "yes" })
+        end
+    end
+
+    -- Add Time Stamp
+    SetTimeStampForGUID(args.shortKey.."_land_miss_ts",tostring(ScenEdit_CurrentTime()))
+
+    -- Return False
+    return false
+end
+
 
 --------------------------------------------------------------------------------------------------------------------------------
 -- Defend Doctrine Mission Actions
@@ -2076,7 +2233,7 @@ function MonitorUpdateSAMNoNavZonesAction(args)
     --ScenEdit_SpecialMessage("Blue Force", "MonitorUpdateSAMNoNavZonesAction 1 "..tostring(#zones))
 
     -- Condition Check
-    if #zones == 0 or (currentTime - lastReconTimeStamp) < 10 * 60 then
+    if #zones == 0 or (currentTime - lastReconTimeStamp) < 5 * 60 then
        return false 
     end
 
@@ -2175,7 +2332,7 @@ function MonitorUpdateShipNoNavZonesAction(args)
     --ScenEdit_SpecialMessage("Blue Force", "MonitorUpdateSAMNoNavZonesAction 1 "..tostring(#zones))
 
     -- Condition Check
-    if #zones == 0 or (currentTime - lastReconTimeStamp) < 10 * 60 then
+    if #zones == 0 or (currentTime - lastReconTimeStamp) < 5 * 60 then
        return false 
     end
 
@@ -2267,6 +2424,8 @@ function InitializeMerimackMonitorAI(sideGuid,shortSideKey)
     local attackDoctrineUpdateAntiSurfaceShipMissionBT = BT:make(AttackDoctrineUpdateAntiSurfaceShipMissionAction,sideGuid,shortSideKey)
     local attackDoctrineCreateSeadMissionBT = BT:make(AttackDoctrineCreateSeadMissionAction,sideGuid,shortSideKey)
     local attackDoctrineUpdateSeadMissionBT = BT:make(AttackDoctrineUpdateSeadMissionAction,sideGuid,shortSideKey)
+    local attackDoctrineCreateLandAttackMissionBT = BT:make(AttackDoctrineCreateLandAttackMissionAction,sideGuid,shortSideKey)
+    local attackDoctrineUpdateLandAttackMissionBT = BT:make(AttackDoctrineUpdateLandAttackMissionAction,sideGuid,shortSideKey)
 
     -- Defend Doctrine BT
     local defendDoctrineUpdateAirMissionBT = BT:make(DefendDoctrineUpdateAirMissionAction,sideGuid,shortSideKey)
@@ -2315,6 +2474,8 @@ function InitializeMerimackMonitorAI(sideGuid,shortSideKey)
     attackDoctrineSelector:addChild(attackDoctrineCreateAntiSurfaceShipMissionBT)
     attackDoctrineSelector:addChild(attackDoctrineUpdateSeadMissionBT)
     attackDoctrineSelector:addChild(attackDoctrineCreateSeadMissionBT)
+    attackDoctrineSelector:addChild(attackDoctrineUpdateLandAttackMissionBT)
+    attackDoctrineSelector:addChild(attackDoctrineCreateLandAttackMissionBT)
 
     -- Defend Doctrine Sequence
     defendDoctrineSelector:addChild(defendDoctrineUpdateAirMissionBT)
