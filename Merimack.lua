@@ -261,6 +261,11 @@ function FindBoundingBoxForGivenLocations(coordinates,padding)
     local north = 0.0
     local south = 0.0
 
+    -- Condiation Check
+    if coordinates == nil or #coordinates == 0 then
+    	padding = 0
+    end
+
     -- Assign Up to numberOfReconToAssign
     for lc = 1,#coordinates do
         local loc = coordinates[lc]
@@ -792,6 +797,18 @@ function GetTotalFreeBusyAEWInventory(sideShortKey)
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
+-- Get All Inventory
+-------------------------------------------------------------------------------------------------------------------------------
+function GetTotalInventory(sideShortKey)
+	local totalInventory = CombineTablesNew(GetTotalFreeBusyReconInventory(sideShortKey),GetTotalFreeBusyAirFighterInventory(sideShortKey))
+	totalInventory = CombineTables(totalInventory,GetTotalFreeBusyAirAntiSurfaceInventory(sideShortKey))
+	totalInventory = CombineTables(totalInventory,GetTotalFreeBusyAirAttackInventory(sideShortKey))
+	totalInventory = CombineTables(totalInventory,GetTotalFreeBusyTankerInventory(sideShortKey))
+	totalInventory = CombineTables(totalInventory,GetTotalFreeBusyAEWInventory(sideShortKey))
+	return totalInventory
+end
+
+--------------------------------------------------------------------------------------------------------------------------------
 -- Get Total Inventory Strength
 --------------------------------------------------------------------------------------------------------------------------------
 function GetAllInventoryStrength(sideShortKey)
@@ -854,6 +871,15 @@ function GetHostileLandContacts(sideShortKey)
     return GetGUID(sideShortKey.."_land_con_H")
 end
 
+function GetTotalHostileContacts(sideShortKey)
+	local totalContacts = CombineTablesNew(GetHostileAirContacts(sideShortKey),GetHostileSurfaceShipContacts(sideShortKey))
+	totalContacts = CombineTables(totalContacts,GetHostileSubmarineContacts(sideShortKey))
+	totalContacts = CombineTables(totalContacts,GetHostileBaseContacts(sideShortKey))
+	totalContacts = CombineTables(totalContacts,GetHostileSAMContacts(sideShortKey))
+	totalContacts = CombineTables(totalContacts,GetHostileLandContacts(sideShortKey))
+	return totalContacts
+end
+
 --------------------------------------------------------------------------------------------------------------------------------
 -- Get Contact Strength
 --------------------------------------------------------------------------------------------------------------------------------
@@ -881,7 +907,47 @@ function GetHostileLandContactsStrength(sideShortKey)
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
--- Inventory Check
+-- Area of Operation Functions
+--------------------------------------------------------------------------------------------------------------------------------
+function UpdateAIAreaOfOperations(sideGUID,sideShortKey)
+    -- Local Values
+    local side = VP_GetSide({guid=args.guid})
+    local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
+    local coordinates = {}
+    local boundingBox = {}
+    
+    -- Area Of Operation Points Check And Create Area Of Operation Points
+    if #aoPoints < 4 or (aoPoints[1].longitude == 0 and aoPoints[1].latitude == 0) then 
+    	-- Set Contact Bounding Box Variables
+    	local hostileContacts = GetTotalHostileContacts(sideShortKey)
+    	local inventory = GetTotalInventory(sideShortKey)
+
+    	-- Loop and Get Coordinates
+    	for k,v in pairs(hostileContacts) do
+            local contact = ScenEdit_GetContact({side=side.name, guid=v})
+    		coordinates[#coordinates + 1] = MakeLatLong(contact.latitude,contact.longitude)
+    	end
+
+    	for k,v in pairs(inventory) do
+            local unit = ScenEdit_GetUnit({side=side.name, guid=v})
+    		coordinates[#coordinates + 1] = MakeLatLong(unit.latitude,unit.longitude)
+    	end
+
+    	-- Create Defense Bounding Box
+    	boundingBox = FindBoundingBoxForGivenLocations(coordinates,3)
+
+    	-- Create Area of Operations Zone
+    	for i = 1,#boundingBox do
+    		local referencePoint = ScenEdit_SetReferencePoint({side=side.name, name="AI-AO-"..tostring(i), lat=boundingBox[i].latitude, lon=boundingBox[i].longitude})
+    		if referencePoint == nil then
+				ScenEdit_AddReferencePoint({side=side.name, name=="AI-AO-"..tostring(i), lat=boundingBox[i].latitude, lon=boundingBox[i].longitude})
+    		end
+    	end
+    end
+end
+
+--------------------------------------------------------------------------------------------------------------------------------
+-- Inventory Functions
 --------------------------------------------------------------------------------------------------------------------------------
 function UpdateAIInventories(sideGUID,sideShortKey)
     -- Local Variables
@@ -915,34 +981,34 @@ function UpdateAIInventories(sideGUID,sideShortKey)
 
             -- Fighter
             if unit.subtype == "2001" then
-                unitType = "fig"
+                unitType = DetermineRoleFromLoadOutDatabase(unit.loadoutdbid,"fig")
             -- Multirole
             elseif unit.subtype == "2002" then
                 unitType = DetermineRoleFromLoadOutDatabase(unit.loadoutdbid,"mul")
             -- Attacker
             elseif unit.subtype == "3001" then
-                unitType = "atk"
+                unitType = DetermineRoleFromLoadOutDatabase(unit.loadoutdbid,"atk")
             -- SEAD
             elseif unit.subtype == "4001" then
-                unitType = "sead"
+                unitType = DetermineRoleFromLoadOutDatabase(unit.loadoutdbid,"sead")
             -- AEW
             elseif unit.subtype == "4002" then
-                unitType = "aew"
+                unitType = DetermineRoleFromLoadOutDatabase(unit.loadoutdbid,"aew")
             -- ASW
             elseif unit.subtype == "6002" then
-                unitType = "asw"
+                unitType = DetermineRoleFromLoadOutDatabase(unit.loadoutdbid,"asw")
             -- Recon
             elseif unit.subtype == "7003" then
-                unitType = "rec"
+                unitType = DetermineRoleFromLoadOutDatabase(unit.loadoutdbid,"rec")
             -- Tanker
             elseif unit.subtype == "8001" then
-                unitType = "tan"
+                unitType = DetermineRoleFromLoadOutDatabase(unit.loadoutdbid,"tan")
             -- UAV
             elseif unit.subtype == "8201" then
-                unitType = "uav"
+                unitType = DetermineRoleFromLoadOutDatabase(unit.loadoutdbid,"uav")
             -- UCAV
             elseif unit.subtype == "8002" then
-                unitType = "ucav"
+                unitType = DetermineRoleFromLoadOutDatabase(unit.loadoutdbid,"ucav")
             end
 
             --ScenEdit_SpecialMessage("Blue Force", "Inventory - "..sideShortKey.."_"..unit.name.."_".."_"..unitType.."_"..unitStatus.."_"..unit.subtype)
@@ -1076,6 +1142,8 @@ end
 
 function ResetInventoriesAndContacts(sideShortKey)
     -- Reset Inventory And Contacts
+    RemoveAllGUID(sideShortKey.."_sfig_free")
+    RemoveAllGUID(sideShortKey.."_sfig_busy")
     RemoveAllGUID(sideShortKey.."_fig_free")
     RemoveAllGUID(sideShortKey.."_fig_busy")
     RemoveAllGUID(sideShortKey.."_mul_free")
@@ -1293,7 +1361,6 @@ function AttackDoctrineCreateAirMissionAction(args)
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
     local missions = GetGUID(args.shortKey.."_aaw_miss")
-    local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
     local totalFreeInventory = GetTotalFreeAirFighterInventory(args.shortKey)
     local totalHostileContacts = GetHostileAirContacts(args.shortKey)
     local totalAirUnitsToAssign = GetHostileAirContactsStrength(args.shortKey)
@@ -1735,7 +1802,6 @@ function AttackDoctrineUpdateLandAttackMissionAction(args)
     return false
 end
 
-
 --------------------------------------------------------------------------------------------------------------------------------
 -- Defend Doctrine Mission Actions
 --------------------------------------------------------------------------------------------------------------------------------
@@ -2000,9 +2066,6 @@ function SupportTankerDoctrineUpdateMissionAction(args)
 
             -- Check Defense Mission
             if updatedMission then
-                -- Set Contact Bounding Box Variables
-                --defenseBoundingBox = FindBoundingBoxForGivenLocations({MakeLatLong(coveredHVT.latitude,coveredHVT.longitude)},1)
-
                 -- Find Contact Close To Unit And Retreat If Necessary
                 local missionUnits = updatedMission.unitlist
                 for k,v in pairs(missionUnits) do
@@ -2015,12 +2078,6 @@ function SupportTankerDoctrineUpdateMissionAction(args)
                         ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "yes" })
                     end
                 end
-
-                -- Update Coordinates
-                --rp1 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_tan_sup_miss_"..coveredHVT.guid.."_rp_1", lat=defenseBoundingBox[1].latitude, lon=defenseBoundingBox[1].longitude})
-                --rp2 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_tan_sup_miss_"..coveredHVT.guid.."_rp_2", lat=defenseBoundingBox[2].latitude, lon=defenseBoundingBox[2].longitude})
-                --rp3 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_tan_sup_miss_"..coveredHVT.guid.."_rp_3", lat=defenseBoundingBox[3].latitude, lon=defenseBoundingBox[3].longitude})
-                --rp4 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_tan_sup_miss_"..coveredHVT.guid.."_rp_4", lat=defenseBoundingBox[4].latitude, lon=defenseBoundingBox[4].longitude})
 
                 -- If There's Hostile Unassign
                 totalTankerSupportUnitsToAssign = totalTankerSupportUnitsToAssign - #updatedMission.unitlist
@@ -2169,12 +2226,6 @@ function SupportAEWDoctrineUpdateMissionAction(args)
                         ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "yes" })
                     end
                 end
-
-                -- Update Coordinates
-                --rp1 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aew_sup_miss_"..coveredHVT.guid.."_rp_1", lat=defenseBoundingBox[1].latitude, lon=defenseBoundingBox[1].longitude})
-                --rp2 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aew_sup_miss_"..coveredHVT.guid.."_rp_2", lat=defenseBoundingBox[2].latitude, lon=defenseBoundingBox[2].longitude})
-                --rp3 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aew_sup_miss_"..coveredHVT.guid.."_rp_3", lat=defenseBoundingBox[3].latitude, lon=defenseBoundingBox[3].longitude})
-                --rp4 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aew_sup_miss_"..coveredHVT.guid.."_rp_4", lat=defenseBoundingBox[4].latitude, lon=defenseBoundingBox[4].longitude})
 
                 -- Patrols To Assign
                 totalAEWSupportUnitsToAssign = totalAEWSupportUnitsToAssign - #updatedMission.unitlist
@@ -2503,11 +2554,11 @@ function InitializeAIAttributes(options)
     	end
 
     	-- Set Weight Back To Scale Of !0
-    	aggressive = math.floor((aggressive/(aggressive+defensive)) * 10) 
+    	aggressive = math.floor((aggressive/(aggressive+defensive))*10) 
     	defensive = 10 - aggressive
-    	cunning = math.floor((cunning/(cunning+direct)) * 10)
+    	cunning = math.floor((cunning/(cunning+direct))*10)
     	direct = 10 - cunning
-    	determined = math.floor((determined/(determined+reserved)) * 10)
+    	determined = math.floor((determined/(determined+reserved))*10)
     	reserved = 10 - determined
 
     	-- Set User Attributes
@@ -2668,6 +2719,7 @@ function UpdateAI()
     -- Update Inventories And Update Merimack AI
     for k, v in pairs(commandMerimackAIArray) do
         UpdateAIInventories(v.guid,v.shortKey)
+
         v:run()
     end
 
