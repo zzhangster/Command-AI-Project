@@ -39,12 +39,13 @@ end
     one class. Just specify what run function you want the node to use, and 
     it should work just fine.
 --]]
-function BT:make(action,guid,shortKey)
+function BT:make(action,guid,shortKey,options)
     local instance = {}
     setmetatable(instance, BT)
     instance.children = {}
     instance.guid = guid
     instance.shortKey = shortKey
+    instance.options = options
     --Ideally, actions should return a value from the results enum above and take a single table for arguments
     --Though you should be able to use void and boolean functions, as well.
     instance.run = action
@@ -2411,54 +2412,172 @@ function MonitorUpdateAirNoNavZonesAction(args)
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
+-- Initialize AI Attributes
+--------------------------------------------------------------------------------------------------------------------------------
+function InitializeAIAttributes(options)
+    -- Local AI Attributes
+    local attributes = {aggressive = 5, defensive = 5, cunning = 5, direct = 5, determined = 5, reserved = 5}
+    local preset = options.preset
+    local userAttributes = options.options
+
+    -- Load Presets
+    if preset then
+    	if preset == "Leroy" then
+    		attributes.aggressive = 10
+    		attributes.defensive = 0
+    		attributes.cunning = 0
+    		attributes.direct = 10
+    		attributes.determined = 10
+    		attributes.reserved = 0
+    	elseif preset == "Grant" then
+    		attributes.aggressive = 8
+    		attributes.defensive = 2
+    		attributes.cunning = 8
+    		attributes.direct = 2
+    		attributes.determined = 6
+    		attributes.reserved = 4
+		elseif preset == "Sherman" then
+    		attributes.aggressive = 6
+    		attributes.defensive = 4
+    		attributes.cunning = 8
+    		attributes.direct = 2
+    		attributes.determined = 6
+    		attributes.reserved = 4
+		elseif preset == "Sheridan" then
+    		attributes.aggressive = 5
+    		attributes.defensive = 5
+    		attributes.cunning = 5
+    		attributes.direct = 5
+    		attributes.determined = 5
+    		attributes.reserved = 5
+		elseif preset == "Longstreet" then
+    		attributes.aggressive = 4
+    		attributes.defensive = 6
+    		attributes.cunning = 5
+    		attributes.direct = 5
+    		attributes.determined = 5
+    		attributes.reserved = 5
+    	elseif preset == "Mcclellan" then
+    		attributes.aggressive = 2
+    		attributes.defensive = 8
+    		attributes.cunning = 4
+    		attributes.direct = 6
+    		attributes.determined = 8
+    		attributes.reserved = 2
+    	elseif preset == "Butler" then
+    		attributes.aggressive = 0
+    		attributes.defensive = 10
+    		attributes.cunning = 0
+    		attributes.direct = 10
+    		attributes.determined = 0
+    		attributes.reserved = 10
+		end
+    elseif userAttributes
+    	-- Aggressive, Defensive Check
+    	local aggressive = attributes.aggressive
+    	local defensive = attributes.defensive
+    	local cunning = attributes.cunning
+    	local direct = attributes.direct
+    	local determined = attributes.determined
+    	local reserved = attributes.reserved
+
+    	-- Get Override User Values
+    	if userAttributes.aggressive then
+    		aggressive = userAttributes.aggressive
+    	end
+
+    	if userAttributes.defensive then
+    		defensive = userAttributes.defensive
+    	end
+    	if userAttributes.cunning then
+    		cunning = userAttributes.cunning
+    	end
+    	if userAttributes.direct then
+    		direct = userAttributes.direct
+    	end
+    	if userAttributes.determined then
+    		determined = userAttributes.determined
+    	end
+    	if userAttributes.reserved then
+    		reserved = userAttributes.reserved
+    	end
+
+    	-- Set Weight Back To Scale Of !0
+    	aggressive = math.floor((aggressive/(aggressive+defensive)) * 10) 
+    	defensive = 10 - aggressive
+    	cunning = math.floor((cunning/(cunning+direct)) * 10)
+    	direct = 10 - cunning
+    	determined = math.floor((determined/(determined+reserved)) * 10)
+    	reserved = 10 - determined
+
+    	-- Set User Attributes
+    	attributes.aggressive = aggressive
+    	attributes.defensive = defensive
+    	attributes.cunning = cunning
+    	attributes.direct = direct
+    	attributes.determined = determined
+    	attributes.reserved = reserved
+    end
+
+    -- Return
+    return attributes
+end
+
+--------------------------------------------------------------------------------------------------------------------------------
 -- Initialize AI
 --------------------------------------------------------------------------------------------------------------------------------
-function InitializeMerimackMonitorAI(sideGuid,shortSideKey)
+function InitializeMerimackMonitorAI(sideName,options)
+    -- Local Values
+    local side = ScenEdit_GetSideOptions({side=sideName})
+    local sideGuid = side.guid
+    local shortSideKey = "a"..tostring(#commandMerimackAIArray + 1)
+    local attributes = InitializeAIAttributes(options)
+
     -- Main Node Sequence
-    local merimackSelector = BT:make(BT.select,sideGuid,shortSideKey)
+    local merimackSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
 
     -- Doctrine Sequences
-    local offensiveDoctrineSequence = BT:make(BT.sequence,sideGuid,shortSideKey)
-    local defensiveDoctrineSequence = BT:make(BT.sequence,sideGuid,shortSideKey)
+    local offensiveDoctrineSequence = BT:make(BT.sequence,sideGuid,shortSideKey,attributes)
+    local defensiveDoctrineSequence = BT:make(BT.sequence,sideGuid,shortSideKey,attributes)
 
     -- Doctrine Sequences Children
-    local offensiveDoctrineConditionalBT = BT:make(OffensiveConditionalCheck,sideGuid,shortSideKey)
-    local defensiveDoctrineConditionalBT = BT:make(DefensiveConditionalCheck,sideGuid,shortSideKey)
-    local offensiveDoctrineSeletor = BT:make(BT.select,sideGuid,shortSideKey)
-    local defensiveDoctrineSeletor = BT:make(BT.select,sideGuid,shortSideKey)
+    local offensiveDoctrineConditionalBT = BT:make(OffensiveConditionalCheck,sideGuid,shortSideKey,attributes)
+    local defensiveDoctrineConditionalBT = BT:make(DefensiveConditionalCheck,sideGuid,shortSideKey,attributes)
+    local offensiveDoctrineSeletor = BT:make(BT.select,sideGuid,shortSideKey,attributes)
+    local defensiveDoctrineSeletor = BT:make(BT.select,sideGuid,shortSideKey,attributes)
 
     -- Sub Doctrine Sequences
-    local reconDoctrineSelector = BT:make(BT.select,sideGuid,shortSideKey)
-    local attackDoctrineSelector = BT:make(BT.select,sideGuid,shortSideKey)
-    local defendDoctrineSelector = BT:make(BT.select,sideGuid,shortSideKey)
-    local supportTankerDoctrineSelector = BT:make(BT.select,sideGuid,shortSideKey)
-    local supportAEWDoctrineSelector = BT:make(BT.select,sideGuid,shortSideKey)
+    local reconDoctrineSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
+    local attackDoctrineSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
+    local defendDoctrineSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
+    local supportTankerDoctrineSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
+    local supportAEWDoctrineSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
 
     -- Recon Doctrine BT
-    local reconDoctrineUpdateMissionBT = BT:make(ReconDoctrineUpdateMissionAction,sideGuid,shortSideKey)
-    local reconDoctrineCreateMissionBT = BT:make(ReconDoctrineCreateMissionAction,sideGuid,shortSideKey)
+    local reconDoctrineUpdateMissionBT = BT:make(ReconDoctrineUpdateMissionAction,sideGuid,shortSideKey,attributes)
+    local reconDoctrineCreateMissionBT = BT:make(ReconDoctrineCreateMissionAction,sideGuid,shortSideKey,attributes)
 
     -- Attack Doctrine BT
-    local attackDoctrineUpdateAirMissionBT = BT:make(AttackDoctrineUpdateAirMissionAction,sideGuid,shortSideKey)
-    local attackDoctrineCreateAirMissionBT = BT:make(AttackDoctrineCreateAirMissionAction,sideGuid,shortSideKey)
-    local attackDoctrineCreateAntiSurfaceShipMissionBT = BT:make(AttackDoctrineCreateAntiSurfaceShipMissionAction,sideGuid,shortSideKey)
-    local attackDoctrineUpdateAntiSurfaceShipMissionBT = BT:make(AttackDoctrineUpdateAntiSurfaceShipMissionAction,sideGuid,shortSideKey)
-    local attackDoctrineCreateSeadMissionBT = BT:make(AttackDoctrineCreateSeadMissionAction,sideGuid,shortSideKey)
-    local attackDoctrineUpdateSeadMissionBT = BT:make(AttackDoctrineUpdateSeadMissionAction,sideGuid,shortSideKey)
-    local attackDoctrineCreateLandAttackMissionBT = BT:make(AttackDoctrineCreateLandAttackMissionAction,sideGuid,shortSideKey)
-    local attackDoctrineUpdateLandAttackMissionBT = BT:make(AttackDoctrineUpdateLandAttackMissionAction,sideGuid,shortSideKey)
+    local attackDoctrineUpdateAirMissionBT = BT:make(AttackDoctrineUpdateAirMissionAction,sideGuid,shortSideKey,attributes)
+    local attackDoctrineCreateAirMissionBT = BT:make(AttackDoctrineCreateAirMissionAction,sideGuid,shortSideKey,attributes)
+    local attackDoctrineCreateAntiSurfaceShipMissionBT = BT:make(AttackDoctrineCreateAntiSurfaceShipMissionAction,sideGuid,shortSideKey,attributes)
+    local attackDoctrineUpdateAntiSurfaceShipMissionBT = BT:make(AttackDoctrineUpdateAntiSurfaceShipMissionAction,sideGuid,shortSideKey,attributes)
+    local attackDoctrineCreateSeadMissionBT = BT:make(AttackDoctrineCreateSeadMissionAction,sideGuid,shortSideKey,attributes)
+    local attackDoctrineUpdateSeadMissionBT = BT:make(AttackDoctrineUpdateSeadMissionAction,sideGuid,shortSideKey,attributes)
+    local attackDoctrineCreateLandAttackMissionBT = BT:make(AttackDoctrineCreateLandAttackMissionAction,sideGuid,shortSideKey,attributes)
+    local attackDoctrineUpdateLandAttackMissionBT = BT:make(AttackDoctrineUpdateLandAttackMissionAction,sideGuid,shortSideKey,attributes)
 
     -- Defend Doctrine BT
-    local defendDoctrineUpdateAirMissionBT = BT:make(DefendDoctrineUpdateAirMissionAction,sideGuid,shortSideKey)
-    local defendDoctrineCreateAirMissionBT = BT:make(DefendDoctrineCreateAirMissionAction,sideGuid,shortSideKey)
+    local defendDoctrineUpdateAirMissionBT = BT:make(DefendDoctrineUpdateAirMissionAction,sideGuid,shortSideKey,attributes)
+    local defendDoctrineCreateAirMissionBT = BT:make(DefendDoctrineCreateAirMissionAction,sideGuid,shortSideKey,attributes)
 
     -- Support Tanker Doctrine BT
-    local supportTankerDoctrineUpdateMissionBT = BT:make(SupportTankerDoctrineCreateMissionAction,sideGuid,shortSideKey)
-    local supportTankerDoctrineCreateMissionBT = BT:make(SupportTankerDoctrineUpdateMissionAction,sideGuid,shortSideKey)
+    local supportTankerDoctrineUpdateMissionBT = BT:make(SupportTankerDoctrineCreateMissionAction,sideGuid,shortSideKey,attributes)
+    local supportTankerDoctrineCreateMissionBT = BT:make(SupportTankerDoctrineUpdateMissionAction,sideGuid,shortSideKey,attributes)
 
     -- Support AEW Doctrine BT
-    local supportAEWDoctrineUpdateMissionBT = BT:make(SupportAEWDoctrineCreateMissionAction,sideGuid,shortSideKey)
-    local supportAEWDoctrineCreateMissionBT = BT:make(SupportAEWDoctrineUpdateMissionAction,sideGuid,shortSideKey)
+    local supportAEWDoctrineUpdateMissionBT = BT:make(SupportAEWDoctrineCreateMissionAction,sideGuid,shortSideKey,attributes)
+    local supportAEWDoctrineCreateMissionBT = BT:make(SupportAEWDoctrineUpdateMissionAction,sideGuid,shortSideKey,attributes)
 
     -- Build AI Tree
     merimackSelector:addChild(offensiveDoctrineSequence)
@@ -2511,20 +2630,20 @@ function InitializeMerimackMonitorAI(sideGuid,shortSideKey)
     supportAEWDoctrineSelector:addChild(supportAEWDoctrineCreateMissionBT)
 
     -- Setup Monitor AI
-    local monitorSelector = BT:make(BT.select,sideGuid,shortSideKey)
+    local monitorSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
 
     -- Monitor No Fly Zones BT
-    local monitorSAMNoNavSelector = BT:make(BT.select,sideGuid,shortSideKey)
-    local monitorUpdateSAMNoNavZonesBT = BT:make(MonitorUpdateSAMNoNavZonesAction,sideGuid,shortSideKey)
-    local monitorCreateSAMNoNavZonesBT = BT:make(MonitorCreateSAMNoNavZonesAction,sideGuid,shortSideKey)
+    local monitorSAMNoNavSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
+    local monitorUpdateSAMNoNavZonesBT = BT:make(MonitorUpdateSAMNoNavZonesAction,sideGuid,shortSideKey,attributes)
+    local monitorCreateSAMNoNavZonesBT = BT:make(MonitorCreateSAMNoNavZonesAction,sideGuid,shortSideKey,attributes)
     
-    local monitorShipNoNavSelector = BT:make(BT.select,sideGuid,shortSideKey)
-    local monitorUpdateShipNoNavZonesBT = BT:make(MonitorUpdateShipNoNavZonesAction,sideGuid,shortSideKey)
-    local monitorCreateShipNoNavZonesBT = BT:make(MonitorCreateShipNoNavZonesAction,sideGuid,shortSideKey)
+    local monitorShipNoNavSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
+    local monitorUpdateShipNoNavZonesBT = BT:make(MonitorUpdateShipNoNavZonesAction,sideGuid,shortSideKey,attributes)
+    local monitorCreateShipNoNavZonesBT = BT:make(MonitorCreateShipNoNavZonesAction,sideGuid,shortSideKey,attributes)
 
-    local monitorAirNoNavSelector = BT:make(BT.select,sideGuid,shortSideKey)
-    local monitorUpdateAirNoNavZonesBT = BT:make(MonitorUpdateAirNoNavZonesAction,sideGuid,shortSideKey)
-    local monitorCreateAirNoNavZonesBT = BT:make(MonitorCreateAirNoNavZonesAction,sideGuid,shortSideKey)
+    local monitorAirNoNavSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
+    local monitorUpdateAirNoNavZonesBT = BT:make(MonitorUpdateAirNoNavZonesAction,sideGuid,shortSideKey,attributes)
+    local monitorCreateAirNoNavZonesBT = BT:make(MonitorCreateAirNoNavZonesAction,sideGuid,shortSideKey,attributes)
 
     -- Setup Monitor
     monitorSelector:addChild(monitorSAMNoNavSelector)
@@ -2561,5 +2680,4 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 -- Global Call
 --------------------------------------------------------------------------------------------------------------------------------
-local sideOption = ScenEdit_GetSideOptions({side="Blue Force"})
-InitializeMerimackMonitorAI(sideOption.guid,"a")
+InitializeMerimackMonitorAI("Blue Force",{preset="Grant",options={aggressive=5,defensive=5,cunning=5,direct=5,determined=5,reserved=5})
