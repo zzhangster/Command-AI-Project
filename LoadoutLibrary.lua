@@ -330,5 +330,3 @@ ScenEdit_SetKeyValue("lo_19950","fig")
 ScenEdit_SetKeyValue("lo_19951","fig")
 ScenEdit_SetKeyValue("lo_19954","sfig")
 ScenEdit_SetKeyValue("lo_19955","sfig")
-
-
