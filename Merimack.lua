@@ -408,6 +408,40 @@ function DetermineThreatRangeByUnitDatabaseId(sideGuid,contactGuid)
     return range
 end
 
+function DetermineUnitsToAssign(sideName,missionGuid,totalRequiredUnits,unitGuidList)
+    -- Local Values
+    local mission = ScenEdit_GetMission(sideName,missionGuid)
+
+    -- Loop Through Mission Unit Lists And Unassign RTB Units
+    for k,v in pairs(mission.unitlist) do
+        local unit = ScenEdit_GetUnit({side=sideName, guid=v})
+        if unit.RTB then
+            local mockMission = ScenEdit_AddMission(sideName,"MOCK MISSION",'strike',{type='land'})
+            ScenEdit_AssignUnitToMission(unit.guid, mockMission.guid)            
+            ScenEdit_DeleteMission(sideName,mockMission.guid)
+            unt.RTB = true
+        end
+    end
+
+    -- Get Units Left To Assign
+    totalRequiredUnits = totalRequiredUnits - #mission.unitlist
+
+    -- Assign Up to Total Required Units
+    for k,v in pairs(unitGuidList) do
+        -- Condition Check
+        if totalRequiredUnits <= 0 then
+            break
+        end
+
+        -- Check Unit And Assign
+        local unit = ScenEdit_GetUnit({side=sideName, guid=v})
+        if unit.RTB != true then
+            totalRequiredUnits = totalRequiredUnits - 1
+            ScenEdit_AssignUnitToMission(v,mission.guid)
+        end
+    end
+end
+
 --------------------------------------------------------------------------------------------------------------------------------
 -- Get Constant GUID Functions
 --------------------------------------------------------------------------------------------------------------------------------
@@ -1315,24 +1349,13 @@ function ReconDoctrineCreateMissionAction(args)
     end
 
     -- Create Recon Mission
-    local reconMission = ScenEdit_AddMission(side.name,args.shortKey.."_rec_miss_"..tostring(missionNumber),"patrol",{type="naval",zone={rp1.name,rp2.name,rp3.name,rp4.name}})
+    local createdMission = ScenEdit_AddMission(side.name,args.shortKey.."_rec_miss_"..tostring(missionNumber),"patrol",{type="naval",zone={rp1.name,rp2.name,rp3.name,rp4.name}})
 
-    -- Assign Units To Recon Mission
-    local totalReconUnitsToAssign = 1
-    local numberOfReconToAssign = #totalFreeInventory
-
-    -- Recon and Uav To Assign
-    if numberOfReconToAssign > totalReconUnitsToAssign then
-        numberOfReconToAssign = totalReconUnitsToAssign
-    end
-
-    -- Assign Up to numberOfReconToAssign
-    for i = 1,numberOfReconToAssign do
-        ScenEdit_AssignUnitToMission(totalFreeInventory[i],reconMission.guid)
-    end
+    -- Determine Units To Assign
+    DetermineUnitsToAssign(side.name,createdMission.guid,1,totalFreeInventory)
 
     -- Add Guid
-    AddGUID(args.shortKey.."_rec_miss",reconMission.name)
+    AddGUID(args.shortKey.."_rec_miss",createdMission.name)
     
     -- Return True
     return true
@@ -1400,6 +1423,9 @@ function ReconDoctrineUpdateMissionAction(args)
             ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_3", lat=rp3rp4mid.latitude, lon=rp3rp4mid.longitude})
             ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_4", lat=aoPoints[4].latitude, lon=aoPoints[4].longitude})
         end
+        
+        -- Determine Units To Assign
+        DetermineUnitsToAssign(side.name,updatedMission.guid,1,totalFreeBusyInventory)
 
         -- Find Contact Close To Unit And Evade
         if #updatedMission.unitlist > 0 then
@@ -1412,17 +1438,6 @@ function ReconDoctrineUpdateMissionAction(args)
         	else
             	ScenEdit_SetDoctrine({side=side.name,unitname=supportUnit.name},{ignore_plotted_course = "yes" })
         	end
-        end
-
-        -- Recon and Uav To Assign
-        totalReconUnitsToAssign = totalReconUnitsToAssign - #updatedMission.unitlist
-        if numberOfReconToAssign > totalReconUnitsToAssign then
-            numberOfReconToAssign = totalReconUnitsToAssign
-        end
-
-        -- Assign Up to numberOfReconToAssign
-        for i = 1,numberOfReconToAssign do
-            ScenEdit_AssignUnitToMission(totalFreeBusyInventory[i],updatedMission.guid)
         end
     end
 
@@ -1443,7 +1458,6 @@ function AttackDoctrineCreateAirMissionAction(args)
     local totalFreeInventory = GetTotalFreeAirFighterInventory(args.shortKey)
     local totalHostileContacts = GetHostileAirContacts(args.shortKey)
     local totalAirUnitsToAssign = GetHostileAirContactsStrength(args.shortKey)
-    local numberOfAirToAssign = #totalFreeInventory
     local missionNumber = 1
     local rp1,rp2,rp3,rp4 = ""
     local hostileContactCoordinates = {}
@@ -1468,15 +1482,8 @@ function AttackDoctrineCreateAirMissionAction(args)
     createdMission = ScenEdit_AddMission(side.name,args.shortKey.."_aaw_miss_"..tostring(missionNumber),"patrol",{type="aaw",zone={rp1.name,rp2.name,rp3.name,rp4.name}})
     ScenEdit_SetMission(side.name,createdMission.name,{checkOPA=false,checkWWR=true,activeEMCON=true,oneThirdRule=false,flightSize=2,useFlightSize=false})
 
-    -- Units To Assign
-    if numberOfAirToAssign > totalAirUnitsToAssign then
-        numberOfAirToAssign = totalAirUnitsToAssign
-    end
-
-    -- Assign Up to numberOfAirToAssign
-    for i = 1,numberOfAirToAssign do
-        ScenEdit_AssignUnitToMission(totalFreeInventory[i],createdMission.guid)
-    end
+    -- Determine Units To Assign
+    DetermineUnitsToAssign(side.name,createdMission.guid,totalAirUnitsToAssign,totalFreeInventory)
 
     -- Add Guid
     AddGUID(args.shortKey.."_aaw_miss",createdMission.name)
@@ -1497,7 +1504,6 @@ function AttackDoctrineUpdateAirMissionAction(args)
     local updatedMission = {}
     local missionNumber = 1
     local totalAAWUnitsToAssign = GetHostileAirContactsStrength(args.shortKey)
-    local numberOfAAWToAssign = #totalFreeBusyInventory
 
     -- Condition Check
     if #totalFreeBusyInventory == 0 or #missions == 0 or (currentTime - lastTimeStamp) < 3 * 60 then
@@ -1514,16 +1520,8 @@ function AttackDoctrineUpdateAirMissionAction(args)
     ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_miss_"..tostring(missionNumber).."_rp_3", lat=hostileContactBoundingBox[3].latitude, lon=hostileContactBoundingBox[3].longitude})
     ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_miss_"..tostring(missionNumber).."_rp_4", lat=hostileContactBoundingBox[4].latitude, lon=hostileContactBoundingBox[4].longitude})
 
-    -- Units To Assign
-    totalAAWUnitsToAssign = totalAAWUnitsToAssign - #updatedMission.unitlist
-    if numberOfAAWToAssign > totalAAWUnitsToAssign then
-        numberOfAAWToAssign = totalAAWUnitsToAssign
-    end
-
-    -- Assign Up To
-    for i = 1,numberOfAAWToAssign do
-        ScenEdit_AssignUnitToMission(totalFreeBusyInventory[i],updatedMission.guid)
-    end
+    -- Determine Units To Assign
+    DetermineUnitsToAssign(side.name,updatedMission.guid,totalAAWUnitsToAssign,totalFreeBusyInventory)
 
     -- Find Area And Retreat Point
     local missionUnits = GetGroupLeadsAndIndividualsFromMission(side.name,updatedMission.guid)
@@ -1553,7 +1551,6 @@ function AttackDoctrineCreateStealthAirMissionAction(args)
     local totalFreeInventory = GetFreeAirStealthInventory(args.shortKey)
     local totalHostileContacts = GetHostileAirContacts(args.shortKey)
     local totalAirUnitsToAssign = GetHostileAirContactsStrength(args.shortKey)
-    local numberOfAirToAssign = #totalFreeInventory
     local missionNumber = 1
     local rp1,rp2,rp3,rp4 = ""
     local hostileContactCoordinates = {}
@@ -1574,15 +1571,8 @@ function AttackDoctrineCreateStealthAirMissionAction(args)
     createdMission = ScenEdit_AddMission(side.name,args.shortKey.."_saaw_miss_"..tostring(missionNumber),"patrol",{type="aaw",zone=linkedMission.patrolmission.patrolZone})
     ScenEdit_SetMission(side.name,createdMission.name,{checkOPA=false,checkWWR=true,activeEMCON=true,oneThirdRule=false,flightSize=2,useFlightSize=false})
 
-    -- Recon and Uav To Assign
-    if numberOfAirToAssign > totalAirUnitsToAssign then
-        numberOfAirToAssign = totalAirUnitsToAssign
-    end
-
-    -- Assign Up to numberOfAirToAssign
-    for i = 1,numberOfAirToAssign do
-        ScenEdit_AssignUnitToMission(totalFreeInventory[i],createdMission.guid)
-    end
+    -- Determine Units To Assign
+    DetermineUnitsToAssign(side.name,createdMission.guid,totalAirUnitsToAssign,totalFreeInventory)
 
     -- Add Guid And Add Time Stamp
     AddGUID(args.shortKey.."_saaw_miss",createdMission.name)
@@ -1605,7 +1595,6 @@ function AttackDoctrineUpdateStealthAirMissionAction(args)
     local linkedMission = {}
     local missionNumber = 1
     local totalAAWUnitsToAssign = GetHostileAirContactsStrength(args.shortKey)
-    local numberOfAAWToAssign = #totalFreeBusyInventory
 
     -- Condition Check
     if #totalFreeBusyInventory == 0 or #missions == 0 or (currentTime - lastTimeStamp) < 3 * 60 then
@@ -1613,19 +1602,12 @@ function AttackDoctrineUpdateStealthAirMissionAction(args)
     end
 
     -- Get Linked Mission
+    updatedMission = missions[1]
     linkedMission = ScenEdit_GetMission(side.name,linkedMissions[1])
     totalAAWUnitsToAssign = math.ceil(#(linkedMission.unitlist)/4)
 
-    -- Recon and Uav To Assign
-    totalAAWUnitsToAssign = totalAAWUnitsToAssign - #updatedMission.unitlist
-    if numberOfAAWToAssign > totalAAWUnitsToAssign then
-        numberOfAAWToAssign = totalAAWUnitsToAssign
-    end
-
-    -- Assign Up to numberOfReconToAssign
-    for i = 1,numberOfAAWToAssign do
-        ScenEdit_AssignUnitToMission(totalFreeBusyInventory[i],updatedMission.guid)
-    end
+    -- Determine Units To Assign
+    DetermineUnitsToAssign(side.name,updatedMission.guid,totalAAWUnitsToAssign,totalFreeBusyInventory)
 
     -- Find Area And Retreat Point
     local missionUnits = GetGroupLeadsAndIndividualsFromMission(side.name,updatedMission.guid)
@@ -1647,6 +1629,88 @@ function AttackDoctrineUpdateStealthAirMissionAction(args)
     return false
 end
 
+function AttackDoctrineCreateAEWMissionAction(args)
+    -- Local Values
+    local side = VP_GetSide({guid=args.guid})
+    local missions = GetGUID(args.shortKey.."_aaew_miss")
+    local linkedMissions = GetGUID(args.shortKey.."_aaw_miss")
+    local totalFreeInventory = GetFreeAirAEWInventory(args.shortKey)
+    local totalHostileContacts = GetHostileAirContacts(args.shortKey)
+    local missionNumber = 1
+    local rp1,rp2,rp3,rp4 = ""
+    local hostileContactCoordinates = {}
+    local hostileContactBoundingBox = {}
+    local createdMission = {}
+    local linkedMission = {}
+
+    -- Condition Check
+    if #missions > 0 or #linkedMissions == 0 or #totalFreeInventory == 0 or GetHostileAirContactsStrength(args.shortKey) == 0 then
+        return false
+    end
+
+	-- Get Linked Mission
+    linkedMission = ScenEdit_GetMission(side.name,linkedMissions[1])
+
+    -- Create Mission
+    createdMission = ScenEdit_AddMission(side.name,args.shortKey.."_aaew_miss_"..tostring(missionNumber),"patrol",{type="aaw",zone=linkedMission.patrolmission.patrolZone})
+    ScenEdit_SetMission(side.name,createdMission.name,{checkOPA=false,checkWWR=true,activeEMCON=true,oneThirdRule=false,flightSize=2,useFlightSize=false})
+    
+    -- Determine Units To Assign
+    DetermineUnitsToAssign(side.name,createdMission.guid,1,totalFreeInventory)
+
+    -- Add Guid And Add Time Stamp
+    AddGUID(args.shortKey.."_aaew_miss",createdMission.name)
+
+    -- Return True For Mission Created
+    return true
+end
+
+function AttackDoctrineUpdateAEWAirMissionAction(args)
+    -- Locals
+    local side = VP_GetSide({guid=args.guid})
+    local missions = GetGUID(args.shortKey.."_aaew_miss")
+    local linkedMissions = GetGUID(args.shortKey.."_aaw_miss")
+    local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
+    local totalFreeBusyInventory = GetTotalFreeBusyAEWInventory(args.shortKey)
+    local currentTime = ScenEdit_CurrentTime()
+    local lastTimeStamp = GetTimeStampForGUID(args.shortKey.."_aaew_miss_ts")
+    local totalHostileContacts = GetHostileAirContacts(args.shortKey)
+    local updatedMission = {}
+    local linkedMission = {}
+    local missionNumber = 1
+
+    -- Condition Check
+    if #totalFreeBusyInventory == 0 or #missions == 0 or (currentTime - lastTimeStamp) < 3 * 60 then
+        return false
+    end
+
+    -- Get Linked Mission
+    updatedMission = missions[1]
+    linkedMission = ScenEdit_GetMission(side.name,linkedMissions[1])
+
+    -- Determine Units To Assign
+    DetermineUnitsToAssign(side.name,updatedMission.guid,1,totalFreeBusyInventory)
+
+    -- Find Area And Retreat Point
+    local missionUnits = GetGroupLeadsAndIndividualsFromMission(side.name,updatedMission.guid)
+    for k,v in pairs(missionUnits) do
+        local missionUnit = ScenEdit_GetUnit({side=side.name, guid=v})
+        local unitRetreatPoint = GetAllNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,180)
+        if unitRetreatPoint ~= nil then
+            ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "no" })
+            missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
+        else
+            ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "yes" })
+        end
+    end
+
+    -- Add Guid And Add Time Stamp
+    SetTimeStampForGUID(args.shortKey.."_aaew_miss_ts",tostring(ScenEdit_CurrentTime()))
+
+    -- Return False
+    return false
+end
+
 function AttackDoctrineCreateAntiSurfaceShipMissionAction(args)
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
@@ -1655,7 +1719,6 @@ function AttackDoctrineCreateAntiSurfaceShipMissionAction(args)
     local totalFreeInventory = GetFreeAirASuWInventory(args.shortKey)
     local totalHostileContacts = GetHostileSurfaceShipContacts(args.shortKey)
     local totalAirUnitsToAssign = GetHostileSurfaceShipContactsStrength(args.shortKey) * 4
-    local numberOfAirToAssign = #totalFreeInventory
     local missionNumber = 1
     local rp1,rp2,rp3,rp4 = ""
     local hostileContactCoordinates = {}
@@ -1680,15 +1743,8 @@ function AttackDoctrineCreateAntiSurfaceShipMissionAction(args)
     createdMission = ScenEdit_AddMission(side.name,args.shortKey.."_asuw_miss_"..tostring(missionNumber),"patrol",{type="naval",zone={rp1.name,rp2.name,rp3.name,rp4.name}})
     ScenEdit_SetMission(side.name,createdMission.name,{checkOPA=false,checkWWR=true,activeEMCON=true,oneThirdRule=false,flightSize=2,useFlightSize=false})
 
-    -- Recon and Uav To Assign
-    if numberOfAirToAssign > totalAirUnitsToAssign then
-        numberOfAirToAssign = totalAirUnitsToAssign
-    end
-
-    -- Assign Up to numberOfAirToAssign
-    for i = 1,numberOfAirToAssign do
-        ScenEdit_AssignUnitToMission(totalFreeInventory[i],createdMission.guid)
-    end
+    -- Determine Units To Assign
+    DetermineUnitsToAssign(side.name,createdMission.guid,totalAirUnitsToAssign,totalFreeInventory)
 
     -- Add Guid And Add Time Stamp
     AddGUID(args.shortKey.."_asuw_miss",createdMission.name)
@@ -1709,7 +1765,6 @@ function AttackDoctrineUpdateAntiSurfaceShipMissionAction(args)
     local updatedMission = {}
     local missionNumber = 1
     local totalAAWUnitsToAssign = GetHostileSurfaceShipContactsStrength(args.shortKey) * 4
-    local numberOfAAWToAssign = #totalFreeBusyInventory
 
     -- Condition Check
     if #totalFreeBusyInventory == 0 or #missions == 0 or (currentTime - lastTimeStamp) < 3 * 60 then
@@ -1726,16 +1781,8 @@ function AttackDoctrineUpdateAntiSurfaceShipMissionAction(args)
     ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_asuw_miss_"..tostring(missionNumber).."_rp_3", lat=hostileContactBoundingBox[3].latitude, lon=hostileContactBoundingBox[3].longitude})
     ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_asuw_miss_"..tostring(missionNumber).."_rp_4", lat=hostileContactBoundingBox[4].latitude, lon=hostileContactBoundingBox[4].longitude})
 
-    -- Recon and Uav To Assign
-    totalAAWUnitsToAssign = totalAAWUnitsToAssign - #updatedMission.unitlist
-    if numberOfAAWToAssign > totalAAWUnitsToAssign then
-        numberOfAAWToAssign = totalAAWUnitsToAssign
-    end
-
-    -- Assign Up to numberOfReconToAssign
-    for i = 1,numberOfAAWToAssign do
-        ScenEdit_AssignUnitToMission(totalFreeBusyInventory[i],updatedMission.guid)
-    end
+    -- Determine Units To Assign
+    DetermineUnitsToAssign(side.name,updatedMission.guid,totalAAWUnitsToAssign,totalFreeBusyInventory)
 
     -- Find Area And Return Point
     local missionUnits = GetGroupLeadsAndIndividualsFromMission(side.name,updatedMission.guid)
@@ -1765,7 +1812,6 @@ function AttackDoctrineCreateSeadMissionAction(args)
     local totalFreeInventory = GetFreeAirSeadInventory(args.shortKey)
     local totalHostileContacts = GetHostileSAMContacts(args.shortKey)
     local totalAirUnitsToAssign = GetHostileSAMContactsStrength(args.shortKey) * 4
-    local numberOfAirToAssign = #totalFreeInventory
     local missionNumber = 1
     local rp1,rp2,rp3,rp4 = ""
     local hostileContactCoordinates = {}
@@ -1790,15 +1836,8 @@ function AttackDoctrineCreateSeadMissionAction(args)
     createdMission = ScenEdit_AddMission(side.name,args.shortKey.."_sead_miss_"..tostring(missionNumber),"patrol",{type="sead",zone={rp1.name,rp2.name,rp3.name,rp4.name}})
     ScenEdit_SetMission(side.name,createdMission.name,{checkOPA=false,checkWWR=true,activeEMCON=true,oneThirdRule=false,flightSize=2,useFlightSize=false})
 
-    -- Recon and Uav To Assign
-    if numberOfAirToAssign > totalAirUnitsToAssign then
-        numberOfAirToAssign = totalAirUnitsToAssign
-    end
-
-    -- Assign Up to numberOfAirToAssign
-    for i = 1,numberOfAirToAssign do
-        ScenEdit_AssignUnitToMission(totalFreeInventory[i],createdMission.guid)
-    end
+    -- Determine Units To Assign
+    DetermineUnitsToAssign(side.name,createdMission.guid,totalAirUnitsToAssign,totalFreeInventory)
 
     -- Add Guid
     AddGUID(args.shortKey.."_sead_miss",createdMission.name)
@@ -1817,7 +1856,6 @@ function AttackDoctrineUpdateSeadMissionAction(args)
     local updatedMission = {}
     local missionNumber = 1
     local totalAAWUnitsToAssign = GetHostileSAMContactsStrength(args.shortKey) * 4
-    local numberOfAAWToAssign = #totalFreeBusyInventory
     -- Times
     local currentTime = ScenEdit_CurrentTime()
     local lastTimeStamp = GetTimeStampForGUID(args.shortKey.."_sead_miss_ts")
@@ -1837,16 +1875,8 @@ function AttackDoctrineUpdateSeadMissionAction(args)
     ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_sead_miss_"..tostring(missionNumber).."_rp_3", lat=hostileContactBoundingBox[3].latitude, lon=hostileContactBoundingBox[3].longitude})
     ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_sead_miss_"..tostring(missionNumber).."_rp_4", lat=hostileContactBoundingBox[4].latitude, lon=hostileContactBoundingBox[4].longitude})
 
-    -- Recon and Uav To Assign
-    totalAAWUnitsToAssign = totalAAWUnitsToAssign - #updatedMission.unitlist
-    if numberOfAAWToAssign > totalAAWUnitsToAssign then
-        numberOfAAWToAssign = totalAAWUnitsToAssign
-    end
-
-    -- Assign Up to numberOfReconToAssign
-    for i = 1,numberOfAAWToAssign do
-        ScenEdit_AssignUnitToMission(totalFreeBusyInventory[i],updatedMission.guid)
-    end
+    -- Determine Units To Assign
+    DetermineUnitsToAssign(side.name,updatedMission.guid,totalAAWUnitsToAssign,totalFreeBusyInventory)
 
     -- Find Area And Return Point
     local missionUnits = GetGroupLeadsAndIndividualsFromMission(side.name,updatedMission.guid)
@@ -1876,7 +1906,6 @@ function AttackDoctrineCreateLandAttackMissionAction(args)
     local totalFreeInventory = GetFreeAirAttackInventory(args.shortKey)
     local totalHostileContacts = GetHostileLandContacts(args.shortKey)
     local totalAirUnitsToAssign = GetHostileLandContactsStrength(args.shortKey) * 2
-    local numberOfAirToAssign = #totalFreeInventory
     local missionNumber = 1
     local rp1,rp2,rp3,rp4 = ""
     local hostileContactCoordinates = {}
@@ -1901,15 +1930,8 @@ function AttackDoctrineCreateLandAttackMissionAction(args)
     createdMission = ScenEdit_AddMission(side.name,args.shortKey.."_land_miss_"..tostring(missionNumber),"patrol",{type="land",zone={rp1.name,rp2.name,rp3.name,rp4.name}})
     ScenEdit_SetMission(side.name,createdMission.name,{checkOPA=false,checkWWR=true,activeEMCON=true,oneThirdRule=false,flightSize=2,useFlightSize=false})
 
-    -- Recon and Uav To Assign
-    if numberOfAirToAssign > totalAirUnitsToAssign then
-        numberOfAirToAssign = totalAirUnitsToAssign
-    end
-
-    -- Assign Up to numberOfAirToAssign
-    for i = 1,numberOfAirToAssign do
-        ScenEdit_AssignUnitToMission(totalFreeInventory[i],createdMission.guid)
-    end
+    -- Determine Units To Assign
+    DetermineUnitsToAssign(side.name,createdMission.guid,totalAirUnitsToAssign,totalFreeInventory)
 
     -- Add Guid
     AddGUID(args.shortKey.."_land_miss",createdMission.name)
@@ -1928,7 +1950,6 @@ function AttackDoctrineUpdateLandAttackMissionAction(args)
     local updatedMission = {}
     local missionNumber = 1
     local totalAAWUnitsToAssign = GetHostileLandContactsStrength(args.shortKey) * 2
-    local numberOfAAWToAssign = #totalFreeBusyInventory
     -- Times
     local currentTime = ScenEdit_CurrentTime()
     local lastTimeStamp = GetTimeStampForGUID(args.shortKey.."_land_miss_ts")
@@ -1948,16 +1969,8 @@ function AttackDoctrineUpdateLandAttackMissionAction(args)
     ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_land_miss_"..tostring(missionNumber).."_rp_3", lat=hostileContactBoundingBox[3].latitude, lon=hostileContactBoundingBox[3].longitude})
     ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_land_miss_"..tostring(missionNumber).."_rp_4", lat=hostileContactBoundingBox[4].latitude, lon=hostileContactBoundingBox[4].longitude})
 
-    -- Recon and Uav To Assign
-    totalAAWUnitsToAssign = totalAAWUnitsToAssign - #updatedMission.unitlist
-    if numberOfAAWToAssign > totalAAWUnitsToAssign then
-        numberOfAAWToAssign = totalAAWUnitsToAssign
-    end
-
-    -- Assign Up to numberOfReconToAssign
-    for i = 1,numberOfAAWToAssign do
-        ScenEdit_AssignUnitToMission(totalFreeBusyInventory[i],updatedMission.guid)
-    end
+    -- Determine Units To Assign
+    DetermineUnitsToAssign(side.name,updatedMission.guid,totalAAWUnitsToAssign,totalFreeBusyInventory)
 
     -- Find Area And Return Point
     local missionUnits = GetGroupLeadsAndIndividualsFromMission(side.name,updatedMission.guid)
@@ -1996,7 +2009,6 @@ function DefendDoctrineCreateAirMissionAction(args)
     local totalHVTs = GetGUID(args.shortKey.."_def_hvt")
     local coveredHVTs = GetGUID(args.shortKey.."_def_hvt_cov")
     local unitToDefend = nil
-    local numberOfAAWToAssign = #totalFreeInventory
     local totalAAWUnitsToAssign = 2
 
     -- Condition Check - If Covered HVT Exceeds Total HVT, Then Do Not Create More Defense Missions, Also Check Total FREE Inventory
@@ -2036,15 +2048,8 @@ function DefendDoctrineCreateAirMissionAction(args)
     createdMission = ScenEdit_AddMission(side.name,args.shortKey.."_aaw_d_miss_"..unitToDefend.guid,"patrol",{type="aaw",zone={rp1.name,rp2.name,rp3.name,rp4.name}})
     ScenEdit_SetMission(side.name,createdMission.name,{checkOPA=false,checkWWR=true,activeEMCON=true})
 
-    -- Recon and Uav To Assign
-    if numberOfAAWToAssign > totalAAWUnitsToAssign then
-        numberOfAAWToAssign = totalAAWUnitsToAssign
-    end
-
-    -- Assign Up to numberOfAirToAssign
-    for i = 1,numberOfAAWToAssign do
-        ScenEdit_AssignUnitToMission(totalFreeInventory[i],createdMission.guid)
-    end
+    -- Determine Units To Assign
+    DetermineUnitsToAssign(side.name,createdMission.guid,totalAAWUnitsToAssign,totalFreeInventory)
 
     -- Add Guid And Add Time Stamp
     AddGUID(args.shortKey.."_aaw_d_miss",createdMission.name)
@@ -2067,7 +2072,6 @@ function DefendDoctrineUpdateAirMissionAction(args)
     local totalFreeBusyInventory = GetTotalFreeBusyAirFighterInventory(args.shortKey)
     local totalHVTs = GetGUID(args.shortKey.."_def_hvt")
     local coveredHVTs = GetGUID(args.shortKey.."_def_hvt_cov")
-    local numberOfAAWToAssign = #totalFreeBusyInventory
     local totalAAWUnitsToAssign = 2
     local totalHostileContacts = GetHostileAirContacts(args.shortKey)
     -- Times
@@ -2099,23 +2103,15 @@ function DefendDoctrineUpdateAirMissionAction(args)
                 rp3 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVT.guid.."_rp_3", lat=defenseBoundingBox[3].latitude, lon=defenseBoundingBox[3].longitude})
                 rp4 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVT.guid.."_rp_4", lat=defenseBoundingBox[4].latitude, lon=defenseBoundingBox[4].longitude})
 
+                -- Determine Units To Assign
+                DetermineUnitsToAssign(side.name,updatedMission.guid,totalAAWUnitsToAssign,totalFreeBusyInventory)
+
                 -- Find Enemy Strength In Area
                 for k1, v1 in pairs(totalHostileContacts) do
                     local contact = ScenEdit_GetContact({side=side.name, guid=v1})
                     if contact:inArea({rp1.name,rp2.name,rp3.name,rp4.name}) then
                         totalAAWUnitsToAssign = totalAAWUnitsToAssign + 1
                     end
-                end
-                
-                -- Patrols To Assign
-                totalAAWUnitsToAssign = totalAAWUnitsToAssign - #updatedMission.unitlist
-                if numberOfAAWToAssign > totalAAWUnitsToAssign then
-                    numberOfAAWToAssign = totalAAWUnitsToAssign
-                end
-
-                -- Assign Up to numberOfReconToAssign
-                for i = 1,numberOfAAWToAssign do
-                    ScenEdit_AssignUnitToMission(totalFreeBusyInventory[i],updatedMission.guid)
                 end
             end
         end
@@ -2144,8 +2140,6 @@ function SupportTankerDoctrineCreateMissionAction(args)
     local totalFreeInventory = GetFreeAirTankerInventory(args.shortKey)
     local totalHVTs = GetGUID(args.shortKey.."_def_hvt")
     local coveredHVTs = GetGUID(args.shortKey.."_def_tan_hvt_cov")
-    local numberOfTankersToAssign = #totalFreeInventory
-    local totalTankerSupportUnitsToAssign = 1
     local totalHostileContacts = GetHostileAirContacts(args.shortKey)
     local unitToSupport = nil
 
@@ -2186,15 +2180,8 @@ function SupportTankerDoctrineCreateMissionAction(args)
     createdMission = ScenEdit_AddMission(side.name,args.shortKey.."_tan_sup_miss_"..unitToSupport.guid,"support",{zone={rp1.name,rp2.name,rp3.name,rp4.name}})
     ScenEdit_SetMission(side.name,createdMission.name,{activeEMCON=true})
 
-    -- Recon and Uav To Assign
-    if numberOfTankersToAssign > totalTankerSupportUnitsToAssign then
-        numberOfTankersToAssign = totalTankerSupportUnitsToAssign
-    end
-
-    -- Assign Up to numberOfAirToAssign
-    for i = 1,numberOfTankersToAssign do
-        ScenEdit_AssignUnitToMission(totalFreeInventory[i],createdMission.guid)
-    end
+    -- Determine Units To Assign
+    DetermineUnitsToAssign(side.name,createdMission.guid,1,totalFreeInventory)
 
     -- Add Guid And Add Time Stamp
     AddGUID(args.shortKey.."_tan_sup_miss",createdMission.name)
@@ -2217,8 +2204,6 @@ function SupportTankerDoctrineUpdateMissionAction(args)
     local totalBusyFreeInventory = GetTotalFreeBusyTankerInventory(args.shortKey)
     local totalHVTs = GetGUID(args.shortKey.."_def_hvt")
     local coveredHVTs = GetGUID(args.shortKey.."_def_tan_hvt_cov")
-    local numberOfTankersToAssign = #totalBusyFreeInventory
-    local totalTankerSupportUnitsToAssign = 1
     local totalHostileContacts = GetHostileAirContacts(args.shortKey)
     local totalHostilesInZone = 0
     -- Times
@@ -2241,6 +2226,9 @@ function SupportTankerDoctrineUpdateMissionAction(args)
 
             -- Check Defense Mission
             if updatedMission then
+                -- Determine Units To Assign
+                DetermineUnitsToAssign(side.name,updatedMission.guid,1,totalBusyFreeInventory)
+
                 -- Find Contact Close To Unit And Retreat If Necessary
                 local missionUnits = updatedMission.unitlist
                 for k,v in pairs(missionUnits) do
@@ -2252,17 +2240,6 @@ function SupportTankerDoctrineUpdateMissionAction(args)
                     else
                         ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "yes" })
                     end
-                end
-
-                -- If There's Hostile Unassign
-                totalTankerSupportUnitsToAssign = totalTankerSupportUnitsToAssign - #updatedMission.unitlist
-                if numberOfTankersToAssign > totalTankerSupportUnitsToAssign then
-                    numberOfTankersToAssign = totalTankerSupportUnitsToAssign
-                end
-
-                -- Assign Tankers
-                for i = 1,numberOfTankersToAssign do
-                    ScenEdit_AssignUnitToMission(totalBusyFreeInventory[i],updatedMission.guid)
                 end
             end
         end
@@ -2288,8 +2265,6 @@ function SupportAEWDoctrineCreateMissionAction(args)
     local totalFreeInventory = GetFreeAirAEWInventory(args.shortKey)
     local totalHVTs = GetGUID(args.shortKey.."_def_hvt")
     local coveredHVTs = GetGUID(args.shortKey.."_def_aew_hvt_cov")
-    local numberOfAEWToAssign = #totalFreeInventory
-    local totalAEWUnitsToAssign = 1
     local totalHostileContacts = GetHostileAirContacts(args.shortKey)
     local unitToSupport = nil
 
@@ -2330,17 +2305,10 @@ function SupportAEWDoctrineCreateMissionAction(args)
     createdMission = ScenEdit_AddMission(side.name,args.shortKey.."_aew_sup_miss_"..unitToSupport.guid,"support",{zone={rp1.name,rp2.name,rp3.name,rp4.name}})
     ScenEdit_SetMission(side.name,createdMission.name,{activeEMCON=true})
 
-    -- Recon and Uav To Assign
-    if numberOfAEWToAssign > totalAEWUnitsToAssign then
-        numberOfAEWToAssign = totalAEWUnitsToAssign
-    end
+    -- Determine Units To Assign
+    DetermineUnitsToAssign(side.name,createdMission.guid,1,totalFreeInventory)
 
-    -- Assign Up to numberOfAirToAssign
-    for i = 1,numberOfAEWToAssign do
-        local assignedUnit = ScenEdit_GetUnit({side=side.name, guid=totalFreeInventory[i]})
-        ScenEdit_SetEMCON("Unit",assignedUnit.guid,"Radar=Active")
-        ScenEdit_AssignUnitToMission(totalFreeInventory[i],createdMission.guid)
-    end
+    -- TODO Add EMCON
 
     -- Add Guid And Add Time Stamp
     AddGUID(args.shortKey.."_aew_sup_miss",createdMission.name)
@@ -2363,8 +2331,6 @@ function SupportAEWDoctrineUpdateMissionAction(args)
     local totalBusyFreeInventory = GetTotalFreeBusyAEWInventory(args.shortKey)
     local totalHVTs = GetGUID(args.shortKey.."_def_hvt")
     local coveredHVTs = GetGUID(args.shortKey.."_def_aew_hvt_cov")
-    local numberOfAEWToAssign = #totalBusyFreeInventory
-    local totalAEWSupportUnitsToAssign = 1
     local totalHostileContacts = GetHostileAirContacts(args.shortKey)
     local totalHostilesInZone = 0
     -- Times
@@ -2386,8 +2352,9 @@ function SupportAEWDoctrineUpdateMissionAction(args)
 
             -- Check Defense Mission
             if updatedMission then
-                -- Set Contact Bounding Box Variables
-                --defenseBoundingBox = FindBoundingBoxForGivenLocations({MakeLatLong(coveredHVT.latitude,coveredHVT.longitude)},1)
+                -- Determine Units To Assign
+                DetermineUnitsToAssign(side.name,updatedMission.guid,1,totalBusyFreeInventory)
+                -- TODO Add Active EMCON
 
                 -- Find Contact Close To Unit And Retreat If Necessary
                 local missionUnits = updatedMission.unitlist
@@ -2400,19 +2367,6 @@ function SupportAEWDoctrineUpdateMissionAction(args)
                     else
                         ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "yes" })
                     end
-                end
-
-                -- Patrols To Assign
-                totalAEWSupportUnitsToAssign = totalAEWSupportUnitsToAssign - #updatedMission.unitlist
-                if numberOfAEWToAssign > totalAEWSupportUnitsToAssign then
-                    numberOfAEWToAssign = totalAEWSupportUnitsToAssign
-                end
-
-                -- Assign AEW
-                for i = 1,numberOfAEWToAssign do
-                    local assignedUnit = ScenEdit_GetUnit({side=side.name, guid=totalBusyFreeInventory[i]})
-        			ScenEdit_SetEMCON("Unit",assignedUnit.guid,"Radar=Active")
-                    ScenEdit_AssignUnitToMission(totalBusyFreeInventory[i],updatedMission.guid)
                 end
             end
         end
@@ -2731,6 +2685,8 @@ function InitializeMerimackMonitorAI(sideName,options)
     local attackDoctrineCreateAirMissionBT = BT:make(AttackDoctrineCreateAirMissionAction,sideGuid,shortSideKey,attributes)
     local attackDoctrineUpdateStealthAirMissionBT = BT:make(AttackDoctrineUpdateStealthAirMissionAction,sideGuid,shortSideKey,attributes)
     local attackDoctrineCreateStealthAirMissionBT = BT:make(AttackDoctrineCreateStealthAirMissionAction,sideGuid,shortSideKey,attributes)
+    local attackDoctrineCreateAEWMissionBT = BT:make(AttackDoctrineCreateAEWMissionAction,sideGuid,shortSideKey,attributes)
+    local attackDoctrineUpdateAEWMissionBT = BT:make(AttackDoctrineUpdateAEWAirMissionAction,sideGuid,shortSideKey,attributes)
     local attackDoctrineCreateAntiSurfaceShipMissionBT = BT:make(AttackDoctrineCreateAntiSurfaceShipMissionAction,sideGuid,shortSideKey,attributes)
     local attackDoctrineUpdateAntiSurfaceShipMissionBT = BT:make(AttackDoctrineUpdateAntiSurfaceShipMissionAction,sideGuid,shortSideKey,attributes)
     local attackDoctrineCreateSeadMissionBT = BT:make(AttackDoctrineCreateSeadMissionAction,sideGuid,shortSideKey,attributes)
@@ -2783,6 +2739,8 @@ function InitializeMerimackMonitorAI(sideName,options)
     attackDoctrineSelector:addChild(attackDoctrineCreateAirMissionBT)
     attackDoctrineSelector:addChild(attackDoctrineUpdateStealthAirMissionBT)
     attackDoctrineSelector:addChild(attackDoctrineCreateStealthAirMissionBT)
+    attackDoctrineSelector:addChild(attackDoctrineUpdateAEWMissionBT)
+    attackDoctrineSelector:addChild(attackDoctrineCreateAEWMissionBT)
     attackDoctrineSelector:addChild(attackDoctrineUpdateAntiSurfaceShipMissionBT)
     attackDoctrineSelector:addChild(attackDoctrineCreateAntiSurfaceShipMissionBT)
     attackDoctrineSelector:addChild(attackDoctrineUpdateSeadMissionBT)
