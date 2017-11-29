@@ -415,11 +415,10 @@ function DetermineUnitsToAssign(sideName,missionGuid,totalRequiredUnits,unitGuid
     -- Loop Through Mission Unit Lists And Unassign RTB Units
     for k,v in pairs(mission.unitlist) do
         local unit = ScenEdit_GetUnit({side=sideName, guid=v})
-        if unit.RTB then
+        if unit.unitstate == "RTB" then
             local mockMission = ScenEdit_AddMission(sideName,"MOCK MISSION",'strike',{type='land'})
             ScenEdit_AssignUnitToMission(unit.guid, mockMission.guid)            
             ScenEdit_DeleteMission(sideName,mockMission.guid)
-            unt.RTB = true
         end
     end
 
@@ -432,13 +431,14 @@ function DetermineUnitsToAssign(sideName,missionGuid,totalRequiredUnits,unitGuid
         if totalRequiredUnits <= 0 then
             break
         end
-
         -- Check Unit And Assign
-        local unit = ScenEdit_GetUnit({side=sideName, guid=v})
-        if unit.RTB != true then
+        totalRequiredUnits = totalRequiredUnits - 1
+        ScenEdit_AssignUnitToMission(v,mission.guid)
+        --[[local unit = ScenEdit_GetUnit({side=sideName, guid=v})
+        if unit.unitstate ~= "RTB" then
             totalRequiredUnits = totalRequiredUnits - 1
             ScenEdit_AssignUnitToMission(v,mission.guid)
-        end
+        end]]--
     end
 end
 
@@ -995,7 +995,7 @@ function UpdateAIAreaOfOperations(sideGUID,sideShortKey)
     local lastTime = GetTimeStampForGUID(sideShortKey.."_ao_recalc_ts")
     
     -- Area Of Operation Points Check And Create Area Of Operation Points
-    if #aoPoints < 4 or (currentTime - lastTime) < 15 * 60 then 
+    if #aoPoints < 4 or (currentTime - lastTime) > 15 * 60 then 
     	-- Set Contact Bounding Box Variables
     	local hostileContacts = GetTotalHostileContacts(sideShortKey)
     	local inventory = GetTotalInventory(sideShortKey)
@@ -1219,6 +1219,7 @@ end
 
 function ResetInventoriesAndContacts(sideShortKey)
     -- Reset Inventory And Contacts
+    RemoveAllGUID(sideShortKey.."_non_unav")
     RemoveAllGUID(sideShortKey.."_def_hvt")
     RemoveAllGUID(sideShortKey.."_sfig_free")
     RemoveAllGUID(sideShortKey.."_sfig_busy")
@@ -1228,6 +1229,8 @@ function ResetInventoriesAndContacts(sideShortKey)
     RemoveAllGUID(sideShortKey.."_mul_busy")
     RemoveAllGUID(sideShortKey.."_atk_free")
     RemoveAllGUID(sideShortKey.."_atk_busy")
+    RemoveAllGUID(sideShortKey.."_sead_free")
+    RemoveAllGUID(sideShortKey.."_sead_busy")
     RemoveAllGUID(sideShortKey.."_aew_free")
     RemoveAllGUID(sideShortKey.."_aew_busy")
     RemoveAllGUID(sideShortKey.."_asw_free")
