@@ -422,12 +422,14 @@ function DetermineUnitsToAssign(sideName,missionGuid,totalRequiredUnits,unitGuid
 	    -- Loop Through Mission Unit Lists And Unassign RTB Units
 	    for k,v in pairs(mission.unitlist) do
 	        local unit = ScenEdit_GetUnit({side=sideName, guid=v})
-	        if unit.unitstate == "RTB" then
-	            local mockMission = ScenEdit_AddMission(sideName,"MOCK MISSION",'strike',{type='land'})
-	            ScenEdit_AssignUnitToMission(unit.guid, mockMission.guid)            
-                ScenEdit_DeleteMission(sideName,mockMission.guid)
-                ScenEdit_SetUnit({side=sideName,guid=unit.guid,RTB="Yes"})
-	        end
+	        if unit then
+		        if unit.unitstate == "RTB" then
+		            local mockMission = ScenEdit_AddMission(sideName,"MOCK MISSION",'strike',{type='land'})
+		            ScenEdit_AssignUnitToMission(unit.guid, mockMission.guid)            
+	                ScenEdit_DeleteMission(sideName,mockMission.guid)
+	                ScenEdit_SetUnit({side=sideName,guid=unit.guid,RTB="Yes"})
+		        end
+		    end
 	    end
 
 	    -- Get Units Left To Assign
@@ -461,9 +463,11 @@ function DetermineEmconToUnits(sideShortKey,sideName,unitGuidList)
             local aewUnit = ScenEdit_GetUnit({side=sideName, guid=v1})
             if aewUnit.speed > 0 and aewUnit.altitude > 0 then
                 if Tool_Range(v1,v) < 150 then
-                    if #unit.firingAt == 0 then
-                        ScenEdit_SetEMCON("Unit",v,"Radar=Passive")
-                    end
+                	if unit.firingAt then
+                    	if #unit.firingAt == 0 then
+                        	ScenEdit_SetEMCON("Unit",v,"Radar=Passive")
+                    	end
+                	end
                 else
                     ScenEdit_SetEMCON("Unit",v,"Radar=Active")
                 end
@@ -1793,7 +1797,7 @@ function AttackDoctrineUpdateStealthAirMissionAction(args)
         local unitRetreatPoint = GetAllNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,120)
 
         -- Retreat Point
-        if unitRetreatPoint ~= nil and missionUnit.unitstate ~= "RTB" nil then
+        if unitRetreatPoint ~= nil and missionUnit.unitstate ~= "RTB" then
             ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "no" })
             missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
             missionUnit.manualSpeed = "1000"
@@ -1888,7 +1892,7 @@ function AttackDoctrineUpdateAEWAirMissionAction(args)
         local unitRetreatPoint = GetAllNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,180)
 
         -- Retreat Point
-        if unitRetreatPoint ~= nil and missionUnit.unitstate ~= "RTB" nil then
+        if unitRetreatPoint ~= nil and missionUnit.unitstate ~= "RTB" then
             ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "no" })
             missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
             missionUnit.manualSpeed = "1000"
@@ -1993,7 +1997,7 @@ function AttackDoctrineUpdateAntiSurfaceShipMissionAction(args)
         local unitRetreatPoint = GetAirAndSAMNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,100)
 
         -- Unit Retreat Point
-        if unitRetreatPoint ~= nil and missionUnit.unitstate ~= "RTB" nil then
+        if unitRetreatPoint ~= nil and missionUnit.unitstate ~= "RTB" then
             ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "no" })
             missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
             missionUnit.manualSpeed = "1000"
@@ -2099,7 +2103,7 @@ function AttackDoctrineUpdateSeadMissionAction(args)
         local unitRetreatPoint = GetAirAndShipNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,100)
 
         -- Set Retreat
-        if unitRetreatPoint ~= nil and missionUnit.unitstate ~= "RTB" nil then
+        if unitRetreatPoint ~= nil and missionUnit.unitstate ~= "RTB" then
             ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "no" })
             missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
             missionUnit.manualSpeed = "1000"
@@ -2205,7 +2209,7 @@ function AttackDoctrineUpdateLandAttackMissionAction(args)
         local unitRetreatPoint = GetAllNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,100)
 
 		-- Set Retreat
-        if unitRetreatPoint ~= nil and missionUnit.unitstate ~= "RTB" nil then
+        if unitRetreatPoint ~= nil and missionUnit.unitstate ~= "RTB" then
             ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "no" })
             missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
             missionUnit.manualSpeed = "1000"
@@ -2477,7 +2481,7 @@ function SupportTankerDoctrineUpdateMissionAction(args)
                     local unitRetreatPoint = GetAllNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,120)
 
                     -- Find Retreat Point
-                    if unitRetreatPoint ~= nil and missionUnit.unitstate ~= "RTB" nil then
+                    if unitRetreatPoint ~= nil and missionUnit.unitstate ~= "RTB" then
                         ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "no" })
                         missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
                         missionUnit.manualSpeed = "1000"
@@ -2614,7 +2618,7 @@ function SupportAEWDoctrineUpdateMissionAction(args)
                     local unitRetreatPoint = GetAllNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,180)
 
         			-- Unit Retreat Point
-                    if unitRetreatPoint ~= nil and missionUnit.unitstate ~= "RTB" nil  then
+                    if unitRetreatPoint ~= nil and missionUnit.unitstate ~= "RTB" then
                         ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "no" })
                         missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
                         missionUnit.manualSpeed = "1000"
