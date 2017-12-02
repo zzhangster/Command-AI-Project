@@ -1,0 +1,19 @@
+AI Installation Guide - See the provided guide for reference
+
+1.) Open your premade scenario
+2.) Create Event => "Event - Load AI Functions"
+    a.) Set repeatable, active
+    b.) Set Trigger as load on scenario
+    c.) Set 3 lua script actions
+        i.) Script 1 should be copied from "Merimack.lua" file contents, to set the AI to a particular side find line:
+	InitializeMerimackMonitorAI("Stennis CSG",{preset="Grant",options={aggressive=5,defensive=5,cunning=5,direct=5,determined=5,reserved=5}})
+	
+	Change the "Stennis CSG" to the side name of your choice
+
+       ii.) Script 2 should be copied from "LoadoutLibrary.lua" file contents
+      iii.) Script 3 should be copied from "ThreatRangeLibrary.lua" file contents
+3.) Create Event => "Event - Update AI Functions"
+    a.) Set repeatable, active
+    b.) Set Trigger 30 seconds regular time
+    c.) Set 1 lua script actions
+        i.) Script 1 should have contents => UpdateAI()

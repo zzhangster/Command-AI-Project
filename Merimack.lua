@@ -452,26 +452,17 @@ function DetermineUnitsToAssign(sideShortKey,sideName,missionGuid,totalRequiredU
 	        if totalRequiredUnits <= 0 then
 	            break
 	        end
+	        
 	        -- Check Unit And Assign
-	        --[[totalRequiredUnits = totalRequiredUnits - 1
-	        ScenEdit_AssignUnitToMission(v,mission.guid)]]--
 	        local unit = ScenEdit_GetUnit({side=sideName, guid=v})
 
-    		ScenEdit_SpecialMessage("Stennis CSG", tostring(unit.readytime).."_"..unit.unitstate.."_"..unit.fuelstate)
     		-- Check If Unit Has Already Been Allocated In This Cycle
-            if GUIDExists(sideShortKey.."_alloc_units",unit.guid) ~= true then
-		        totalRequiredUnits = totalRequiredUnits - 1
-		        ScenEdit_AssignUnitToMission(v,mission.guid)
-		        AddGUID(sideShortKey.."_alloc_units",unit.guid)
-                --[[if not DetermineUnitRTB(sideName,unit.guid) then
-		            totalRequiredUnits = totalRequiredUnits - 1
-		            ScenEdit_AssignUnitToMission(v,mission.guid)
-		            AddGUID(sideShortKey.."_alloc_units",unit.guid)
-                elseif unit.speed == 0 and tostring(unit.readytime) == "0" then
-                    totalRequiredUnits = totalRequiredUnits - 1
-		            ScenEdit_AssignUnitToMission(v,mission.guid)
-		            AddGUID(sideShortKey.."_alloc_units",unit.guid)
-                end]]--
+            if not GUIDExists(sideShortKey.."_alloc_units",unit.guid) then
+            	if not DetermineUnitRTB(sideName,v) then
+		        	totalRequiredUnits = totalRequiredUnits - 1
+		       		ScenEdit_AssignUnitToMission(v,mission.guid)
+		       		AddGUID(sideShortKey.."_alloc_units",unit.guid)
+		    	end
 		    end
 	    end
     end
