@@ -382,6 +382,18 @@ function DetermineRoleFromLoadOutDatabase(loudoutId,defaultRole)
     end
 end
 
+function DetermineUnitRTB(sideName,unitGuid)
+    local unit = ScenEdit_GetUnit({side=sideName, guid=unitGuid})
+    if unit then
+        if string.match(unit.unitstate, "RTB") then
+            return true
+        else
+            return false
+        end
+    end
+    
+end
+
 function DetermineThreatRangeByUnitDatabaseId(sideGuid,contactGuid)
     local side = VP_GetSide({guid=sideGuid})
     local contact = ScenEdit_GetContact({side=side.name, guid=contactGuid})
@@ -413,7 +425,7 @@ function DetermineThreatRangeByUnitDatabaseId(sideGuid,contactGuid)
     return range
 end
 
-function DetermineUnitsToAssign(sideName,missionGuid,totalRequiredUnits,unitGuidList)
+function DetermineUnitsToAssign(sideShortKey,sideName,missionGuid,totalRequiredUnits,unitGuidList)
     -- Local Values
     local mission = ScenEdit_GetMission(sideName,missionGuid)
 
@@ -423,11 +435,10 @@ function DetermineUnitsToAssign(sideName,missionGuid,totalRequiredUnits,unitGuid
 	    for k,v in pairs(mission.unitlist) do
 	        local unit = ScenEdit_GetUnit({side=sideName, guid=v})
 	        if unit then
-		        if unit.unitstate == "RTB" then
+		        if unit.speed == 0 and tostring(unit.readytime) ~= 0  then
 		            local mockMission = ScenEdit_AddMission(sideName,"MOCK MISSION",'strike',{type='land'})
 		            ScenEdit_AssignUnitToMission(unit.guid, mockMission.guid)            
 	                ScenEdit_DeleteMission(sideName,mockMission.guid)
-	                ScenEdit_SetUnit({side=sideName,guid=unit.guid,RTB="Yes"})
 		        end
 		    end
 	    end
@@ -446,11 +457,22 @@ function DetermineUnitsToAssign(sideName,missionGuid,totalRequiredUnits,unitGuid
 	        ScenEdit_AssignUnitToMission(v,mission.guid)]]--
 	        local unit = ScenEdit_GetUnit({side=sideName, guid=v})
 
-    		--ScenEdit_SpecialMessage("Stennis CSG", tostring(unit.readytime).."_"..unit.unitstate.."_"..unit.fuelstate)
-	        if unit.unitstate ~= "RTB" and unit.unitstate ~= "RTB_Manual"  then
-	            totalRequiredUnits = totalRequiredUnits - 1
-	            ScenEdit_AssignUnitToMission(v,mission.guid)
-	        end
+    		ScenEdit_SpecialMessage("Stennis CSG", tostring(unit.readytime).."_"..unit.unitstate.."_"..unit.fuelstate)
+    		-- Check If Unit Has Already Been Allocated In This Cycle
+            if GUIDExists(sideShortKey.."_alloc_units",unit.guid) ~= true then
+		        totalRequiredUnits = totalRequiredUnits - 1
+		        ScenEdit_AssignUnitToMission(v,mission.guid)
+		        AddGUID(sideShortKey.."_alloc_units",unit.guid)
+                --[[if not DetermineUnitRTB(sideName,unit.guid) then
+		            totalRequiredUnits = totalRequiredUnits - 1
+		            ScenEdit_AssignUnitToMission(v,mission.guid)
+		            AddGUID(sideShortKey.."_alloc_units",unit.guid)
+                elseif unit.speed == 0 and tostring(unit.readytime) == "0" then
+                    totalRequiredUnits = totalRequiredUnits - 1
+		            ScenEdit_AssignUnitToMission(v,mission.guid)
+		            AddGUID(sideShortKey.."_alloc_units",unit.guid)
+                end]]--
+		    end
 	    end
     end
 end
@@ -463,11 +485,12 @@ function DetermineEmconToUnits(sideShortKey,sideName,unitGuidList)
             local aewUnit = ScenEdit_GetUnit({side=sideName, guid=v1})
             if aewUnit.speed > 0 and aewUnit.altitude > 0 then
                 if Tool_Range(v1,v) < 150 then
-                	if unit.firingAt then
+                	--[[if unit.firingAt then
                     	if #unit.firingAt == 0 then
                         	ScenEdit_SetEMCON("Unit",v,"Radar=Passive")
                     	end
-                	end
+                	end]]--
+                    ScenEdit_SetEMCON("Unit",v,"Radar=Passive")
                 else
                     ScenEdit_SetEMCON("Unit",v,"Radar=Active")
                 end
@@ -1157,10 +1180,12 @@ function UpdateAIInventories(sideGUID,sideShortKey)
             local unitStatus = "unav"
 
             -- Get Status
-            if unit.mission == nil and unit.loadoutdbid ~= nil and unit.loadoutdbid ~= 3 and unit.loadoutdbid ~= 4 then
+            if unit.mission == nil and unit.loadoutdbid ~= nil and unit.loadoutdbid ~= 3 and unit.loadoutdbid ~= 4 and tostring(unit.readytime) == "0" then
                 unitStatus = "free"
             elseif unit.mission ~= nil and unit.loadoutdbid ~= nil and unit.loadoutdbid ~= 3 and unit.loadoutdbid ~= 4 then
                 unitStatus = "busy"
+            else 
+                break
             end
 
             -- Fighter
@@ -1327,6 +1352,13 @@ function UpdateAIInventories(sideGUID,sideShortKey)
             local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
             local unitType = "weap_con"
 
+            -- Filter Out By Weapon Speed
+            if contact.speed then
+            	if  contact.speed < 1000 then
+                	break
+            	end
+            end
+
             --ScenEdit_SpecialMessage("Stennis CSG", contact.name.."_"..contact.type.."_"..contact.type_description)
             -- Save Unit GUID
             AddGUID(sideShortKey.."_"..unitType.."_"..contact.posture,contact.guid)
@@ -1388,6 +1420,8 @@ function ResetInventoriesAndContacts(sideShortKey)
     RemoveAllGUID(sideShortKey.."_sam_con_H")
     RemoveAllGUID(sideShortKey.."_weap_con_X")
     RemoveAllGUID(sideShortKey.."_weap_con_H")
+    RemoveAllGUID(sideShortKey.."_alloc_units")
+
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
@@ -1482,7 +1516,7 @@ function ReconDoctrineCreateMissionAction(args)
     ScenEdit_SetEMCON("Mission",createdMission.guid,"Radar=Passive")
 
     -- Determine Units To Assign
-    DetermineUnitsToAssign(side.name,createdMission.guid,1,totalFreeInventory)
+    DetermineUnitsToAssign(args.shortKey,side.name,createdMission.guid,1,totalFreeInventory)
 
     -- Add Guid
     AddGUID(args.shortKey.."_rec_miss",createdMission.name)
@@ -1558,7 +1592,7 @@ function ReconDoctrineUpdateMissionAction(args)
         end
         
         -- Determine Units To Assign
-        DetermineUnitsToAssign(side.name,updatedMission.guid,1,totalFreeBusyInventory)
+        DetermineUnitsToAssign(args.shortKey,side.name,updatedMission.guid,1,totalFreeBusyInventory)
 
         -- Find Contact Close To Unit And Evade
         if #updatedMission.unitlist > 0 then
@@ -1566,7 +1600,7 @@ function ReconDoctrineUpdateMissionAction(args)
             local unitRetreatPoint = GetAllNoNavZoneThatContainsUnit(args.guid,args.shortKey,supportUnit.guid,100)
 
             -- SAM Retreat Point
-            if unitRetreatPoint ~= nil and supportUnit.unitstate ~= "RTB" then
+            if unitRetreatPoint ~= nil and not DetermineUnitRTB(side.name,supportUnit.guid) then
             	ScenEdit_SetDoctrine({side=side.name,unitname=supportUnit.name},{ignore_plotted_course = "no" })
                 supportUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
                 supportUnit.manualSpeed = "1100"
@@ -1594,7 +1628,7 @@ function AttackDoctrineCreateAirMissionAction(args)
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
     local totalFreeInventory = GetTotalFreeAirFighterInventory(args.shortKey)
     local totalHostileContacts = GetHostileAirContacts(args.shortKey)
-    local totalAirUnitsToAssign = GetHostileAirContactsStrength(args.shortKey)
+    local totalAirUnitsToAssign = GetHostileAirContactsStrength(args.shortKey) * 3
     local missionNumber = 1
     local rp1,rp2,rp3,rp4 = ""
     local hostileContactCoordinates = {}
@@ -1617,7 +1651,7 @@ function AttackDoctrineCreateAirMissionAction(args)
 
     -- Create Mission
     createdMission = ScenEdit_AddMission(side.name,args.shortKey.."_aaw_miss_"..tostring(missionNumber),"patrol",{type="aaw",zone={rp1.name,rp2.name,rp3.name,rp4.name}})
-    ScenEdit_SetMission(side.name,createdMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=false,flightSize=2,useFlightSize=true})
+    ScenEdit_SetMission(side.name,createdMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=true,flightSize=2,useFlightSize=true})
     ScenEdit_SetDoctrine({side=side.name,mission=createdMission.name},{automatic_evasion="yes",maintain_standoff="yes",ignore_emcon_while_under_attack="yes",weapon_state_planned="5001",weapon_state_rtb ="1",dive_on_threat="2"})
     ScenEdit_SetEMCON("Mission",createdMission.guid,"Radar=Passive")
 
@@ -1627,7 +1661,7 @@ function AttackDoctrineCreateAirMissionAction(args)
     end
 
     -- Determine Units To Assign
-    DetermineUnitsToAssign(side.name,createdMission.guid,totalAirUnitsToAssign,totalFreeInventory)
+    DetermineUnitsToAssign(args.shortKey,side.name,createdMission.guid,totalAirUnitsToAssign,totalFreeInventory)
 
     -- Add Guid
     AddGUID(args.shortKey.."_aaw_miss",createdMission.name)
@@ -1652,7 +1686,7 @@ function AttackDoctrineUpdateAirMissionAction(args)
     local updatedMission = {}
     local linkedMission = {}
     local missionNumber = 1
-    local totalAAWUnitsToAssign = GetHostileAirContactsStrength(args.shortKey)
+    local totalAAWUnitsToAssign = GetHostileAirContactsStrength(args.shortKey) * 3
 
     -- Condition Check
     if #missions == 0 then --or (currentTime - lastTimeStamp) < 1 * 60 then
@@ -1675,7 +1709,7 @@ function AttackDoctrineUpdateAirMissionAction(args)
     end
 
     -- Determine Units To Assign
-    DetermineUnitsToAssign(side.name,updatedMission.guid,totalAAWUnitsToAssign,totalFreeBusyInventory)
+    DetermineUnitsToAssign(args.shortKey,side.name,updatedMission.guid,totalAAWUnitsToAssign,totalFreeBusyInventory)
 
     -- Find Area And Retreat Point
     local missionUnits = GetGroupLeadsAndIndividualsFromMission(side.name,updatedMission.guid)
@@ -1684,7 +1718,7 @@ function AttackDoctrineUpdateAirMissionAction(args)
         local unitRetreatPoint = GetSAMAndShipNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid)
 
         -- Retreat Point
-        if unitRetreatPoint ~= nil and missionUnit.unitstate ~= "RTB" then
+        if unitRetreatPoint ~= nil and not DetermineUnitRTB(side.name,missionUnit.guid) then
             ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "no" })
             missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
             missionUnit.manualSpeed = "1000"
@@ -1731,11 +1765,11 @@ function AttackDoctrineCreateStealthAirMissionAction(args)
 	-- Get Linked Mission
     linkedMission = ScenEdit_GetMission(side.name,linkedMissions[1])
     linkedMissionPoints = {linkedMission.name.."_rp_1",linkedMission.name.."_rp_2",linkedMission.name.."_rp_3",linkedMission.name.."_rp_4"}
-    totalAirUnitsToAssign = math.ceil(#(linkedMission.unitlist)/4)
+    totalAirUnitsToAssign = math.floor(#(linkedMission.unitlist)/4)
 
     -- Create Mission
     createdMission = ScenEdit_AddMission(side.name,args.shortKey.."_saaw_miss_"..tostring(missionNumber),"patrol",{type="aaw",zone=linkedMissionPoints})
-    ScenEdit_SetMission(side.name,createdMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=false,flightSize=2,useFlightSize=true})
+    ScenEdit_SetMission(side.name,createdMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=true,flightSize=2,useFlightSize=true})
     ScenEdit_SetDoctrine({side=side.name,mission=createdMission.name},{automatic_evasion="yes",maintain_standoff="yes",ignore_emcon_while_under_attack="yes",weapon_state_planned="5001",weapon_state_rtb ="0"})
     ScenEdit_SetEMCON("Mission",createdMission.guid,"Radar=Passive")
 
@@ -1745,7 +1779,7 @@ function AttackDoctrineCreateStealthAirMissionAction(args)
     end
 
     -- Determine Units To Assign
-    DetermineUnitsToAssign(side.name,createdMission.guid,totalAirUnitsToAssign,totalFreeInventory)
+    DetermineUnitsToAssign(args.shortKey,side.name,createdMission.guid,totalAirUnitsToAssign,totalFreeInventory)
 
     -- Add Guid And Add Time Stamp
     AddGUID(args.shortKey.."_saaw_miss",createdMission.name)
@@ -1785,7 +1819,7 @@ function AttackDoctrineUpdateStealthAirMissionAction(args)
     totalAAWUnitsToAssign = math.ceil(#(linkedMission.unitlist)/4)
 
     -- Determine Units To Assign
-    DetermineUnitsToAssign(side.name,updatedMission.guid,1,totalFreeBusyInventory)
+    DetermineUnitsToAssign(args.shortKey,side.name,updatedMission.guid,1,totalFreeBusyInventory)
 
     -- Determine EMCON
     DetermineEmconToUnits(args.shortKey,side.name,updatedMission.unitlist)
@@ -1794,10 +1828,10 @@ function AttackDoctrineUpdateStealthAirMissionAction(args)
     local missionUnits = GetGroupLeadsAndIndividualsFromMission(side.name,updatedMission.guid)
     for k,v in pairs(missionUnits) do
         local missionUnit = ScenEdit_GetUnit({side=side.name, guid=v})
-        local unitRetreatPoint = GetAllNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,120)
+        local unitRetreatPoint = GetAllNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,100)
 
         -- Retreat Point
-        if unitRetreatPoint ~= nil and missionUnit.unitstate ~= "RTB" then
+        if unitRetreatPoint ~= nil and not DetermineUnitRTB(side.name,missionUnit.guid) then
             ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "no" })
             missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
             missionUnit.manualSpeed = "1000"
@@ -1843,11 +1877,11 @@ function AttackDoctrineCreateAEWMissionAction(args)
 
     -- Create Mission
     createdMission = ScenEdit_AddMission(side.name,args.shortKey.."_aaew_miss_"..tostring(missionNumber),"support",{zone=linkedMissionPoints})
-    ScenEdit_SetMission(side.name,createdMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=false,flightSize=2,useFlightSize=false})
+    ScenEdit_SetMission(side.name,createdMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=true,flightSize=2,useFlightSize=false})
     ScenEdit_SetEMCON("Mission",createdMission.guid,"Radar=Active")
 
     -- Determine Units To Assign
-    DetermineUnitsToAssign(side.name,createdMission.guid,1,totalFreeInventory)
+    DetermineUnitsToAssign(args.shortKey,side.name,createdMission.guid,1,totalFreeInventory)
 
     -- Add Guid And Add Time Stamp
     AddGUID(args.shortKey.."_aaew_miss",createdMission.name)
@@ -1883,7 +1917,7 @@ function AttackDoctrineUpdateAEWAirMissionAction(args)
     linkedMission = ScenEdit_GetMission(side.name,linkedMissions[1])
 
     -- Determine Units To Assign
-    DetermineUnitsToAssign(side.name,updatedMission.guid,1,totalFreeBusyInventory)
+    DetermineUnitsToAssign(args.shortKey,side.name,updatedMission.guid,1,totalFreeBusyInventory)
 
     -- Find Area And Retreat Point
     local missionUnits = GetGroupLeadsAndIndividualsFromMission(side.name,updatedMission.guid)
@@ -1892,7 +1926,7 @@ function AttackDoctrineUpdateAEWAirMissionAction(args)
         local unitRetreatPoint = GetAllNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,180)
 
         -- Retreat Point
-        if unitRetreatPoint ~= nil and missionUnit.unitstate ~= "RTB" then
+        if unitRetreatPoint ~= nil and not DetermineUnitRTB(side.name,missionUnit.guid) then
             ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "no" })
             missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
             missionUnit.manualSpeed = "1000"
@@ -1947,7 +1981,7 @@ function AttackDoctrineCreateAntiSurfaceShipMissionAction(args)
     ScenEdit_SetEMCON("Mission",createdMission.guid,"Radar=Active")
 
     -- Determine Units To Assign
-    DetermineUnitsToAssign(side.name,createdMission.guid,totalAirUnitsToAssign,totalFreeInventory)
+    DetermineUnitsToAssign(args.shortKey,side.name,createdMission.guid,totalAirUnitsToAssign,totalFreeInventory)
 
     -- Add Guid And Add Time Stamp
     AddGUID(args.shortKey.."_asuw_miss",createdMission.name)
@@ -1988,7 +2022,7 @@ function AttackDoctrineUpdateAntiSurfaceShipMissionAction(args)
     ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_asuw_miss_"..tostring(missionNumber).."_rp_4", lat=hostileContactBoundingBox[4].latitude, lon=hostileContactBoundingBox[4].longitude})
 
     -- Determine Units To Assign
-    DetermineUnitsToAssign(side.name,updatedMission.guid,totalAAWUnitsToAssign,totalFreeBusyInventory)
+    DetermineUnitsToAssign(args.shortKey,side.name,updatedMission.guid,totalAAWUnitsToAssign,totalFreeBusyInventory)
 
     -- Find Area And Return Point
     local missionUnits = GetGroupLeadsAndIndividualsFromMission(side.name,updatedMission.guid)
@@ -1997,7 +2031,7 @@ function AttackDoctrineUpdateAntiSurfaceShipMissionAction(args)
         local unitRetreatPoint = GetAirAndSAMNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,100)
 
         -- Unit Retreat Point
-        if unitRetreatPoint ~= nil and missionUnit.unitstate ~= "RTB" then
+        if unitRetreatPoint ~= nil and not DetermineUnitRTB(side.name,missionUnit.guid) then
             ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "no" })
             missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
             missionUnit.manualSpeed = "1000"
@@ -2052,7 +2086,7 @@ function AttackDoctrineCreateSeadMissionAction(args)
     ScenEdit_SetEMCON("Mission",createdMission.guid,"Radar=Passive")
 
     -- Determine Units To Assign
-    DetermineUnitsToAssign(side.name,createdMission.guid,totalAirUnitsToAssign,totalFreeInventory)
+    DetermineUnitsToAssign(args.shortKey,side.name,createdMission.guid,totalAirUnitsToAssign,totalFreeInventory)
 
     -- Add Guid
     AddGUID(args.shortKey.."_sead_miss",createdMission.name)
@@ -2094,7 +2128,7 @@ function AttackDoctrineUpdateSeadMissionAction(args)
     ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_sead_miss_"..tostring(missionNumber).."_rp_4", lat=hostileContactBoundingBox[4].latitude, lon=hostileContactBoundingBox[4].longitude})
 
     -- Determine Units To Assign
-    DetermineUnitsToAssign(side.name,updatedMission.guid,totalAAWUnitsToAssign,totalFreeBusyInventory)
+    DetermineUnitsToAssign(args.shortKey,side.name,updatedMission.guid,totalAAWUnitsToAssign,totalFreeBusyInventory)
 
     -- Find Area And Return Point
     local missionUnits = GetGroupLeadsAndIndividualsFromMission(side.name,updatedMission.guid)
@@ -2103,7 +2137,7 @@ function AttackDoctrineUpdateSeadMissionAction(args)
         local unitRetreatPoint = GetAirAndShipNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,100)
 
         -- Set Retreat
-        if unitRetreatPoint ~= nil and missionUnit.unitstate ~= "RTB" then
+        if unitRetreatPoint ~= nil and not DetermineUnitRTB(side.name,missionUnit.guid) then
             ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "no" })
             missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
             missionUnit.manualSpeed = "1000"
@@ -2158,7 +2192,7 @@ function AttackDoctrineCreateLandAttackMissionAction(args)
     ScenEdit_SetEMCON("Mission",createdMission.guid,"Radar=Passive")
 
     -- Determine Units To Assign
-    DetermineUnitsToAssign(side.name,createdMission.guid,totalAirUnitsToAssign,totalFreeInventory)
+    DetermineUnitsToAssign(args.shortKey,side.name,createdMission.guid,totalAirUnitsToAssign,totalFreeInventory)
 
     -- Add Guid
     AddGUID(args.shortKey.."_land_miss",createdMission.name)
@@ -2200,7 +2234,7 @@ function AttackDoctrineUpdateLandAttackMissionAction(args)
     ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_land_miss_"..tostring(missionNumber).."_rp_4", lat=hostileContactBoundingBox[4].latitude, lon=hostileContactBoundingBox[4].longitude})
 
     -- Determine Units To Assign
-    DetermineUnitsToAssign(side.name,updatedMission.guid,totalAAWUnitsToAssign,totalFreeBusyInventory)
+    DetermineUnitsToAssign(args.shortKey,side.name,updatedMission.guid,totalAAWUnitsToAssign,totalFreeBusyInventory)
 
     -- Find Area And Return Point
     local missionUnits = GetGroupLeadsAndIndividualsFromMission(side.name,updatedMission.guid)
@@ -2209,7 +2243,7 @@ function AttackDoctrineUpdateLandAttackMissionAction(args)
         local unitRetreatPoint = GetAllNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,100)
 
 		-- Set Retreat
-        if unitRetreatPoint ~= nil and missionUnit.unitstate ~= "RTB" then
+        if unitRetreatPoint ~= nil and not DetermineUnitRTB(side.name,missionUnit.guid) then
             ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "no" })
             missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
             missionUnit.manualSpeed = "1000"
@@ -2280,12 +2314,12 @@ function DefendDoctrineCreateAirMissionAction(args)
 
     -- Create Mission
     createdMission = ScenEdit_AddMission(side.name,args.shortKey.."_aaw_d_miss_"..unitToDefend.guid,"patrol",{type="aaw",zone={rp1.name,rp2.name,rp3.name,rp4.name}})
-    ScenEdit_SetMission(side.name,createdMission.name,{checkOPA=false,checkWWR=true})
+    ScenEdit_SetMission(side.name,createdMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=false,flightSize=2,useFlightSize=false})
     ScenEdit_SetDoctrine({side=side.name,mission=createdMission.name},{automatic_evasion="yes",maintain_standoff="yes",ignore_emcon_while_under_attack="yes",weapon_state_planned="5001",weapon_state_rtb ="1",dive_on_threat="2"})
     ScenEdit_SetEMCON("Mission",createdMission.guid,"Radar=Passive")
 
     -- Determine Units To Assign
-    DetermineUnitsToAssign(side.name,createdMission.guid,totalAAWUnitsToAssign,totalFreeInventory)
+    DetermineUnitsToAssign(args.shortKey,side.name,createdMission.guid,totalAAWUnitsToAssign,totalFreeInventory)
 
     -- Add Guid And Add Time Stamp
     AddGUID(args.shortKey.."_aaw_d_miss",createdMission.name)
@@ -2351,7 +2385,24 @@ function DefendDoctrineUpdateAirMissionAction(args)
                 end
 
                 -- Determine Units To Assign
-                DetermineUnitsToAssign(side.name,updatedMission.guid,totalAAWUnitsToAssign,totalFreeBusyInventory)
+                DetermineUnitsToAssign(args.shortKey,side.name,updatedMission.guid,totalAAWUnitsToAssign,totalFreeBusyInventory)
+
+                -- Find Area And Return Point
+			    local missionUnits = GetGroupLeadsAndIndividualsFromMission(side.name,updatedMission.guid)
+			    for k,v in pairs(missionUnits) do
+			        local missionUnit = ScenEdit_GetUnit({side=side.name, guid=v})
+			        local unitRetreatPoint = GetSAMAndShipNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid)
+
+			        -- Set Retreat
+			        if unitRetreatPoint ~= nil and not DetermineUnitRTB(side.name,missionUnit.guid) then
+			            ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "no" })
+			            missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
+			            missionUnit.manualSpeed = "1000"
+			        else
+			            ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "yes" })
+			            missionUnit.manualSpeed = "OFF"
+			        end
+			    end
 
                 -- Determine EMCON
                 DetermineEmconToUnits(args.shortKey,side.name,updatedMission.unitlist)
@@ -2423,7 +2474,7 @@ function SupportTankerDoctrineCreateMissionAction(args)
     ScenEdit_SetEMCON("Mission",createdMission.guid,"Radar=Passive")
 
     -- Determine Units To Assign
-    DetermineUnitsToAssign(side.name,createdMission.guid,1,totalFreeInventory)
+    DetermineUnitsToAssign(args.shortKey,side.name,createdMission.guid,1,totalFreeInventory)
 
     -- Add Guid And Add Time Stamp
     AddGUID(args.shortKey.."_tan_sup_miss",createdMission.name)
@@ -2472,7 +2523,7 @@ function SupportTankerDoctrineUpdateMissionAction(args)
             -- Check Defense Mission
             if updatedMission then
                 -- Determine Units To Assign
-                DetermineUnitsToAssign(side.name,updatedMission.guid,1,totalBusyFreeInventory)
+                DetermineUnitsToAssign(args.shortKey,side.name,updatedMission.guid,1,totalBusyFreeInventory)
 
                 -- Find Contact Close To Unit And Retreat If Necessary
                 local missionUnits = updatedMission.unitlist
@@ -2481,7 +2532,7 @@ function SupportTankerDoctrineUpdateMissionAction(args)
                     local unitRetreatPoint = GetAllNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,120)
 
                     -- Find Retreat Point
-                    if unitRetreatPoint ~= nil and missionUnit.unitstate ~= "RTB" then
+                    if unitRetreatPoint ~= nil and not DetermineUnitRTB(side.name,missionUnit.guid) then
                         ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "no" })
                         missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
                         missionUnit.manualSpeed = "1000"
@@ -2558,7 +2609,7 @@ function SupportAEWDoctrineCreateMissionAction(args)
     ScenEdit_SetEMCON("Mission",createdMission.guid,"Radar=Active")
 
     -- Determine Units To Assign
-    DetermineUnitsToAssign(side.name,createdMission.guid,1,totalFreeInventory)
+    DetermineUnitsToAssign(args.shortKey,side.name,createdMission.guid,1,totalFreeInventory)
 
     -- TODO Add EMCON
 
@@ -2608,7 +2659,7 @@ function SupportAEWDoctrineUpdateMissionAction(args)
             -- Check Defense Mission
             if updatedMission then
                 -- Determine Units To Assign
-                DetermineUnitsToAssign(side.name,updatedMission.guid,1,totalBusyFreeInventory)
+                DetermineUnitsToAssign(args.shortKey,side.name,updatedMission.guid,1,totalBusyFreeInventory)
                 -- TODO Add Active EMCON
 
                 -- Find Contact Close To Unit And Retreat If Necessary
@@ -2618,7 +2669,7 @@ function SupportAEWDoctrineUpdateMissionAction(args)
                     local unitRetreatPoint = GetAllNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,180)
 
         			-- Unit Retreat Point
-                    if unitRetreatPoint ~= nil and missionUnit.unitstate ~= "RTB" then
+                    if unitRetreatPoint ~= nil and not DetermineUnitRTB(side.name,missionUnit.guid) then
                         ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "no" })
                         missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
                         missionUnit.manualSpeed = "1000"
@@ -2701,13 +2752,6 @@ function MonitorUpdateSAMNoNavZonesAction(args)
             -- Get Contact
             local contact = ScenEdit_GetContact({side=side.name, guid=totalHostileContacts[zoneCounter]})
             local noNavZoneRange = DetermineThreatRangeByUnitDatabaseId(args.guid,contact.guid)
-
-            -- If RTB
-        	if missionUnit.unitstate == "RTB" then
-            	ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "yes" })
-            	missionUnit.manualSpeed = "OFF"
-        		break
-        	end
 
             -- Set To New Value
             ScenEdit_SetReferencePoint({side=side.name,guid=v,newname=tostring(noNavZoneRange),lat=contact.latitude,lon=contact.longitude})
