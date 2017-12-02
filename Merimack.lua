@@ -458,7 +458,7 @@ function DetermineUnitsToAssign(sideShortKey,sideName,missionGuid,totalRequiredU
 
     		-- Check If Unit Has Already Been Allocated In This Cycle
             if not GUIDExists(sideShortKey.."_alloc_units",unit.guid) then
-            	if not DetermineUnitRTB(sideName,v) then
+            	if (not DetermineUnitRTB(sideName,v) and unit.speed > 0) or (tostring(unit.readytime) == "0" and unit.speed == 0) then
 		        	totalRequiredUnits = totalRequiredUnits - 1
 		       		ScenEdit_AssignUnitToMission(v,mission.guid)
 		       		AddGUID(sideShortKey.."_alloc_units",unit.guid)
@@ -1588,7 +1588,7 @@ function ReconDoctrineUpdateMissionAction(args)
         -- Find Contact Close To Unit And Evade
         if #updatedMission.unitlist > 0 then
             local supportUnit = ScenEdit_GetUnit({side=side.name, guid=updatedMission.unitlist[1]})
-            local unitRetreatPoint = GetAllNoNavZoneThatContainsUnit(args.guid,args.shortKey,supportUnit.guid,100)
+            local unitRetreatPoint = GetAllNoNavZoneThatContainsUnit(args.guid,args.shortKey,supportUnit.guid,80)
 
             -- SAM Retreat Point
             if unitRetreatPoint ~= nil and not DetermineUnitRTB(side.name,supportUnit.guid) then
@@ -1819,7 +1819,7 @@ function AttackDoctrineUpdateStealthAirMissionAction(args)
     local missionUnits = GetGroupLeadsAndIndividualsFromMission(side.name,updatedMission.guid)
     for k,v in pairs(missionUnits) do
         local missionUnit = ScenEdit_GetUnit({side=side.name, guid=v})
-        local unitRetreatPoint = GetAllNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,100)
+        local unitRetreatPoint = GetAllNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,80)
 
         -- Retreat Point
         if unitRetreatPoint ~= nil and not DetermineUnitRTB(side.name,missionUnit.guid) then
@@ -1856,6 +1856,9 @@ function AttackDoctrineCreateAEWMissionAction(args)
     local createdMission = {}
     local linkedMission = {}
     local linkedMissionPoints = {}
+    local linkedMissionCenterPoint = {}
+    local patrolBoundingBox = {}
+
 
     -- Condition Check
     if #missions > 0 or #linkedMissions == 0 or #totalFreeInventory == 0 or GetHostileAirContactsStrength(args.shortKey) == 0 then
@@ -1864,10 +1867,20 @@ function AttackDoctrineCreateAEWMissionAction(args)
 
 	-- Get Linked Mission
     linkedMission = ScenEdit_GetMission(side.name,linkedMissions[1])
-    linkedMissionPoints = {linkedMission.name.."_rp_1",linkedMission.name.."_rp_2",linkedMission.name.."_rp_3",linkedMission.name.."_rp_4"}
+    linkedMissionPoints = ScenEdit_GetReferencePoints({side=side.name, area={linkedMission.name.."_rp_1",linkedMission.name.."_rp_2",linkedMission.name.."_rp_3",linkedMission.name.."_rp_4"}})
+
+    -- Get Midpoint
+	linkedMissionCenterPoint = MidPointCoordinate(linkedMissionPoints[1].latitude,linkedMissionPoints[1].longitude,linkedMissionPoints[3].latitude,linkedMissionPoints[3].longitude)
+    patrolBoundingBox = FindBoundingBoxForGivenLocations({MakeLatLong(linkedMissionCenterPoint.latitude,linkedMissionCenterPoint.longitude)},1.0)
+
+    -- Set Reference Points
+    rp1 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_1", lat=patrolBoundingBox[1].latitude, lon=patrolBoundingBox[1].longitude})
+    rp2 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_2", lat=patrolBoundingBox[2].latitude, lon=patrolBoundingBox[2].longitude})
+    rp3 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_3", lat=patrolBoundingBox[3].latitude, lon=patrolBoundingBox[3].longitude})
+    rp4 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_4", lat=patrolBoundingBox[4].latitude, lon=patrolBoundingBox[4].longitude})
 
     -- Create Mission
-    createdMission = ScenEdit_AddMission(side.name,args.shortKey.."_aaew_miss_"..tostring(missionNumber),"support",{zone=linkedMissionPoints})
+    createdMission = ScenEdit_AddMission(side.name,args.shortKey.."_aaew_miss_"..tostring(missionNumber),"support",{zone={rp1.name,rp2.name,rp3.name,rp4.name}})
     ScenEdit_SetMission(side.name,createdMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=true,flightSize=2,useFlightSize=false})
     ScenEdit_SetEMCON("Mission",createdMission.guid,"Radar=Active")
 
@@ -1906,6 +1919,21 @@ function AttackDoctrineUpdateAEWAirMissionAction(args)
     -- Get Linked Mission
     updatedMission = ScenEdit_GetMission(side.name,missions[1])
     linkedMission = ScenEdit_GetMission(side.name,linkedMissions[1])
+
+
+	-- Get Linked Mission
+    linkedMission = ScenEdit_GetMission(side.name,linkedMissions[1])
+    linkedMissionPoints = ScenEdit_GetReferencePoints({side=side.name, area={linkedMission.name.."_rp_1",linkedMission.name.."_rp_2",linkedMission.name.."_rp_3",linkedMission.name.."_rp_4"}})
+
+    -- Get Midpoint
+	linkedMissionCenterPoint = MidPointCoordinate(linkedMissionPoints[1].latitude,linkedMissionPoints[1].longitude,linkedMissionPoints[3].latitude,linkedMissionPoints[3].longitude)
+    patrolBoundingBox = FindBoundingBoxForGivenLocations({MakeLatLong(linkedMissionCenterPoint.latitude,linkedMissionCenterPoint.longitude)},1.0)
+
+    -- Set Reference Points
+    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_1", lat=patrolBoundingBox[1].latitude, lon=patrolBoundingBox[1].longitude})
+    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_2", lat=patrolBoundingBox[2].latitude, lon=patrolBoundingBox[2].longitude})
+    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_3", lat=patrolBoundingBox[3].latitude, lon=patrolBoundingBox[3].longitude})
+    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_4", lat=patrolBoundingBox[4].latitude, lon=patrolBoundingBox[4].longitude})
 
     -- Determine Units To Assign
     DetermineUnitsToAssign(args.shortKey,side.name,updatedMission.guid,1,totalFreeBusyInventory)
