@@ -8,6 +8,7 @@ BT.__index = BT
 BT.results = {success = "success", fail = "fail", wait = "wait", error = "error"}
 local commandMerimackAIArray = {}
 local commandMonitorAIArray = {}
+local commandMemory = {}
 
 --[[
     Wrap function values to our results list so that we can use functions
@@ -457,11 +458,11 @@ function DetermineUnitsToAssign(sideShortKey,sideName,missionGuid,totalRequiredU
 	        local unit = ScenEdit_GetUnit({side=sideName, guid=v})
 
     		-- Check If Unit Has Already Been Allocated In This Cycle
-            if not GUIDExists(sideShortKey.."_alloc_units",unit.guid) then
+            if not PersistentGUIDExists(sideShortKey.."_alloc_units",unit.guid) then
             	if (not DetermineUnitRTB(sideName,v) and unit.speed > 0) or (tostring(unit.readytime) == "0" and unit.speed == 0) then
 		        	totalRequiredUnits = totalRequiredUnits - 1
 		       		ScenEdit_AssignUnitToMission(v,mission.guid)
-		       		AddGUID(sideShortKey.."_alloc_units",unit.guid)
+		       		PersistentAddGUID(sideShortKey.."_alloc_units",unit.guid)
 		    	end
 		    end
 	    end
@@ -502,15 +503,39 @@ function GetGlobalConstant()
     ScenEdit_SetKeyValue("CONST_GLOBAL_VALUE",globalConstant)
     return tonumber(globalConstant)
 end
+--------------------------------------------------------------------------------------------------------------------------------
+-- Save GUID In Memory Functions
+--------------------------------------------------------------------------------------------------------------------------------
+function MemoryRemoveAllGUIDsFromKey(primaryKey)
+    commandMemory[primaryKey] = nil
+end
+
+function MemoryGetGUIDFromKey(primaryKey)
+    local table = commandMemory[primaryKey]
+    if table then
+        return table
+    else
+        return {}
+    end
+end
+
+function MemoryAddGUIDToKey(primaryKey,guid)
+    local table = commandMemory[primaryKey]
+    if not table then
+        table = {}
+    end
+    table[#table + 1] = guid
+    commandMemory[primaryKey] = table
+end
 
 --------------------------------------------------------------------------------------------------------------------------------
--- Save GUID Functions
+-- Save GUID Persistent Functions
 --------------------------------------------------------------------------------------------------------------------------------
-function RemoveAllGUID(primaryKey)
+function PersistentRemoveAllGUID(primaryKey)
     ScenEdit_SetKeyValue(primaryKey,"")
 end
 
-function GetGUID(primaryKey)
+function PersistentGetGUID(primaryKey)
     local guidString = ScenEdit_GetKeyValue(primaryKey)
     if guidString == nil then
         guidString = ""
@@ -518,7 +543,7 @@ function GetGUID(primaryKey)
     return Split(guidString,",")
 end
 
-function AddGUID(primaryKey,guid)
+function PersistentAddGUID(primaryKey,guid)
     local guidString = ScenEdit_GetKeyValue(primaryKey)
     if guidString == nil then
         guidString = guid
@@ -528,8 +553,8 @@ function AddGUID(primaryKey,guid)
     ScenEdit_SetKeyValue(primaryKey,guidString)
 end
 
-function RemoveGUID(primaryKey,guid)
-    local table = GetGUID(primaryKey)
+function PersistentRemoveGUID(primaryKey,guid)
+    local table = PersistentGetGUID(primaryKey)
     local guidString = nil
     for k, v in pairs(table) do
         if guid ~= v then
@@ -543,8 +568,8 @@ function RemoveGUID(primaryKey,guid)
     ScenEdit_SetKeyValue(primaryKey,guidString)
 end
 
-function GUIDExists(primaryKey,guid)
-    local table = GetGUID(primaryKey)
+function PersistentGUIDExists(primaryKey,guid)
+    local table = PersistentGetGUID(primaryKey)
     for k, v in pairs(table) do
         if guid == v then
             return true
@@ -594,7 +619,7 @@ function GetSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,unitGuid)
     -- Local Side And Mission
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
-    local zones = GetGUID(shortSideKey.."_sam_ex_zone")
+    local zones = PersistentGetGUID(shortSideKey.."_sam_ex_zone")
     -- Zone Reference Points
     local zoneReferencePoints = ScenEdit_GetReferencePoints({side=side.name, area=zones})
 
@@ -616,7 +641,7 @@ function GetShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,unitGuid)
     -- Local Side And Mission
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
-    local zones = GetGUID(shortSideKey.."_ship_ex_zone")
+    local zones = PersistentGetGUID(shortSideKey.."_ship_ex_zone")
 
     -- Zone Reference Points
     local zoneReferencePoints = ScenEdit_GetReferencePoints({side=side.name, area=zones})
@@ -726,154 +751,154 @@ end
 -- Get Dedicated Fighter Inventory
 --------------------------------------------------------------------------------------------------------------------------------
 function GetFreeAirFighterInventory(sideShortKey)
-    return CombineTablesNew(GetGUID(sideShortKey.."_fig_free"),GetGUID(sideShortKey.."_sfig_free"))
+    return CombineTablesNew(MemoryGetGUIDFromKey(sideShortKey.."_fig_free"),MemoryGetGUIDFromKey(sideShortKey.."_sfig_free"))
 end
 
 function GetBusyAirFighterInventory(sideShortKey)
-    return CombineTablesNew(GetGUID(sideShortKey.."_fig_busy"),GetGUID(sideShortKey.."_sfig_busy"))
+    return CombineTablesNew(MemoryGetGUIDFromKey(sideShortKey.."_fig_busy"),MemoryGetGUIDFromKey(sideShortKey.."_sfig_busy"))
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
 -- Get Stealth Fighter Inventory
 --------------------------------------------------------------------------------------------------------------------------------
 function GetFreeAirStealthInventory(sideShortKey)
-    return GetGUID(sideShortKey.."_sfig_free")
+    return MemoryGetGUIDFromKey(sideShortKey.."_sfig_free")
 end
 
 function GetBusyAirStealthInventory(sideShortKey)
-    return GetGUID(sideShortKey.."_sfig_busy")
+    return MemoryGetGUIDFromKey(sideShortKey.."_sfig_busy")
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
 -- Get Multirole AA Inventory
 --------------------------------------------------------------------------------------------------------------------------------
 function GetFreeAirMultiroleInventory(sideShortKey)
-    return GetGUID(sideShortKey.."_mul_free")
+    return MemoryGetGUIDFromKey(sideShortKey.."_mul_free")
 end
 
 function GetBusyAirMultiroleInventory(sideShortKey)
-    return GetGUID(sideShortKey.."_mul_busy")
+    return MemoryGetGUIDFromKey(sideShortKey.."_mul_busy")
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
 -- Get Attack Inventory
 --------------------------------------------------------------------------------------------------------------------------------
 function GetFreeAirAttackInventory(sideShortKey)
-    return GetGUID(sideShortKey.."_atk_free")
+    return MemoryGetGUIDFromKey(sideShortKey.."_atk_free")
 end
 
 function GetBusyAirAttackInventory(sideShortKey)
-    return GetGUID(sideShortKey.."_atk_busy")
+    return MemoryGetGUIDFromKey(sideShortKey.."_atk_busy")
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
 -- Get SEAD Inventory
 --------------------------------------------------------------------------------------------------------------------------------
 function GetFreeAirSeadInventory(sideShortKey)
-    return GetGUID(sideShortKey.."_sead_free")
+    return MemoryGetGUIDFromKey(sideShortKey.."_sead_free")
 end
 
 function GetBusyAirSeadInventory(sideShortKey)
-    return GetGUID(sideShortKey.."_sead_busy")
+    return MemoryGetGUIDFromKey(sideShortKey.."_sead_busy")
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
 -- Get Dedicated AEW Inventory
 --------------------------------------------------------------------------------------------------------------------------------
 function GetFreeAirAEWInventory(sideShortKey)
-    return GetGUID(sideShortKey.."_aew_free")
+    return MemoryGetGUIDFromKey(sideShortKey.."_aew_free")
 end
 
 function GetBusyAirAEWInventory(sideShortKey)
-    return GetGUID(sideShortKey.."_aew_busy")
+    return MemoryGetGUIDFromKey(sideShortKey.."_aew_busy")
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
 -- Get Dedicated ASuW Inventory
 --------------------------------------------------------------------------------------------------------------------------------
 function GetFreeAirASuWInventory(sideShortKey)
-    return GetGUID(sideShortKey.."_asuw_free")
+    return MemoryGetGUIDFromKey(sideShortKey.."_asuw_free")
 end
 
 function GetBusyAirASuWInventory(sideShortKey)
-    return GetGUID(sideShortKey.."_asuw_busy")
+    return MemoryGetGUIDFromKey(sideShortKey.."_asuw_busy")
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
 -- Get Dedicated ASW Inventory
 --------------------------------------------------------------------------------------------------------------------------------
 function GetFreeAirASWInventory(sideShortKey)
-    return GetGUID(sideShortKey.."_asw_free")
+    return MemoryGetGUIDFromKey(sideShortKey.."_asw_free")
 end
 
 function GetBusyAirASWInventory(sideShortKey)
-    return GetGUID(sideShortKey.."_asw_busy")
+    return MemoryGetGUIDFromKey(sideShortKey.."_asw_busy")
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
 -- Get Dedicated Recon Inventory
 --------------------------------------------------------------------------------------------------------------------------------
 function GetFreeAirReconInventory(sideShortKey)
-    return GetGUID(sideShortKey.."_rec_free")
+    return MemoryGetGUIDFromKey(sideShortKey.."_rec_free")
 end
 
 function GetBusyAirReconInventory(sideShortKey)
-    return GetGUID(sideShortKey.."_rec_busy")
+    return MemoryGetGUIDFromKey(sideShortKey.."_rec_busy")
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
 -- Get Dedicated Tanker Inventory
 --------------------------------------------------------------------------------------------------------------------------------
 function GetFreeAirTankerInventory(sideShortKey)
-    return GetGUID(sideShortKey.."_tan_free")
+    return MemoryGetGUIDFromKey(sideShortKey.."_tan_free")
 end
 
 function GetBusyAirTankerInventory(sideShortKey)
-    return GetGUID(sideShortKey.."_tan_busy")
+    return MemoryGetGUIDFromKey(sideShortKey.."_tan_busy")
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
 -- Get Dedicated UAV Inventory
 --------------------------------------------------------------------------------------------------------------------------------
 function GetFreeAirUAVInventory(sideShortKey)
-    return GetGUID(sideShortKey.."_uav_free")
+    return MemoryGetGUIDFromKey(sideShortKey.."_uav_free")
 end
 
 function GetBusyAirUAVInventory(sideShortKey)
-    return GetGUID(sideShortKey.."_uav_busy")
+    return MemoryGetGUIDFromKey(sideShortKey.."_uav_busy")
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
 -- Get Dedicated UCAV Inventory
 --------------------------------------------------------------------------------------------------------------------------------
 function GetFreeAirUCAVInventory(sideShortKey)
-    return GetGUID(sideShortKey.."_ucav_free")
+    return MemoryGetGUIDFromKey(sideShortKey.."_ucav_free")
 end
 
 function GetBusyAirUCAVInventory(sideShortKey)
-    return GetGUID(sideShortKey.."_ucav_busy")
+    return MemoryGetGUIDFromKey(sideShortKey.."_ucav_busy")
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
 -- Get Dedicated Surface Ship Inventory
 --------------------------------------------------------------------------------------------------------------------------------
 function GetFreeSurfaceShipInventory(sideShortKey)
-    return GetGUID(sideShortKey.."_surf_free")
+    return MemoryGetGUIDFromKey(sideShortKey.."_surf_free")
 end
 
 function GetBusySurfaceShipInventory(sideShortKey)
-    return GetGUID(sideShortKey.."_surf_busy")
+    return MemoryGetGUIDFromKey(sideShortKey.."_surf_busy")
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
 -- Get Dedicated Submarine Inventory
 --------------------------------------------------------------------------------------------------------------------------------
 function GetFreeSubmarineInventory(sideShortKey)
-    return GetGUID(sideShortKey.."_sub_free")
+    return MemoryGetGUIDFromKey(sideShortKey.."_sub_free")
 end
 
 function GetBusySubmarineInventory(sideShortKey)
-    return GetGUID(sideShortKey.."_sub_busy")
+    return MemoryGetGUIDFromKey(sideShortKey.."_sub_busy")
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
@@ -1008,59 +1033,59 @@ end
 -- Get Contacts
 --------------------------------------------------------------------------------------------------------------------------------
 function GetUnknownAirContacts(sideShortKey)
-    return GetGUID(sideShortKey.."_air_con_X")
+    return MemoryGetGUIDFromKey(sideShortKey.."_air_con_X")
 end
 
 function GetHostileAirContacts(sideShortKey)
-    return GetGUID(sideShortKey.."_air_con_H")
+    return MemoryGetGUIDFromKey(sideShortKey.."_air_con_H")
 end
 
 function GetUnknownSurfaceShipContacts(sideShortKey)
-    return GetGUID(sideShortKey.."_surf_con_X")
+    return MemoryGetGUIDFromKey(sideShortKey.."_surf_con_X")
 end
 
 function GetHostileSurfaceShipContacts(sideShortKey)
-    return GetGUID(sideShortKey.."_surf_con_H")
+    return MemoryGetGUIDFromKey(sideShortKey.."_surf_con_H")
 end
 
 function GetUnknownSubmarineContacts(sideShortKey)
-    return GetGUID(sideShortKey.."_sub_con_X")
+    return MemoryGetGUIDFromKey(sideShortKey.."_sub_con_X")
 end
 
 function GetHostileSubmarineContacts(sideShortKey)
-    return GetGUID(sideShortKey.."_sub_con_H")
+    return MemoryGetGUIDFromKey(sideShortKey.."_sub_con_H")
 end
 
 function GetUnknownBaseContacts(sideShortKey)
-    return GetGUID(sideShortKey.."_base_con_X")
+    return MemoryGetGUIDFromKey(sideShortKey.."_base_con_X")
 end
 
 function GetHostileBaseContacts(sideShortKey)
-    return GetGUID(sideShortKey.."_base_con_H")
+    return MemoryGetGUIDFromKey(sideShortKey.."_base_con_H")
 end
 
 function GetUnknownSAMContacts(sideShortKey)
-    return GetGUID(sideShortKey.."_sam_con_X")
+    return MemoryGetGUIDFromKey(sideShortKey.."_sam_con_X")
 end
 
 function GetHostileSAMContacts(sideShortKey)
-    return GetGUID(sideShortKey.."_sam_con_H")
+    return MemoryGetGUIDFromKey(sideShortKey.."_sam_con_H")
 end
 
 function GetUnknownWeaponContacts(sideShortKey)
-    return GetGUID(sideShortKey.."_weap_con_X")
+    return MemoryGetGUIDFromKey(sideShortKey.."_weap_con_X")
 end
 
 function GetHostileWeaponContacts(sideShortKey)
-    return GetGUID(sideShortKey.."_weap_con_H")
+    return MemoryGetGUIDFromKey(sideShortKey.."_weap_con_H")
 end
 
 function GetUnknownLandContacts(sideShortKey)
-    return GetGUID(sideShortKey.."_land_con_X")
+    return MemoryGetGUIDFromKey(sideShortKey.."_land_con_X")
 end
 
 function GetHostileLandContacts(sideShortKey)
-    return GetGUID(sideShortKey.."_land_con_H")
+    return MemoryGetGUIDFromKey(sideShortKey.."_land_con_H")
 end
 
 function GetTotalHostileContacts(sideShortKey)
@@ -1211,7 +1236,7 @@ function UpdateAIInventories(sideGUID,sideShortKey)
                 unitType = DetermineRoleFromLoadOutDatabase(unit.loadoutdbid,"ucav")
             end
 
-            AddGUID(sideShortKey.."_"..unitType.."_"..unitStatus,unit.guid)
+            MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..unitStatus,unit.guid)
         end
     end
 
@@ -1230,11 +1255,11 @@ function UpdateAIInventories(sideGUID,sideShortKey)
 
             -- Save Unit As HVT (Carriers)
             if unit.subtype == "2001" or unit.subtype == "2008"then
-                AddGUID(sideShortKey.."_def_hvt",unit.guid)
+                MemoryAddGUIDToKey(sideShortKey.."_def_hvt",unit.guid)
             end
 
             -- Save Unit GUID
-            AddGUID(sideShortKey.."_"..unitType.."_"..unitStatus,unit.guid)
+            MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..unitStatus,unit.guid)
         end
     end
 
@@ -1252,7 +1277,7 @@ function UpdateAIInventories(sideGUID,sideShortKey)
             end
 
             -- Save Unit GUID
-            AddGUID(sideShortKey.."_"..unitType.."_"..unitStatus,unit.guid)
+            MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..unitStatus,unit.guid)
         end
     end
 
@@ -1272,13 +1297,13 @@ function UpdateAIInventories(sideGUID,sideShortKey)
             -- Save Unit As HVT (Airport)
             if unit.subtype == "9001" then
                 unitType = "base"
-                AddGUID(sideShortKey.."_def_hvt",unit.guid)
+                MemoryAddGUIDToKey(sideShortKey.."_def_hvt",unit.guid)
             elseif unit.subtype == "5001" then
                 unitType = "sam"
             end
 
             -- Save Unit GUID
-            AddGUID(sideShortKey.."_"..unitType.."_"..unitStatus,unit.guid)
+            MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..unitStatus,unit.guid)
         end
     end
 
@@ -1290,7 +1315,7 @@ function UpdateAIInventories(sideGUID,sideShortKey)
             local unitType = "air_con"
 
             -- Save Unit GUID
-            AddGUID(sideShortKey.."_"..unitType.."_"..contact.posture,contact.guid)
+            MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..contact.posture,contact.guid)
         end
     end
 
@@ -1302,7 +1327,7 @@ function UpdateAIInventories(sideGUID,sideShortKey)
             local unitType = "surf_con"
 
             -- Save Unit GUID
-            AddGUID(sideShortKey.."_"..unitType.."_"..contact.posture,contact.guid)
+            MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..contact.posture,contact.guid)
         end
     end
 
@@ -1314,7 +1339,7 @@ function UpdateAIInventories(sideGUID,sideShortKey)
             local unitType = "sub_con"
 
             -- Save Unit GUID
-            AddGUID(sideShortKey.."_"..unitType.."_"..contact.posture,contact.guid)
+            MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..contact.posture,contact.guid)
         end
     end
 
@@ -1331,7 +1356,7 @@ function UpdateAIInventories(sideGUID,sideShortKey)
             end
 
             -- Save Unit GUID
-            AddGUID(sideShortKey.."_"..unitType.."_"..contact.posture,contact.guid)
+            MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..contact.posture,contact.guid)
         end
     end
 
@@ -1352,7 +1377,7 @@ function UpdateAIInventories(sideGUID,sideShortKey)
 
             --ScenEdit_SpecialMessage("Stennis CSG", contact.name.."_"..contact.type.."_"..contact.type_description)
             -- Save Unit GUID
-            AddGUID(sideShortKey.."_"..unitType.."_"..contact.posture,contact.guid)
+            MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..contact.posture,contact.guid)
         end
     end
 
@@ -1360,58 +1385,59 @@ function UpdateAIInventories(sideGUID,sideShortKey)
 end
 
 function ResetInventoriesAndContacts(sideShortKey)
-    -- Reset Inventory And Contacts
-    RemoveAllGUID(sideShortKey.."_non_unav")
-    RemoveAllGUID(sideShortKey.."_def_hvt")
-    RemoveAllGUID(sideShortKey.."_sfig_free")
-    RemoveAllGUID(sideShortKey.."_sfig_busy")
-    RemoveAllGUID(sideShortKey.."_fig_free")
-    RemoveAllGUID(sideShortKey.."_fig_busy")
-    RemoveAllGUID(sideShortKey.."_mul_free")
-    RemoveAllGUID(sideShortKey.."_mul_busy")
-    RemoveAllGUID(sideShortKey.."_atk_free")
-    RemoveAllGUID(sideShortKey.."_atk_busy")
-    RemoveAllGUID(sideShortKey.."_sead_free")
-    RemoveAllGUID(sideShortKey.."_sead_busy")
-    RemoveAllGUID(sideShortKey.."_aew_free")
-    RemoveAllGUID(sideShortKey.."_aew_busy")
-    RemoveAllGUID(sideShortKey.."_asw_free")
-    RemoveAllGUID(sideShortKey.."_asw_busy")
-    RemoveAllGUID(sideShortKey.."_asuw_free")
-    RemoveAllGUID(sideShortKey.."_asuw_busy")
-    RemoveAllGUID(sideShortKey.."_rec_free")
-    RemoveAllGUID(sideShortKey.."_rec_busy")
-    RemoveAllGUID(sideShortKey.."_tan_free")
-    RemoveAllGUID(sideShortKey.."_tan_busy")
-    RemoveAllGUID(sideShortKey.."_uav_free")
-    RemoveAllGUID(sideShortKey.."_uav_busy")
-    RemoveAllGUID(sideShortKey.."_ucav_free")
-    RemoveAllGUID(sideShortKey.."_ucav_busy")
-    RemoveAllGUID(sideShortKey.."_surf_free")
-    RemoveAllGUID(sideShortKey.."_surf_busy")
-    RemoveAllGUID(sideShortKey.."_sub_free")
-    RemoveAllGUID(sideShortKey.."_sub_busy")
-    RemoveAllGUID(sideShortKey.."_land_busy")
-    RemoveAllGUID(sideShortKey.."_land_free")
-    RemoveAllGUID(sideShortKey.."_base_busy")
-    RemoveAllGUID(sideShortKey.."_base_free")
-    RemoveAllGUID(sideShortKey.."_sam_busy")
-    RemoveAllGUID(sideShortKey.."_sam_free")
-    RemoveAllGUID(sideShortKey.."_air_con_X")
-    RemoveAllGUID(sideShortKey.."_air_con_H")
-    RemoveAllGUID(sideShortKey.."_surf_con_X")
-    RemoveAllGUID(sideShortKey.."_surf_con_H")
-    RemoveAllGUID(sideShortKey.."_sub_con_X")
-    RemoveAllGUID(sideShortKey.."_sub_con_H")
-    RemoveAllGUID(sideShortKey.."_land_con_X")
-    RemoveAllGUID(sideShortKey.."_land_con_H")
-    RemoveAllGUID(sideShortKey.."_base_con_X")
-    RemoveAllGUID(sideShortKey.."_base_con_H")
-    RemoveAllGUID(sideShortKey.."_sam_con_X")
-    RemoveAllGUID(sideShortKey.."_sam_con_H")
-    RemoveAllGUID(sideShortKey.."_weap_con_X")
-    RemoveAllGUID(sideShortKey.."_weap_con_H")
-    RemoveAllGUID(sideShortKey.."_alloc_units")
+    -- Memory Clean
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_non_unav")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_def_hvt")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_sfig_free")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_sfig_busy")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_fig_free")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_fig_busy")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_mul_free")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_mul_busy")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_atk_free")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_atk_busy")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_sead_free")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_sead_busy")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_aew_free")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_aew_busy")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_asw_free")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_asw_busy")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_asuw_free")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_asuw_busy")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_rec_free")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_rec_busy")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_tan_free")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_tan_busy")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_uav_free")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_uav_busy")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_ucav_free")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_ucav_busy")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_surf_free")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_surf_busy")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_sub_free")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_sub_busy")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_land_busy")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_land_free")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_base_busy")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_base_free")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_sam_busy")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_sam_free")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_air_con_X")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_air_con_H")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_surf_con_X")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_surf_con_H")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_sub_con_X")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_sub_con_H")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_land_con_X")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_land_con_H")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_base_con_X")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_base_con_H")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_sam_con_X")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_sam_con_H")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_weap_con_X")
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_weap_con_H")
+    -- Stored Clean
+    PersistentRemoveAllGUID(sideShortKey.."_alloc_units")
 
 end
 
@@ -1450,7 +1476,7 @@ function ReconDoctrineCreateMissionAction(args)
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
-    local missions = GetGUID(args.shortKey.."_rec_miss")
+    local missions = PersistentGetGUID(args.shortKey.."_rec_miss")
     local totalFreeInventory = GetTotalFreeReconAndStealthFighterInventory(args.shortKey)
     local missionNumber = math.random(4)
     local rp1,rp2,rp3,rp4 = ""
@@ -1461,7 +1487,7 @@ function ReconDoctrineCreateMissionAction(args)
     end
 
     -- Get A Non Repeating Number
-    while GUIDExists(args.shortKey.."_rec_miss",args.shortKey.."_rec_miss_"..tostring(missionNumber)) do
+    while PersistentGUIDExists(args.shortKey.."_rec_miss",args.shortKey.."_rec_miss_"..tostring(missionNumber)) do
         missionNumber = math.random(4)
     end
     
@@ -1510,7 +1536,7 @@ function ReconDoctrineCreateMissionAction(args)
     DetermineUnitsToAssign(args.shortKey,side.name,createdMission.guid,1,totalFreeInventory)
 
     -- Add Guid
-    AddGUID(args.shortKey.."_rec_miss",createdMission.name)
+    PersistentAddGUID(args.shortKey.."_rec_miss",createdMission.name)
     
     -- Return True
     return true
@@ -1522,7 +1548,7 @@ end
 function ReconDoctrineUpdateMissionAction(args)
     -- Locals
     local side = VP_GetSide({guid=args.guid})
-    local missions = GetGUID(args.shortKey.."_rec_miss")
+    local missions = PersistentGetGUID(args.shortKey.."_rec_miss")
     local totalFreeBusyInventory = GetTotalFreeBusyReconAndStealthFighterInventory(args.shortKey)
     local totalHostileContacts = GetHostileAirContacts(args.shortKey)
     local missionNumber = 0
@@ -1615,7 +1641,7 @@ end
 function AttackDoctrineCreateAirMissionAction(args)
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
-    local missions = GetGUID(args.shortKey.."_aaw_miss")
+    local missions = PersistentGetGUID(args.shortKey.."_aaw_miss")
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
     local totalFreeInventory = GetTotalFreeAirFighterInventory(args.shortKey)
     local totalHostileContacts = GetHostileAirContacts(args.shortKey)
@@ -1655,7 +1681,7 @@ function AttackDoctrineCreateAirMissionAction(args)
     DetermineUnitsToAssign(args.shortKey,side.name,createdMission.guid,totalAirUnitsToAssign,totalFreeInventory)
 
     -- Add Guid
-    AddGUID(args.shortKey.."_aaw_miss",createdMission.name)
+    PersistentAddGUID(args.shortKey.."_aaw_miss",createdMission.name)
 
     -- Return True For Mission Created
     return true
@@ -1667,8 +1693,8 @@ end
 function AttackDoctrineUpdateAirMissionAction(args)
     -- Locals
     local side = VP_GetSide({guid=args.guid})
-    local missions = GetGUID(args.shortKey.."_aaw_miss")
-    local linkedMissions = GetGUID(args.shortKey.."_aaew_miss")
+    local missions = PersistentGetGUID(args.shortKey.."_aaw_miss")
+    local linkedMissions = PersistentGetGUID(args.shortKey.."_aaew_miss")
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
     local totalFreeBusyInventory = GetTotalFreeBusyAirFighterInventory(args.shortKey)
     local currentTime = ScenEdit_CurrentTime()
@@ -1735,8 +1761,8 @@ end
 function AttackDoctrineCreateStealthAirMissionAction(args)
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
-    local missions = GetGUID(args.shortKey.."_saaw_miss")
-    local linkedMissions = GetGUID(args.shortKey.."_aaw_miss")
+    local missions = PersistentGetGUID(args.shortKey.."_saaw_miss")
+    local linkedMissions = PersistentGetGUID(args.shortKey.."_aaw_miss")
     local totalFreeInventory = GetFreeAirStealthInventory(args.shortKey)
     local totalHostileContacts = GetHostileAirContacts(args.shortKey)
     local totalAirUnitsToAssign = GetHostileAirContactsStrength(args.shortKey)
@@ -1773,7 +1799,7 @@ function AttackDoctrineCreateStealthAirMissionAction(args)
     DetermineUnitsToAssign(args.shortKey,side.name,createdMission.guid,totalAirUnitsToAssign,totalFreeInventory)
 
     -- Add Guid And Add Time Stamp
-    AddGUID(args.shortKey.."_saaw_miss",createdMission.name)
+    PersistentAddGUID(args.shortKey.."_saaw_miss",createdMission.name)
 
     -- Return True For Mission Created
     return true
@@ -1785,8 +1811,8 @@ end
 function AttackDoctrineUpdateStealthAirMissionAction(args)
     -- Locals
     local side = VP_GetSide({guid=args.guid})
-    local missions = GetGUID(args.shortKey.."_saaw_miss")
-    local linkedMissions = GetGUID(args.shortKey.."_aaw_miss")
+    local missions = PersistentGetGUID(args.shortKey.."_saaw_miss")
+    local linkedMissions = PersistentGetGUID(args.shortKey.."_aaw_miss")
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
     local totalFreeBusyInventory = GetTotalFreeBusyAirStealthFighterInventory(args.shortKey)
     local currentTime = ScenEdit_CurrentTime()
@@ -1845,8 +1871,8 @@ end
 function AttackDoctrineCreateAEWMissionAction(args)
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
-    local missions = GetGUID(args.shortKey.."_aaew_miss")
-    local linkedMissions = GetGUID(args.shortKey.."_aaw_miss")
+    local missions = PersistentGetGUID(args.shortKey.."_aaew_miss")
+    local linkedMissions = PersistentGetGUID(args.shortKey.."_aaw_miss")
     local totalFreeInventory = GetFreeAirAEWInventory(args.shortKey)
     local totalHostileContacts = GetHostileAirContacts(args.shortKey)
     local missionNumber = 1
@@ -1888,7 +1914,7 @@ function AttackDoctrineCreateAEWMissionAction(args)
     DetermineUnitsToAssign(args.shortKey,side.name,createdMission.guid,1,totalFreeInventory)
 
     -- Add Guid And Add Time Stamp
-    AddGUID(args.shortKey.."_aaew_miss",createdMission.name)
+    PersistentAddGUID(args.shortKey.."_aaew_miss",createdMission.name)
 
     -- Return True For Mission Created
     return true
@@ -1900,8 +1926,8 @@ end
 function AttackDoctrineUpdateAEWAirMissionAction(args)
     -- Locals
     local side = VP_GetSide({guid=args.guid})
-    local missions = GetGUID(args.shortKey.."_aaew_miss")
-    local linkedMissions = GetGUID(args.shortKey.."_aaw_miss")
+    local missions = PersistentGetGUID(args.shortKey.."_aaew_miss")
+    local linkedMissions = PersistentGetGUID(args.shortKey.."_aaw_miss")
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
     local totalFreeBusyInventory = GetTotalFreeBusyAEWInventory(args.shortKey)
     local currentTime = ScenEdit_CurrentTime()
@@ -1968,7 +1994,7 @@ end
 function AttackDoctrineCreateAntiSurfaceShipMissionAction(args)
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
-    local missions = GetGUID(args.shortKey.."_asuw_miss")
+    local missions = PersistentGetGUID(args.shortKey.."_asuw_miss")
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
     local totalFreeInventory = GetFreeAirASuWInventory(args.shortKey)
     local totalHostileContacts = GetHostileSurfaceShipContacts(args.shortKey)
@@ -2003,7 +2029,7 @@ function AttackDoctrineCreateAntiSurfaceShipMissionAction(args)
     DetermineUnitsToAssign(args.shortKey,side.name,createdMission.guid,totalAirUnitsToAssign,totalFreeInventory)
 
     -- Add Guid And Add Time Stamp
-    AddGUID(args.shortKey.."_asuw_miss",createdMission.name)
+    PersistentAddGUID(args.shortKey.."_asuw_miss",createdMission.name)
 
     -- Return True For Mission Created
     return true
@@ -2015,7 +2041,7 @@ end
 function AttackDoctrineUpdateAntiSurfaceShipMissionAction(args)
     -- Locals
     local side = VP_GetSide({guid=args.guid})
-    local missions = GetGUID(args.shortKey.."_asuw_miss")
+    local missions = PersistentGetGUID(args.shortKey.."_asuw_miss")
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
     local totalFreeBusyInventory = GetTotalFreeBusyAirAntiSurfaceInventory(args.shortKey)
     local currentTime = ScenEdit_CurrentTime()
@@ -2073,7 +2099,7 @@ end
 function AttackDoctrineCreateSeadMissionAction(args)
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
-    local missions = GetGUID(args.shortKey.."_sead_miss")
+    local missions = PersistentGetGUID(args.shortKey.."_sead_miss")
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
     local totalFreeInventory = GetFreeAirSeadInventory(args.shortKey)
     local totalHostileContacts = GetHostileSAMContacts(args.shortKey)
@@ -2108,7 +2134,7 @@ function AttackDoctrineCreateSeadMissionAction(args)
     DetermineUnitsToAssign(args.shortKey,side.name,createdMission.guid,totalAirUnitsToAssign,totalFreeInventory)
 
     -- Add Guid
-    AddGUID(args.shortKey.."_sead_miss",createdMission.name)
+    PersistentAddGUID(args.shortKey.."_sead_miss",createdMission.name)
 
     -- Return True For Mission Created
     return true
@@ -2120,7 +2146,7 @@ end
 function AttackDoctrineUpdateSeadMissionAction(args)
     -- Locals
     local side = VP_GetSide({guid=args.guid})
-    local missions = GetGUID(args.shortKey.."_sead_miss")
+    local missions = PersistentGetGUID(args.shortKey.."_sead_miss")
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
     local totalFreeBusyInventory = GetTotalFreeBusyAirSeadInventory(args.shortKey)
     local totalHostileContacts = GetHostileSAMContacts(args.shortKey)
@@ -2179,7 +2205,7 @@ end
 function AttackDoctrineCreateLandAttackMissionAction(args)
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
-    local missions = GetGUID(args.shortKey.."_land_miss")
+    local missions = PersistentGetGUID(args.shortKey.."_land_miss")
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
     local totalFreeInventory = GetFreeAirAttackInventory(args.shortKey)
     local totalHostileContacts = GetHostileLandContacts(args.shortKey)
@@ -2214,7 +2240,7 @@ function AttackDoctrineCreateLandAttackMissionAction(args)
     DetermineUnitsToAssign(args.shortKey,side.name,createdMission.guid,totalAirUnitsToAssign,totalFreeInventory)
 
     -- Add Guid
-    AddGUID(args.shortKey.."_land_miss",createdMission.name)
+    PersistentAddGUID(args.shortKey.."_land_miss",createdMission.name)
 
     -- Return True For Mission Created
     return true
@@ -2226,7 +2252,7 @@ end
 function AttackDoctrineUpdateLandAttackMissionAction(args)
     -- Locals
     local side = VP_GetSide({guid=args.guid})
-    local missions = GetGUID(args.shortKey.."_land_miss")
+    local missions = PersistentGetGUID(args.shortKey.."_land_miss")
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
     local totalFreeBusyInventory = GetTotalFreeBusyAirAttackInventory(args.shortKey)
     local totalHostileContacts = GetHostileLandContacts(args.shortKey)
@@ -2285,7 +2311,7 @@ end
 function DefendDoctrineCreateAirMissionAction(args)
     -- Local Side And Mission
     local side = VP_GetSide({guid=args.guid})
-    local missions = GetGUID(args.shortKey.."_aaw_d_miss")
+    local missions = PersistentGetGUID(args.shortKey.."_aaw_d_miss")
     local createdMission = {}
     -- Boxes And Coordinates
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
@@ -2293,8 +2319,8 @@ function DefendDoctrineCreateAirMissionAction(args)
     local rp1,rp2,rp3,rp4 = ""
     -- Inventory And HVT And Contacts
     local totalFreeInventory = GetTotalFreeAirFighterInventory(args.shortKey)
-    local totalHVTs = GetGUID(args.shortKey.."_def_hvt")
-    local coveredHVTs = GetGUID(args.shortKey.."_def_hvt_cov")
+    local totalHVTs = MemoryGetGUIDFromKey(args.shortKey.."_def_hvt")
+    local coveredHVTs = PersistentGetGUID(args.shortKey.."_def_hvt_cov")
     local unitToDefend = nil
     local totalAAWUnitsToAssign = 4
 
@@ -2341,8 +2367,8 @@ function DefendDoctrineCreateAirMissionAction(args)
     DetermineUnitsToAssign(args.shortKey,side.name,createdMission.guid,totalAAWUnitsToAssign,totalFreeInventory)
 
     -- Add Guid And Add Time Stamp
-    AddGUID(args.shortKey.."_aaw_d_miss",createdMission.name)
-    AddGUID(args.shortKey.."_def_hvt_cov",unitToDefend.guid)
+    PersistentAddGUID(args.shortKey.."_aaw_d_miss",createdMission.name)
+    PersistentAddGUID(args.shortKey.."_def_hvt_cov",unitToDefend.guid)
 
     -- Return True For Mission Created
     return true
@@ -2354,7 +2380,7 @@ end
 function DefendDoctrineUpdateAirMissionAction(args)
     -- Local Side And Mission
     local side = VP_GetSide({guid=args.guid})
-    local missions = GetGUID(args.shortKey.."_aaw_d_miss")
+    local missions = PersistentGetGUID(args.shortKey.."_aaw_d_miss")
     local updatedMission = nil
     -- Boxes And Coordinates
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
@@ -2362,8 +2388,8 @@ function DefendDoctrineUpdateAirMissionAction(args)
     local defenseBoundingBox = {}
     -- Inventory And HVT And Contacts
     local totalFreeBusyInventory = GetTotalFreeBusyAirFighterInventory(args.shortKey)
-    local totalHVTs = GetGUID(args.shortKey.."_def_hvt")
-    local coveredHVTs = GetGUID(args.shortKey.."_def_hvt_cov")
+    local totalHVTs = MemoryGetGUIDFromKey(args.shortKey.."_def_hvt")
+    local coveredHVTs = PersistentGetGUID(args.shortKey.."_def_hvt_cov")
     local totalAAWUnitsToAssign = 2
     local totalHostileContacts = GetHostileAirContacts(args.shortKey)
     -- Times
@@ -2442,7 +2468,7 @@ end
 function SupportTankerDoctrineCreateMissionAction(args)
     -- Local Side And Mission
     local side = VP_GetSide({guid=args.guid})
-    local missions = GetGUID(args.shortKey.."_tan_sup_miss")
+    local missions = PersistentGetGUID(args.shortKey.."_tan_sup_miss")
     local createdMission = nil
     -- Boxes And Coordinates
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
@@ -2450,8 +2476,8 @@ function SupportTankerDoctrineCreateMissionAction(args)
     local supportBoundingBox = {}
     -- Inventory And HVT And Contacts
     local totalFreeInventory = GetFreeAirTankerInventory(args.shortKey)
-    local totalHVTs = GetGUID(args.shortKey.."_def_hvt")
-    local coveredHVTs = GetGUID(args.shortKey.."_def_tan_hvt_cov")
+    local totalHVTs = MemoryGetGUIDFromKey(args.shortKey.."_def_hvt")
+    local coveredHVTs = PersistentGetGUID(args.shortKey.."_def_tan_hvt_cov")
     local totalHostileContacts = GetHostileAirContacts(args.shortKey)
     local unitToSupport = nil
 
@@ -2496,8 +2522,8 @@ function SupportTankerDoctrineCreateMissionAction(args)
     DetermineUnitsToAssign(args.shortKey,side.name,createdMission.guid,1,totalFreeInventory)
 
     -- Add Guid And Add Time Stamp
-    AddGUID(args.shortKey.."_tan_sup_miss",createdMission.name)
-    AddGUID(args.shortKey.."_def_tan_hvt_cov",unitToSupport.guid)
+    PersistentAddGUID(args.shortKey.."_tan_sup_miss",createdMission.name)
+    PersistentAddGUID(args.shortKey.."_def_tan_hvt_cov",unitToSupport.guid)
 
     -- Return True For Mission Created
     return true
@@ -2509,7 +2535,7 @@ end
 function SupportTankerDoctrineUpdateMissionAction(args)
     -- Local Side And Mission
     local side = VP_GetSide({guid=args.guid})
-    local missions = GetGUID(args.shortKey.."_tan_sup_miss")
+    local missions = PersistentGetGUID(args.shortKey.."_tan_sup_miss")
     local updatedMission = nil
     -- Boxes And Coordinates
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
@@ -2517,8 +2543,8 @@ function SupportTankerDoctrineUpdateMissionAction(args)
     local supportBoundingBox = {}
     -- Inventory And HVT And Contacts
     local totalBusyFreeInventory = GetTotalFreeBusyTankerInventory(args.shortKey)
-    local totalHVTs = GetGUID(args.shortKey.."_def_hvt")
-    local coveredHVTs = GetGUID(args.shortKey.."_def_tan_hvt_cov")
+    local totalHVTs = MemoryGetGUIDFromKey(args.shortKey.."_def_hvt")
+    local coveredHVTs = PersistentGetGUID(args.shortKey.."_def_tan_hvt_cov")
     local totalHostileContacts = GetHostileAirContacts(args.shortKey)
     local totalHostilesInZone = 0
     -- Times
@@ -2577,7 +2603,7 @@ end
 function SupportAEWDoctrineCreateMissionAction(args)
     -- Local Side And Mission
     local side = VP_GetSide({guid=args.guid})
-    local missions = GetGUID(args.shortKey.."_aew_sup_miss")
+    local missions = PersistentGetGUID(args.shortKey.."_aew_sup_miss")
     local createdMission = nil
     -- Boxes And Coordinates
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
@@ -2585,8 +2611,8 @@ function SupportAEWDoctrineCreateMissionAction(args)
     local supportBoundingBox = {}
     -- Inventory And HVT And Contacts
     local totalFreeInventory = GetFreeAirAEWInventory(args.shortKey)
-    local totalHVTs = GetGUID(args.shortKey.."_def_hvt")
-    local coveredHVTs = GetGUID(args.shortKey.."_def_aew_hvt_cov")
+    local totalHVTs = MemoryGetGUIDFromKey(args.shortKey.."_def_hvt")
+    local coveredHVTs = PersistentGetGUID(args.shortKey.."_def_aew_hvt_cov")
     local totalHostileContacts = GetHostileAirContacts(args.shortKey)
     local unitToSupport = nil
 
@@ -2633,8 +2659,8 @@ function SupportAEWDoctrineCreateMissionAction(args)
     -- TODO Add EMCON
 
     -- Add Guid And Add Time Stamp
-    AddGUID(args.shortKey.."_aew_sup_miss",createdMission.name)
-    AddGUID(args.shortKey.."_def_aew_hvt_cov",unitToSupport.guid)
+    PersistentAddGUID(args.shortKey.."_aew_sup_miss",createdMission.name)
+    PersistentAddGUID(args.shortKey.."_def_aew_hvt_cov",unitToSupport.guid)
 
     -- Return True For Mission Created
     return true
@@ -2646,7 +2672,7 @@ end
 function SupportAEWDoctrineUpdateMissionAction(args)
     -- Local Side And Mission
     local side = VP_GetSide({guid=args.guid})
-    local missions = GetGUID(args.shortKey.."_aew_sup_miss")
+    local missions = PersistentGetGUID(args.shortKey.."_aew_sup_miss")
     local updatedMission = nil
     -- Boxes And Coordinates
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
@@ -2654,8 +2680,8 @@ function SupportAEWDoctrineUpdateMissionAction(args)
     local supportBoundingBox = {}
     -- Inventory And HVT And Contacts
     local totalBusyFreeInventory = GetTotalFreeBusyAEWInventory(args.shortKey)
-    local totalHVTs = GetGUID(args.shortKey.."_def_hvt")
-    local coveredHVTs = GetGUID(args.shortKey.."_def_aew_hvt_cov")
+    local totalHVTs = MemoryGetGUIDFromKey(args.shortKey.."_def_hvt")
+    local coveredHVTs = PersistentGetGUID(args.shortKey.."_def_aew_hvt_cov")
     local totalHostileContacts = GetHostileAirContacts(args.shortKey)
     local totalHostilesInZone = 0
     -- Times
@@ -2714,7 +2740,7 @@ end
 function MonitorCreateSAMNoNavZonesAction(args)
     -- Local Side And Mission
     local side = VP_GetSide({guid=args.guid})
-    local zones = GetGUID(args.shortKey.."_sam_ex_zone")
+    local zones = PersistentGetGUID(args.shortKey.."_sam_ex_zone")
     -- Inventory And HVT And Contacts
     local totalHostileContacts = GetHostileSAMContacts(args.shortKey)
     -- Zones
@@ -2722,7 +2748,7 @@ function MonitorCreateSAMNoNavZonesAction(args)
     local zoneNumber = #zones + 1
 
     -- Condition Check
-    if #zones >= 15 or #totalHostileContacts == 0 or #zones >= #totalHostileContacts then
+    if #zones >= 25 or #totalHostileContacts == 0 or #zones >= #totalHostileContacts then
        return false 
     end
 
@@ -2732,7 +2758,7 @@ function MonitorCreateSAMNoNavZonesAction(args)
 
     -- SAM Zone + Range
     local referencePoint = ScenEdit_AddReferencePoint({side=side.name,lat=contact.latitude,lon=contact.longitude,name=tostring(noNavZoneRange),highlighted="no"})
-    AddGUID(args.shortKey.."_sam_ex_zone",referencePoint.guid)
+    PersistentAddGUID(args.shortKey.."_sam_ex_zone",referencePoint.guid)
 
     -- Return True
     return true
@@ -2744,7 +2770,7 @@ end
 function MonitorUpdateSAMNoNavZonesAction(args)
     -- Local Side And Mission
     local side = VP_GetSide({guid=args.guid})
-    local zones = GetGUID(args.shortKey.."_sam_ex_zone")
+    local zones = PersistentGetGUID(args.shortKey.."_sam_ex_zone")
     -- Inventory And HVT And Contacts
     local totalHostileContacts = GetHostileSAMContacts(args.shortKey)
     -- Times
@@ -2753,7 +2779,7 @@ function MonitorUpdateSAMNoNavZonesAction(args)
     local zoneCounter = 1
 
     -- Condition Check
-    if #zones == 0 or (currentTime - lastReconTimeStamp) < 1 * 60 then
+    if #zones == 0 or (currentTime - lastReconTimeStamp) < 3 * 60 then
        return false 
     end
 
@@ -2789,7 +2815,7 @@ end
 function MonitorCreateShipNoNavZonesAction(args)
     -- Local Side And Mission
     local side = VP_GetSide({guid=args.guid})
-    local zones = GetGUID(args.shortKey.."_ship_ex_zone")
+    local zones = PersistentGetGUID(args.shortKey.."_ship_ex_zone")
     -- Inventory And HVT And Contacts
     local totalHostileContacts = GetHostileSurfaceShipContacts(args.shortKey)
     -- Zones
@@ -2797,7 +2823,7 @@ function MonitorCreateShipNoNavZonesAction(args)
     local zoneNumber = #zones + 1
 
     -- Condition Check
-    if #zones >= 15 or #totalHostileContacts == 0 or #zones >= #totalHostileContacts then
+    if #zones >= 25 or #totalHostileContacts == 0 or #zones >= #totalHostileContacts then
        return false 
     end
 
@@ -2807,7 +2833,7 @@ function MonitorCreateShipNoNavZonesAction(args)
     
     -- Ship Zone + Range
     local referencePoint = ScenEdit_AddReferencePoint({side=side.name,lat=contact.latitude,lon=contact.longitude,name=tostring(noNavZoneRange),highlighted="no"})
-    AddGUID(args.shortKey.."_ship_ex_zone",referencePoint.guid)
+    PersistentAddGUID(args.shortKey.."_ship_ex_zone",referencePoint.guid)
 
     -- Return True
     return true
@@ -2819,7 +2845,7 @@ end
 function MonitorUpdateShipNoNavZonesAction(args)
     -- Local Side And Mission
     local side = VP_GetSide({guid=args.guid})
-    local zones = GetGUID(args.shortKey.."_ship_ex_zone")
+    local zones = PersistentGetGUID(args.shortKey.."_ship_ex_zone")
     -- Inventory And HVT And Contacts
     local totalHostileContacts = GetHostileSurfaceShipContacts(args.shortKey)
     -- Times
@@ -2828,7 +2854,7 @@ function MonitorUpdateShipNoNavZonesAction(args)
     local zoneCounter = 1
 
     -- Condition Check
-    if #zones == 0 or (currentTime - lastReconTimeStamp) < 1 * 60 then
+    if #zones == 0 or (currentTime - lastReconTimeStamp) < 3 * 60 then
        return false 
     end
 
