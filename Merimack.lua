@@ -2753,7 +2753,7 @@ function MonitorUpdateSAMNoNavZonesAction(args)
     local zoneCounter = 1
 
     -- Condition Check
-    if #zones == 0 or (currentTime - lastReconTimeStamp) < 3 * 60 then
+    if #zones == 0 or (currentTime - lastReconTimeStamp) < 1 * 60 then
        return false 
     end
 
@@ -2828,7 +2828,7 @@ function MonitorUpdateShipNoNavZonesAction(args)
     local zoneCounter = 1
 
     -- Condition Check
-    if #zones == 0 or (currentTime - lastReconTimeStamp) < 3 * 60 then
+    if #zones == 0 or (currentTime - lastReconTimeStamp) < 1 * 60 then
        return false 
     end
 
