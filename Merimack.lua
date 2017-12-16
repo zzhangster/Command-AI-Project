@@ -6,8 +6,9 @@
 BT = {}
 BT.__index = BT
 BT.results = {success = "success", fail = "fail", wait = "wait", error = "error"}
-local commandMerimackAIArray = {}
-local commandMonitorAIArray = {}
+local commandMerrimackAIArray = {} -- Create And Update Missions
+local commandMonitorAIArray = {} -- Create Threat Checker
+local commandHamptonAIArray = {} -- Unit Assignment And Micro Management 
 local commandMemory = {}
 
 --[[
@@ -3071,15 +3072,15 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 -- Initialize AI
 --------------------------------------------------------------------------------------------------------------------------------
-function InitializeMerimackMonitorAI(sideName,options)
+function InitializeMerrimackMonitorAI(sideName,options)
     -- Local Values
     local side = ScenEdit_GetSideOptions({side=sideName})
     local sideGuid = side.guid
-    local shortSideKey = "a"..tostring(#commandMerimackAIArray + 1)
+    local shortSideKey = "a"..tostring(#commandMerrimackAIArray + 1)
     local attributes = InitializeAIAttributes(options)
 
     -- Main Node Sequence
-    local merimackSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
+    local merrimackSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
 
     -- Doctrine Sequences
     local offensiveDoctrineSequence = BT:make(BT.sequence,sideGuid,shortSideKey,attributes)
@@ -3129,8 +3130,8 @@ function InitializeMerimackMonitorAI(sideName,options)
     local supportAEWDoctrineCreateMissionBT = BT:make(SupportAEWDoctrineUpdateMissionAction,sideGuid,shortSideKey,attributes)
 
     -- Build AI Tree
-    merimackSelector:addChild(offensiveDoctrineSequence)
-    merimackSelector:addChild(defensiveDoctrineSequence)
+    merrimackSelector:addChild(offensiveDoctrineSequence)
+    merrimackSelector:addChild(defensiveDoctrineSequence)
 
     -- Offensive and Defensive Sequence
     offensiveDoctrineSequence:addChild(offensiveDoctrineConditionalBT)
@@ -3212,14 +3213,17 @@ function InitializeMerimackMonitorAI(sideName,options)
     monitorAirNoNavSelector:addChild(monitorUpdateAirNoNavZonesBT)
     monitorAirNoNavSelector:addChild(monitorCreateAirNoNavZonesBT)
 
+    -- Setup Hampton AI
+
+
     -- Add All AI's
-    commandMerimackAIArray[#commandMerimackAIArray + 1] = merimackSelector
+    commandMerrimackAIArray[#commandMerrimackAIArray + 1] = merrimackSelector
     commandMonitorAIArray[#commandMonitorAIArray + 1] = monitorSelector
 end
 
 function UpdateAI()
-    -- Update Inventories And Update Merimack AI
-    for k, v in pairs(commandMerimackAIArray) do
+    -- Update Inventories And Update Merrimack AI
+    for k, v in pairs(commandMerrimackAIArray) do
         UpdateAIInventories(v.guid,v.shortKey)
         UpdateAIAreaOfOperations(v.guid,v.shortKey)
         v:run()
@@ -3234,5 +3238,5 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 -- Global Call
 --------------------------------------------------------------------------------------------------------------------------------
-InitializeMerimackMonitorAI("Blue Force",{preset="Grant",options={aggressive=5,defensive=5,cunning=5,direct=5,determined=5,reserved=5}})
-InitializeMerimackMonitorAI("Red Force",{preset="Grant",options={aggressive=5,defensive=5,cunning=5,direct=5,determined=5,reserved=5}})
+InitializeMerrimackMonitorAI("Blue Force",{preset="Grant",options={aggressive=5,defensive=5,cunning=5,direct=5,determined=5,reserved=5}})
+InitializeMerrimackMonitorAI("Red Force",{preset="Grant",options={aggressive=5,defensive=5,cunning=5,direct=5,determined=5,reserved=5}})
