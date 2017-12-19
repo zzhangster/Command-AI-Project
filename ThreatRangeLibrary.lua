@@ -6,6 +6,12 @@ ScenEdit_SetKeyValue("thr_2478","80")
 ScenEdit_SetKeyValue("thr_1276","80")
 -- KN-06
 ScenEdit_SetKeyValue("thr_3056","80")
+-- SA-17 Family
+ScenEdit_SetKeyValue("thr_1912","40")
+ScenEdit_SetKeyValue("thr_1913","40")
+ScenEdit_SetKeyValue("thr_2164","40")
+ScenEdit_SetKeyValue("thr_2276","40")
+ScenEdit_SetKeyValue("thr_3138","40")
 -- SA-20b Family
 ScenEdit_SetKeyValue("thr_2027","110")
 ScenEdit_SetKeyValue("thr_386","110")
