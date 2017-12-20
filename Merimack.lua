@@ -350,30 +350,19 @@ end
 
 function GetGroupLeadsAndIndividualsFromMission(sideName,missionGuid)
     local mission = ScenEdit_GetMission(sideName,missionGuid)
-    --[[local unitKeyValue = {}
-    local unitList = {}
+    local unitKeyValue = {}
+    local missionUnits = {}
     if mission then
         for k,v in pairs(mission.unitlist) do
             local unit = ScenEdit_GetUnit({side=sideName, guid=v})
-            if unit.group then
-                if unitKeyValue[unit.group.lead] == nil then
-                    unitList[#unitList + 1] = unit.group.lead
-                    unitKeyValue[unit.group.lead] = ""
-                end
-            else
-                if unitKeyValue[unit.guid] == nil then
-                    unitList[#unitList + 1] = unit.guid
-                    unitKeyValue[unit.guid] = ""
-                end
+            if unitKeyValue[unit.guid] == nil then
+                missionUnits[#missionUnits + 1] = unit.guid
+                unitKeyValue[unit.guid] = ""
             end
         end
+        ScenEdit_SpecialMessage("Blue Force", "GetGroupLeadsAndIndividualsFromMission: "..mission.name.." "..tostring(#missionUnits))
     end
-    return unitList]]--
-    if mission then
-        return mission.unitlist
-    else 
-        return {}
-    end
+    return missionUnits
 end
 
 function DetermineRoleFromLoadOutDatabase(loudoutId,defaultRole)
@@ -403,7 +392,7 @@ function DetermineThreatRangeByUnitDatabaseId(sideGuid,contactGuid)
     local range = 0
     -- Loop Through EM Matches And Get First
     for k,v in pairs(contact.potentialmatches) do
-        local foundRange = ScenEdit_GetKeyValue("thr_"..tostring(v.dbid))
+        local foundRange = ScenEdit_GetKeyValue("thr_"..tostring(v.DBID))
         if foundRange ~= "" then
             range = tonumber(foundRange)
             break
@@ -1638,7 +1627,7 @@ function AttackDoctrineCreateUpdateAirMissionAction(args)
         rp4 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_aaw_miss_"..tostring(missionNumber).."_rp_4", lat=hostileContactBoundingBox[4].latitude, lon=hostileContactBoundingBox[4].longitude})
         -- Created Mission
         createdUpdatedMission = ScenEdit_AddMission(side.name,args.shortKey.."_aaw_miss_"..tostring(missionNumber),"patrol",{type="aaw",zone={rp1.name,rp2.name,rp3.name,rp4.name}})
-        ScenEdit_SetMission(side.name,createdUpdatedMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=true,flightSize=2,useFlightSize=false})
+        ScenEdit_SetMission(side.name,createdUpdatedMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=true,flightSize=2,useFlightSize=true})
         ScenEdit_SetDoctrine({side=side.name,mission=createdUpdatedMission.name},{automatic_evasion="yes",maintain_standoff="yes",ignore_emcon_while_under_attack="yes",weapon_state_planned="5001",weapon_state_rtb ="1",dive_on_threat="2"})
         -- Add Guid
         PersistentAddGUID(args.shortKey.."_aaw_miss",createdUpdatedMission.name)
@@ -1684,7 +1673,7 @@ function AttackDoctrineCreateUpdateStealthAirMissionAction(args)
         if #missions == 0 then
             -- Create Mission
             createdUpdatedMission = ScenEdit_AddMission(side.name,args.shortKey.."_saaw_miss_"..tostring(missionNumber),"patrol",{type="aaw",zone=linkedMissionPoints})
-            ScenEdit_SetMission(side.name,createdUpdatedMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=true,flightSize=2,useFlightSize=false})
+            ScenEdit_SetMission(side.name,createdUpdatedMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=true,flightSize=2,useFlightSize=true})
             ScenEdit_SetDoctrine({side=side.name,mission=createdUpdatedMission.name},{automatic_evasion="yes",maintain_standoff="yes",ignore_emcon_while_under_attack="yes",weapon_state_planned="5001",weapon_state_rtb ="0"})
             --ScenEdit_SetEMCON("Mission",createdUpdatedMission.guid,"Radar=Passive")
             -- Add Guid And Add Time Stamp
@@ -1740,7 +1729,6 @@ function AttackDoctrineCreateUpdateAEWMissionAction(args)
             rp4 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_4", lat=patrolBoundingBox[4].latitude, lon=patrolBoundingBox[4].longitude})
             -- Create Mission
             createdUpdatedMission = ScenEdit_AddMission(side.name,args.shortKey.."_aaew_miss_"..tostring(missionNumber),"support",{zone={rp1.name,rp2.name,rp3.name,rp4.name}})
-            ScenEdit_SetMission(side.name,createdUpdatedMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=true,flightSize=1,useFlightSize=false})
             ScenEdit_SetEMCON("Mission",createdUpdatedMission.guid,"Radar=Active")
             -- Add Guid And Add Time Stamp
             PersistentAddGUID(args.shortKey.."_aaew_miss",createdUpdatedMission.name)
@@ -1785,7 +1773,7 @@ function AttackDoctrineCreateUpdateAntiSurfaceShipMissionAction(args)
         rp4 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_asuw_miss_"..tostring(missionNumber).."_rp_4", lat=hostileContactBoundingBox[4].latitude, lon=hostileContactBoundingBox[4].longitude})
         -- Create Mission
         createdUpdatedMission = ScenEdit_AddMission(side.name,args.shortKey.."_asuw_miss_"..tostring(missionNumber),"patrol",{type="naval",zone={rp1.name,rp2.name,rp3.name,rp4.name}})
-        ScenEdit_SetMission(side.name,createdUpdatedMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=false,flightSize=4,useFlightSize=false})
+        ScenEdit_SetMission(side.name,createdUpdatedMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=false,flightSize=2,useFlightSize=true})
         ScenEdit_SetDoctrine({side=side.name,mission=createdUpdatedMission.name},{automatic_evasion="yes",maintain_standoff="yes",ignore_emcon_while_under_attack="yes",weapon_state_planned="5001",weapon_state_rtb="1",fuel_state_rtb="2",dive_on_threat="2"})
         --ScenEdit_SetEMCON("Mission",createdUpdatedMission.guid,"Radar=Active")
         -- Add Guid And Add Time Stamp
@@ -1829,7 +1817,7 @@ function AttackDoctrineCreateUpdateSeadMissionAction(args)
         rp4 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_sead_miss_"..tostring(missionNumber).."_rp_4", lat=hostileContactBoundingBox[4].latitude, lon=hostileContactBoundingBox[4].longitude})
         -- Create Mission
         createdUpdatedMission = ScenEdit_AddMission(side.name,args.shortKey.."_sead_miss_"..tostring(missionNumber),"patrol",{type="sead",zone={rp1.name,rp2.name,rp3.name,rp4.name}})
-        ScenEdit_SetMission(side.name,createdUpdatedMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=false,flightSize=4,useFlightSize=false})
+        ScenEdit_SetMission(side.name,createdUpdatedMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=false,flightSize=2,useFlightSize=true})
         --ScenEdit_SetEMCON("Mission",createdUpdatedMission.guid,"Radar=Passive")
         -- Add Guid
         PersistentAddGUID(args.shortKey.."_sead_miss",createdUpdatedMission.name)
@@ -1872,7 +1860,7 @@ function AttackDoctrineCreateUpdateLandAttackMissionAction(args)
         rp4 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_land_miss_"..tostring(missionNumber).."_rp_4", lat=hostileContactBoundingBox[4].latitude, lon=hostileContactBoundingBox[4].longitude})
         -- Create Mission
         createdUpdatedMission = ScenEdit_AddMission(side.name,args.shortKey.."_land_miss_"..tostring(missionNumber),"patrol",{type="land",zone={rp1.name,rp2.name,rp3.name,rp4.name}})
-        ScenEdit_SetMission(side.name,createdUpdatedMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=false,flightSize=2,useFlightSize=false})
+        ScenEdit_SetMission(side.name,createdUpdatedMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=false,flightSize=2,useFlightSize=true})
         --ScenEdit_SetEMCON("Mission",createdUpdatedMission.guid,"Radar=Passive")
         -- Add Guid
         PersistentAddGUID(args.shortKey.."_land_miss",createdUpdatedMission.name)
@@ -1938,7 +1926,7 @@ function DefendDoctrineCreateUpdateAirMissionAction(args)
             rp4 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..unitToDefend.guid.."_rp_4", lat=defenseBoundingBox[4].latitude, lon=defenseBoundingBox[4].longitude})
             -- Create Mission
             createdMission = ScenEdit_AddMission(side.name,args.shortKey.."_aaw_d_miss_"..unitToDefend.guid,"patrol",{type="aaw",zone={rp1.name,rp2.name,rp3.name,rp4.name}})
-            ScenEdit_SetMission(side.name,createdMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=false,flightSize=2,useFlightSize=false})
+            ScenEdit_SetMission(side.name,createdMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=false,flightSize=2,useFlightSize=true})
             ScenEdit_SetDoctrine({side=side.name,mission=createdMission.name},{automatic_evasion="yes",maintain_standoff="yes",ignore_emcon_while_under_attack="yes",weapon_state_planned="5001",weapon_state_rtb ="1",dive_on_threat="2"})
             --ScenEdit_SetEMCON("Mission",createdMission.guid,"Radar=Passive")
             -- Add Guid And Add Time Stamp
@@ -2277,16 +2265,16 @@ function HamptonUpdateUnitsInReconMissionAction(args)
         local updatedMission = ScenEdit_GetMission(side.name,v)
         -- Find Contact Close To Unit And Evade
         if #updatedMission.unitlist > 0 then
-            local supportUnit = ScenEdit_GetUnit({side=side.name, guid=updatedMission.unitlist[1]})
-            local unitRetreatPoint = GetAllNoNavZoneThatContainsUnit(args.guid,args.shortKey,supportUnit.guid,70)
+            local missionUnit = ScenEdit_GetUnit({side=side.name, guid=updatedMission.unitlist[1]})
+            local unitRetreatPoint = GetAllNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,70)
             -- SAM Retreat Point
-            if unitRetreatPoint ~= nil and not DetermineUnitRTB(side.name,supportUnit.guid) then
-                ScenEdit_SetDoctrine({side=side.name,unitname=supportUnit.name},{ignore_plotted_course = "no" })
-                supportUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
-                supportUnit.manualSpeed = unitRetreatPoint.speed
+            if unitRetreatPoint ~= nil and not DetermineUnitRTB(side.name,missionUnit.guid) then
+                ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course = "no" })
+                missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
+                missionUnit.manualSpeed = unitRetreatPoint.speed
             else
-                ScenEdit_SetDoctrine({side=side.name,unitname=supportUnit.name},{ignore_plotted_course = "yes" })
-                supportUnit.manualSpeed = "OFF"
+                ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course = "yes" })
+                missionUnit.manualSpeed = "OFF"
             end
         end
     end
@@ -2312,11 +2300,11 @@ function HamptonUpdateUnitsInOffensiveAirMissionAction(args)
         local unitRetreatPoint = GetSAMAndShipNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid)
         -- Retreat Point
         if unitRetreatPoint ~= nil and not DetermineUnitRTB(side.name,missionUnit.guid) then
-            ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "no" })
+            ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course = "no" })
             missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
             missionUnit.manualSpeed = unitRetreatPoint.speed
         else
-            ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "yes" })
+            ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course = "yes" })
             missionUnit.manualSpeed = "OFF"
         end
     end
@@ -2344,11 +2332,11 @@ function HamptonUpdateUnitsInOffensiveStealthAirMissionAction(args)
         local unitRetreatPoint = GetAllNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,70)
         -- Retreat Point
         if unitRetreatPoint ~= nil and not DetermineUnitRTB(side.name,missionUnit.guid) then
-            ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "no" })
+            ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course = "no" })
             missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
             missionUnit.manualSpeed = unitRetreatPoint.speed
         else
-            ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "yes" })
+            ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course = "yes" })
             missionUnit.manualSpeed = "OFF"
         end
     end
@@ -2376,11 +2364,11 @@ function HamptonUpdateUnitsInOffensiveSeadMissionAction(args)
         local unitRetreatPoint = GetAirAndShipNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,70)
         -- Set Retreat
         if unitRetreatPoint ~= nil and not DetermineUnitRTB(side.name,missionUnit.guid) then
-            ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "no" })
+            ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course = "no" })
             missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
             missionUnit.manualSpeed = unitRetreatPoint.speed
         else
-            ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "yes" })
+            ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course = "yes" })
             missionUnit.manualSpeed = "OFF"
         end
     end
@@ -2406,11 +2394,11 @@ function HamptonUpdateUnitsInOffensiveLandMissionAction(args)
         local unitRetreatPoint = GetAllNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,70)
         -- Set Retreat
         if unitRetreatPoint ~= nil and not DetermineUnitRTB(side.name,missionUnit.guid) then
-            ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "no" })
+            ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course = "no" })
             missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
             missionUnit.manualSpeed = unitRetreatPoint.speed
         else
-            ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "yes" })
+            ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course = "yes" })
             missionUnit.manualSpeed = "OFF"
         end
     end
@@ -2436,11 +2424,11 @@ function HamptonUpdateUnitsInOffensiveAntiShipMissionAction(args)
         local unitRetreatPoint = GetAirAndSAMNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,70)
         -- Unit Retreat Point
         if unitRetreatPoint ~= nil and not DetermineUnitRTB(side.name,missionUnit.guid) then
-            ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "no" })
+            ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course = "no" })
             missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
             missionUnit.manualSpeed = unitRetreatPoint.speed
         else
-            ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "yes" })
+            ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course = "yes" })
             missionUnit.manualSpeed = "OFF"
         end
     end
@@ -2466,11 +2454,11 @@ function HamptonUpdateUnitsInOffensiveAEWMissionAction(args)
         local unitRetreatPoint = GetAllNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,150)
         -- Retreat Point
         if unitRetreatPoint ~= nil and not DetermineUnitRTB(side.name,missionUnit.guid) then
-            ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "no" })
+            ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course = "no" })
             missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
             missionUnit.manualSpeed = unitRetreatPoint.speed
         else
-            ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "yes" })
+            ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course = "yes" })
             missionUnit.manualSpeed = "OFF"
         end
     end
@@ -2495,16 +2483,16 @@ function HamptonUpdateUnitsInSupportAEWMissionAction(args)
         if updatedMission then
             -- Determine Units To Assign
             local missionUnits = updatedMission.unitlist
-            for k,v in pairs(missionUnits) do
-                local missionUnit = ScenEdit_GetUnit({side=side.name, guid=v})
+            for k1,v1 in pairs(missionUnits) do
+                local missionUnit = ScenEdit_GetUnit({side=side.name, guid=v1})
                 local unitRetreatPoint = GetAllNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,150)
                 -- Unit Retreat Point
                 if unitRetreatPoint ~= nil and not DetermineUnitRTB(side.name,missionUnit.guid) then
-                    ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "no" })
+                    ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course = "no" })
                     missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
                     missionUnit.manualSpeed = unitRetreatPoint.speed
                 else
-                    ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "yes" })
+                    ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course = "yes" })
                     missionUnit.manualSpeed = "OFF"
                 end
             end
@@ -2531,16 +2519,16 @@ function HamptonUpdateUnitsInSupportTankerMissionAction(args)
         if updatedMission then
             -- Find Contact Close To Unit And Retreat If Necessary
             local missionUnits = updatedMission.unitlist
-            for k,v in pairs(missionUnits) do
-                local missionUnit = ScenEdit_GetUnit({side=side.name, guid=v})
+            for k1,v1 in pairs(missionUnits) do
+                local missionUnit = ScenEdit_GetUnit({side=side.name, guid=v1})
                 local unitRetreatPoint = GetAllNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,150)
                 -- Find Retreat Point
                 if unitRetreatPoint ~= nil and not DetermineUnitRTB(side.name,missionUnit.guid) then
-                    ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "no" })
+                    ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course = "no" })
                     missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
                     missionUnit.manualSpeed = unitRetreatPoint.speed
                 else
-                    ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "yes" })
+                    ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course = "yes" })
                     missionUnit.manualSpeed = "OFF"
                 end
             end
@@ -2567,16 +2555,16 @@ function HamptonUpdateUnitsInDefensiveAirMissionAction(args)
         if updatedMission then
             -- Find Area And Return Point
             local missionUnits = GetGroupLeadsAndIndividualsFromMission(side.name,updatedMission.guid)
-            for k,v in pairs(missionUnits) do
-                local missionUnit = ScenEdit_GetUnit({side=side.name, guid=v})
+            for k1,v1 in pairs(missionUnits) do
+                local missionUnit = ScenEdit_GetUnit({side=side.name, guid=v1})
                 local unitRetreatPoint = GetSAMAndShipNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid)
                 -- Set Retreat
                 if unitRetreatPoint ~= nil and not DetermineUnitRTB(side.name,missionUnit.guid) then
-                    ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "no" })
+                    ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course = "no" })
                     missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
                     missionUnit.manualSpeed = unitRetreatPoint.speed
                 else
-                    ScenEdit_SetDoctrine({side=side.name,unitname=missionUnit.name},{ignore_plotted_course = "yes" })
+                    ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course = "yes" })
                     missionUnit.manualSpeed = "OFF"
                 end
             end
