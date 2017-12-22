@@ -198,6 +198,7 @@ function BT:limit(args)
         end
     end
 end
+
 --------------------------------------------------------------------------------------------------------------------------------
 -- Generic Helper Functions
 --------------------------------------------------------------------------------------------------------------------------------
@@ -223,20 +224,16 @@ function MidPointCoordinate(lat1,lon1,lat2,lon2)
     lon1 = InternationalDecimalConverter(lon1)
     lat2 = InternationalDecimalConverter(lat2)
     lon2 = InternationalDecimalConverter(lon2)
-
     -- Local
     local dLon = math.rad(lon2 - lon1)
-    
     -- Convert to radians
     lat1 = math.rad(lat1)
     lat2 = math.rad(lat2)
     lon1 = math.rad(lon1)
-    
     local Bx = math.cos(lat2) * math.cos(dLon)
     local By = math.cos(lat2) * math.sin(dLon)
     local lat3 = math.atan2(math.sin(lat1) + math.sin(lat2), math.sqrt((math.cos(lat1) + Bx) * (math.cos(lat1) + Bx) + By * By))
     local lon3 = lon1 + math.atan2(By, math.cos(lat1) + Bx)
-    
     -- Print out in degrees
     return MakeLatLong(math.deg(lat3),math.deg(lon3))
 end
@@ -261,12 +258,10 @@ function FindBoundingBoxForGivenLocations(coordinates,padding)
     local east = 0.0
     local north = 0.0
     local south = 0.0
-
     -- Condiation Check
     if coordinates == nil or #coordinates == 0 then
         padding = 0
     end
-
     -- Assign Up to numberOfReconToAssign
     for lc = 1,#coordinates do
         local loc = coordinates[lc]
@@ -289,13 +284,11 @@ function FindBoundingBoxForGivenLocations(coordinates,padding)
             end
         end
     end
-
     --Adding Padding
     north = north + padding
     south = south - padding
     west = west - padding
     east = east + padding
-
     --Return In Format
     return {MakeLatLong(north,west),MakeLatLong(north,east),MakeLatLong(south,east),MakeLatLong(south,west)}
 end
@@ -348,7 +341,7 @@ function Split(s, sep)
     return fields
 end
 
-function GetGroupLeadsAndIndividualsFromMission(sideName,missionGuid)
+function GetUnitsFromMission(sideName,missionGuid)
     local mission = ScenEdit_GetMission(sideName,missionGuid)
     local unitKeyValue = {}
     local missionUnits = {}
@@ -360,7 +353,6 @@ function GetGroupLeadsAndIndividualsFromMission(sideName,missionGuid)
                 unitKeyValue[unit.guid] = ""
             end
         end
-        ScenEdit_SpecialMessage("Blue Force", "GetGroupLeadsAndIndividualsFromMission: "..mission.name.." "..tostring(#missionUnits))
     end
     return missionUnits
 end
@@ -415,6 +407,20 @@ function DetermineThreatRangeByUnitDatabaseId(sideGuid,contactGuid)
     end
     -- Return Range
     return range
+end
+
+function AddReinforcementRequest(sideShortKey,sideName,missionName,quantity)
+    MemoryAddGUIDToKey(sideShortKey.."_reinforce_request",{name=missionName,number=quantity})
+end
+
+function GetReinforcementRequests(sideShortKey)
+    local reinforceRequests = MemoryGetGUIDFromKey(sideShortKey.."_reinforce_request")
+    local returnRequests = {}
+    -- Loop And Determine 
+    for k,v in pairs(reinforceRequests) do
+        returnRequests[tostring(v.name)] = v.number
+    end
+    return returnRequests
 end
 
 function DetermineUnitsToAssign(sideShortKey,sideName,missionGuid,totalRequiredUnits,unitGuidList)
@@ -483,6 +489,7 @@ function GetGlobalConstant()
     ScenEdit_SetKeyValue("CONST_GLOBAL_VALUE",globalConstant)
     return tonumber(globalConstant)
 end
+
 --------------------------------------------------------------------------------------------------------------------------------
 -- Save GUID In Memory Functions
 --------------------------------------------------------------------------------------------------------------------------------
@@ -1186,10 +1193,8 @@ function UpdateAIInventories(sideGUID,sideShortKey)
     local submarineContacts = side:contactsBy("3")
     local landContacts = side:contactsBy("4")
     local weaponContacts = side:contactsBy("6")
-
     -- Rest Inventories And Contacts
     ResetInventoriesAndContacts(sideShortKey)
-
     -- Loop Through Aircraft Inventory By Subtypes And Readiness
     if aircraftInventory then
         for k, v in pairs(aircraftInventory) do
@@ -1197,7 +1202,6 @@ function UpdateAIInventories(sideGUID,sideShortKey)
             local unit = ScenEdit_GetUnit({side=side.name, guid=v.guid})
             local unitType = "atk"
             local unitStatus = "unav"
-
             -- Get Status
             if unit.mission == nil and unit.loadoutdbid ~= nil and unit.loadoutdbid ~= 3 and unit.loadoutdbid ~= 4 and tostring(unit.readytime) == "0" then
                 unitStatus = "free"
@@ -1206,7 +1210,6 @@ function UpdateAIInventories(sideGUID,sideShortKey)
             else 
                 break
             end
-
             -- Fighter
             if unit.subtype == "2001" then
                 unitType = DetermineRoleFromLoadOutDatabase(unit.loadoutdbid,"fig")
@@ -1238,11 +1241,9 @@ function UpdateAIInventories(sideGUID,sideShortKey)
             elseif unit.subtype == "8002" then
                 unitType = DetermineRoleFromLoadOutDatabase(unit.loadoutdbid,"ucav")
             end
-
             MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..unitStatus,unit.guid)
         end
     end
-
     -- Loop Through Surface Ship Inventory
     if shipInventory then
         for k, v in pairs(shipInventory) do
@@ -1250,22 +1251,18 @@ function UpdateAIInventories(sideGUID,sideShortKey)
             local unit = ScenEdit_GetUnit({side=side.name, guid=v.guid})
             local unitType = "surf"
             local unitStatus = "busy"
-
             -- Check Status
             if unit.mission == nil then
                 unitStatus = "free"
             end
-
             -- Save Unit As HVT (Carriers)
             if unit.subtype == "2001" or unit.subtype == "2008"then
                 MemoryAddGUIDToKey(sideShortKey.."_def_hvt",unit.guid)
             end
-
             -- Save Unit GUID
             MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..unitStatus,unit.guid)
         end
     end
-
     -- Loop Through Submarine Inventory
     if submarineInventory then
         for k, v in pairs(submarineInventory) do
@@ -1273,17 +1270,14 @@ function UpdateAIInventories(sideGUID,sideShortKey)
             local unit = ScenEdit_GetUnit({side=side.name, guid=v.guid})
             local unitType = "sub"
             local unitStatus = "busy"
-
             -- Check Status
             if unit.mission == nil then
                 unitStatus = "free"
             end
-
             -- Save Unit GUID
             MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..unitStatus,unit.guid)
         end
     end
-
     -- Loop Through Land Inventory
     if landInventory then
         for k, v in pairs(landInventory) do
@@ -1291,12 +1285,10 @@ function UpdateAIInventories(sideGUID,sideShortKey)
             local unit = ScenEdit_GetUnit({side=side.name, guid=v.guid})
             local unitType = "land"
             local unitStatus = "busy"
-
             -- Check Status
             if unit.mission == nil then
                 unitStatus = "free"
             end
-
             -- Save Unit As HVT (Airport)
             if unit.subtype == "9001" then
                 unitType = "base"
@@ -1304,72 +1296,60 @@ function UpdateAIInventories(sideGUID,sideShortKey)
             elseif unit.subtype == "5001" then
                 unitType = "sam"
             end
-
             -- Save Unit GUID
             MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..unitStatus,unit.guid)
         end
     end
-
     -- Loop Through Aircraft Contacts
     if aircraftContacts then
         for k, v in pairs(aircraftContacts) do
             -- Local Values
             local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
             local unitType = "air_con"
-
             -- Save Unit GUID
             MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..contact.posture,contact.guid)
         end
     end
-
     -- Loop Through Aircraft Contacts
     if shipContacts then
         for k, v in pairs(shipContacts) do
             -- Local Values
             local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
             local unitType = "surf_con"
-
             -- Save Unit GUID
             MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..contact.posture,contact.guid)
         end
     end
-
     -- Loop Through Aircraft Contacts
     if submarineContacts then
         for k, v in pairs(submarineContacts) do
             -- Local Values
             local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
             local unitType = "sub_con"
-
             -- Save Unit GUID
             MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..contact.posture,contact.guid)
         end
     end
-
     -- Loop Through Land Contacts
     if landContacts then
         for k, v in pairs(landContacts) do
             -- Local Values
             local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
             local unitType = "land_con"
-
             -- Check
             if string.find(contact.type_description,"SAM") then
                 unitType = "sam_con"
             end
-
             -- Save Unit GUID
             MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..contact.posture,contact.guid)
         end
     end
-
     -- Loop Through Weapon Contacts
     if weaponContacts then
         for k, v in pairs(weaponContacts) do
             -- Local Values
             local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
             local unitType = "weap_con"
-
             -- Filter Out By Weapon Speed
             if contact.speed then
                 if  contact.speed < 1500 then
@@ -1437,7 +1417,7 @@ function ResetInventoriesAndContacts(sideShortKey)
     MemoryRemoveAllGUIDsFromKey(sideShortKey.."_weap_con_X")
     MemoryRemoveAllGUIDsFromKey(sideShortKey.."_weap_con_H")
     MemoryRemoveAllGUIDsFromKey(sideShortKey.."_alloc_units")
-
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_reinforce_request")
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
@@ -1476,14 +1456,12 @@ function ReconDoctrineCreateMissionAction(args)
     local side = VP_GetSide({guid=args.guid})
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
     local missions = PersistentGetGUID(args.shortKey.."_rec_miss")
-    local totalFreeInventory = GetTotalFreeReconAndStealthFighterInventory(args.shortKey)
     local missionNumber = math.random(4)
     local rp1,rp2,rp3,rp4 = ""
     -- Limit To Four Missions, When 0 Contacts And Has Air Recon Inventory
-    if #missions >= 4 or #totalFreeInventory == 0 or GetAllHostileContactStrength(args.shortKey) >= 10 then
+    if #missions >= 4 then
         return false
     end
-    ScenEdit_SpecialMessage("Blue Force", args.shortKey.."ReconDoctrineCreateMissionAction")
     -- Get A Non Repeating Number
     while PersistentGUIDExists(args.shortKey.."_rec_miss",args.shortKey.."_rec_miss_"..tostring(missionNumber)) do
         missionNumber = math.random(4)
@@ -1526,9 +1504,6 @@ function ReconDoctrineCreateMissionAction(args)
     local createdMission = ScenEdit_AddMission(side.name,args.shortKey.."_rec_miss_"..tostring(missionNumber),"patrol",{type="naval",zone={rp1.name,rp2.name,rp3.name,rp4.name}})
     ScenEdit_SetMission(side.name,createdMission.name,{checkOPA=false,checkWWR=true})
     ScenEdit_SetDoctrine({side=side.name,mission=createdMission.name},{automatic_evasion="yes",maintain_standoff="yes",ignore_emcon_while_under_attack="yes",weapon_state_planned="5001",weapon_state_rtb ="0",dive_on_threat="2"})
-    --ScenEdit_SetEMCON("Mission",createdMission.guid,"Radar=Passive")
-    -- Determine Units To Assign
-    DetermineUnitsToAssign(args.shortKey,side.name,createdMission.guid,1,totalFreeInventory)
     -- Add Guid
     PersistentAddGUID(args.shortKey.."_rec_miss",createdMission.name)
     -- Return True
@@ -1542,8 +1517,6 @@ function ReconDoctrineUpdateMissionAction(args)
     -- Locals
     local side = VP_GetSide({guid=args.guid})
     local missions = PersistentGetGUID(args.shortKey.."_rec_miss")
-    local totalFreeBusyInventory = GetTotalFreeBusyReconAndStealthFighterInventory(args.shortKey)
-    local totalHostileContacts = GetHostileAirContacts(args.shortKey)
     local missionNumber = 0
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
     -- Check Total Is Zero
@@ -1558,7 +1531,6 @@ function ReconDoctrineUpdateMissionAction(args)
         local rp1,rp2,rp3,rp4 = ""
         -- Assign Units To Recon Mission
         local totalReconUnitsToAssign = 1
-        local numberOfReconToAssign = #totalFreeBusyInventory
         missionNumber = missionNumber + 1
         -- Update Reference Points (AO Change)
         if missionNumber == 1 then
@@ -1594,8 +1566,8 @@ function ReconDoctrineUpdateMissionAction(args)
             ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_3", lat=rp3rp4mid.latitude, lon=rp3rp4mid.longitude})
             ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_4", lat=aoPoints[4].latitude, lon=aoPoints[4].longitude})
         end
-        -- Determine Units To Assign
-        DetermineUnitsToAssign(args.shortKey,side.name,updatedMission.guid,1,totalFreeBusyInventory)
+        -- Add Reinforcement Request
+        AddReinforcementRequest(args.shortKey,side.name,updatedMission.name,1)
     end
     -- Return False
     return false
@@ -1609,7 +1581,6 @@ function AttackDoctrineCreateUpdateAirMissionAction(args)
     local side = VP_GetSide({guid=args.guid})
     local missions = PersistentGetGUID(args.shortKey.."_aaw_miss")
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
-    local totalFreeInventory = GetTotalFreeAirFighterInventory(args.shortKey)
     local totalHostileContacts = GetHostileAirContacts(args.shortKey)
     local totalAirUnitsToAssign = GetHostileAirContactsStrength(args.shortKey) * 3
     local missionNumber = 1
@@ -1643,8 +1614,8 @@ function AttackDoctrineCreateUpdateAirMissionAction(args)
         if totalAirUnitsToAssign % 2 == 1 then
             totalAirUnitsToAssign = totalAirUnitsToAssign + 1
         end
-        -- Determine Units To Assign
-        DetermineUnitsToAssign(args.shortKey,side.name,createdUpdatedMission.guid,totalAirUnitsToAssign,totalFreeInventory)
+        -- Add Reinforcement Request
+        AddReinforcementRequest(args.shortKey,side.name,createdUpdatedMission.name,totalAirUnitsToAssign)
     end
     -- Return False
     return false
@@ -1658,12 +1629,12 @@ function AttackDoctrineCreateUpdateStealthAirMissionAction(args)
     local side = VP_GetSide({guid=args.guid})
     local missions = PersistentGetGUID(args.shortKey.."_saaw_miss")
     local linkedMissions = PersistentGetGUID(args.shortKey.."_aaw_miss")
-    local totalFreeInventory = GetFreeAirStealthInventory(args.shortKey)
-    local totalAirUnitsToAssign = GetHostileAirContactsStrength(args.shortKey)
+    local totalAirUnitsToAssign = 0
     local missionNumber = 1
     local createdUpdatedMission = {}
     local linkedMission = {}
     local linkedMissionPoints = {}
+    local linkedMissionUnits = {}
     -- Condition Check
     if #linkedMissions > 0 then
         -- Get Linked Mission
@@ -1675,20 +1646,20 @@ function AttackDoctrineCreateUpdateStealthAirMissionAction(args)
             createdUpdatedMission = ScenEdit_AddMission(side.name,args.shortKey.."_saaw_miss_"..tostring(missionNumber),"patrol",{type="aaw",zone=linkedMissionPoints})
             ScenEdit_SetMission(side.name,createdUpdatedMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=true,flightSize=2,useFlightSize=true})
             ScenEdit_SetDoctrine({side=side.name,mission=createdUpdatedMission.name},{automatic_evasion="yes",maintain_standoff="yes",ignore_emcon_while_under_attack="yes",weapon_state_planned="5001",weapon_state_rtb ="0"})
-            --ScenEdit_SetEMCON("Mission",createdUpdatedMission.guid,"Radar=Passive")
-            -- Add Guid And Add Time Stamp
+            -- Add Mission
             PersistentAddGUID(args.shortKey.."_saaw_miss",createdUpdatedMission.name)
         else
             -- Updated Mission
             createdUpdatedMission = ScenEdit_GetMission(side.name,missions[1])
-            -- Total Units        
-            totalAirUnitsToAssign = math.floor(#(linkedMission.unitlist)/4)
+            -- Total Units
+            linkedMissionUnits = GetUnitsFromMission(side.name,linkedMission.guid)   
+            totalAirUnitsToAssign = math.floor(#linkedMissionUnits/4)
             -- Round Up
             if totalAirUnitsToAssign % 2 == 1 then
                 totalAirUnitsToAssign = totalAirUnitsToAssign + 1
             end
-            -- Determine Units To Assign
-            DetermineUnitsToAssign(args.shortKey,side.name,createdUpdatedMission.guid,totalAirUnitsToAssign,totalFreeInventory)
+            -- Add Reinforcement Request
+            AddReinforcementRequest(args.shortKey,side.name,createdUpdatedMission.name,totalAirUnitsToAssign)
         end
     end
     -- Return False
@@ -1703,9 +1674,6 @@ function AttackDoctrineCreateUpdateAEWMissionAction(args)
     local side = VP_GetSide({guid=args.guid})
     local missions = PersistentGetGUID(args.shortKey.."_aaew_miss")
     local linkedMissions = PersistentGetGUID(args.shortKey.."_aaw_miss")
-    local totalFreeInventory = GetFreeAirAEWInventory(args.shortKey)
-    local totalFreeBusyInventory = GetTotalFreeBusyAEWInventory(args.shortKey)
-    local totalHostileContacts = GetHostileAirContacts(args.shortKey)
     local missionNumber = 1
     local rp1,rp2,rp3,rp4 = ""
     local createdUpdatedMission = {}
@@ -1740,8 +1708,8 @@ function AttackDoctrineCreateUpdateAEWMissionAction(args)
             ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_2", lat=patrolBoundingBox[2].latitude, lon=patrolBoundingBox[2].longitude})
             ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_3", lat=patrolBoundingBox[3].latitude, lon=patrolBoundingBox[3].longitude})
             ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_4", lat=patrolBoundingBox[4].latitude, lon=patrolBoundingBox[4].longitude})
-            -- Determine Units To Assign
-            DetermineUnitsToAssign(args.shortKey,side.name,createdUpdatedMission.guid,1,totalFreeBusyInventory)
+            -- Add Reinforcement Request
+            AddReinforcementRequest(args.shortKey,side.name,createdUpdatedMission.name,1)
         end
     end
     -- Return False
@@ -1756,8 +1724,6 @@ function AttackDoctrineCreateUpdateAntiSurfaceShipMissionAction(args)
     local side = VP_GetSide({guid=args.guid})
     local missions = PersistentGetGUID(args.shortKey.."_asuw_miss")
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
-    local totalFreeInventory = GetFreeAirASuWInventory(args.shortKey)
-    local totalFreeBusyInventory = GetTotalFreeBusyAirAntiSurfaceInventory(args.shortKey)
     local totalHostileContacts = GetHostileSurfaceShipContacts(args.shortKey)
     local totalAirUnitsToAssign = GetHostileSurfaceShipContactsStrength(args.shortKey) * 4
     local missionNumber = 1
@@ -1786,8 +1752,8 @@ function AttackDoctrineCreateUpdateAntiSurfaceShipMissionAction(args)
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_asuw_miss_"..tostring(missionNumber).."_rp_2", lat=hostileContactBoundingBox[2].latitude, lon=hostileContactBoundingBox[2].longitude})
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_asuw_miss_"..tostring(missionNumber).."_rp_3", lat=hostileContactBoundingBox[3].latitude, lon=hostileContactBoundingBox[3].longitude})
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_asuw_miss_"..tostring(missionNumber).."_rp_4", lat=hostileContactBoundingBox[4].latitude, lon=hostileContactBoundingBox[4].longitude})
-        -- Determine Units To Assign
-        DetermineUnitsToAssign(args.shortKey,side.name,createdUpdatedMission.guid,totalAirUnitsToAssign,totalFreeBusyInventory)
+        -- Add Reinforcement Request
+        AddReinforcementRequest(args.shortKey,side.name,createdUpdatedMission.name,totalAirUnitsToAssign)
     end
     -- Return False
     return false
@@ -1801,12 +1767,11 @@ function AttackDoctrineCreateUpdateSeadMissionAction(args)
     local side = VP_GetSide({guid=args.guid})
     local missions = PersistentGetGUID(args.shortKey.."_sead_miss")
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
-    local totalFreeBusyInventory = GetTotalFreeBusyAirSeadInventory(args.shortKey)
     local totalHostileContacts = GetHostileSAMContacts(args.shortKey)
     local totalAirUnitsToAssign = GetHostileSAMContactsStrength(args.shortKey) * 4
     local missionNumber = 1
     local rp1,rp2,rp3,rp4 = ""
-    local hostileContactBoundingBox = FindBoundingBoxForGivenContacts(side.name,totalHostileContacts,aoPoints,4)
+    local hostileContactBoundingBox = FindBoundingBoxForGivenContacts(side.name,totalHostileContacts,aoPoints,3)
     local createdUpdatedMission = {}
     -- Condition Check
     if #missions == 0 then
@@ -1829,8 +1794,8 @@ function AttackDoctrineCreateUpdateSeadMissionAction(args)
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_sead_miss_"..tostring(missionNumber).."_rp_2", lat=hostileContactBoundingBox[2].latitude, lon=hostileContactBoundingBox[2].longitude})
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_sead_miss_"..tostring(missionNumber).."_rp_3", lat=hostileContactBoundingBox[3].latitude, lon=hostileContactBoundingBox[3].longitude})
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_sead_miss_"..tostring(missionNumber).."_rp_4", lat=hostileContactBoundingBox[4].latitude, lon=hostileContactBoundingBox[4].longitude})
-        -- Determine Units To Assign
-        DetermineUnitsToAssign(args.shortKey,side.name,createdUpdatedMission.guid,totalAirUnitsToAssign,totalFreeBusyInventory)
+        -- Add Reinforcement Request
+        AddReinforcementRequest(args.shortKey,side.name,createdUpdatedMission.name,totalAirUnitsToAssign)
     end
     -- Return False
     return false
@@ -1844,7 +1809,6 @@ function AttackDoctrineCreateUpdateLandAttackMissionAction(args)
     local side = VP_GetSide({guid=args.guid})
     local missions = PersistentGetGUID(args.shortKey.."_land_miss")
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
-    local totalFreeBusyInventory = GetTotalFreeBusyAirAttackInventory(args.shortKey)
     local totalHostileContacts = GetHostileLandContacts(args.shortKey)
     local totalAirUnitsToAssign = GetHostileLandContactsStrength(args.shortKey) * 2
     local missionNumber = 1
@@ -1872,8 +1836,8 @@ function AttackDoctrineCreateUpdateLandAttackMissionAction(args)
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_land_miss_"..tostring(missionNumber).."_rp_2", lat=hostileContactBoundingBox[2].latitude, lon=hostileContactBoundingBox[2].longitude})
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_land_miss_"..tostring(missionNumber).."_rp_3", lat=hostileContactBoundingBox[3].latitude, lon=hostileContactBoundingBox[3].longitude})
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_land_miss_"..tostring(missionNumber).."_rp_4", lat=hostileContactBoundingBox[4].latitude, lon=hostileContactBoundingBox[4].longitude})
-        -- Determine Units To Assign
-        DetermineUnitsToAssign(args.shortKey,side.name,createdUpdatedMission.guid,totalAirUnitsToAssign,totalFreeBusyInventory)
+        -- Add Reinforcement Request
+        AddReinforcementRequest(args.shortKey,side.name,createdUpdatedMission.name,totalAirUnitsToAssign)
     end
     -- Return False
     return false
@@ -1893,8 +1857,6 @@ function DefendDoctrineCreateUpdateAirMissionAction(args)
     local defenseBoundingBox = {}
     local rp1,rp2,rp3,rp4 = ""
     -- Inventory And HVT And Contacts
-    local totalFreeInventory = GetTotalFreeAirFighterInventory(args.shortKey)
-    local totalFreeBusyInventory = GetTotalFreeBusyAirFighterInventory(args.shortKey)
     local totalHostileContacts = GetHostileAirContacts(args.shortKey)
     local totalHVTs = MemoryGetGUIDFromKey(args.shortKey.."_def_hvt")
     local coveredHVTs = PersistentGetGUID(args.shortKey.."_def_hvt_cov")
@@ -1958,8 +1920,8 @@ function DefendDoctrineCreateUpdateAirMissionAction(args)
                         totalAAWUnitsToAssign = totalAAWUnitsToAssign + 1
                     end
                 end
-                -- Determine Units To Assign
-                DetermineUnitsToAssign(args.shortKey,side.name,updatedMission.guid,totalAAWUnitsToAssign,totalFreeBusyInventory)
+                -- Add Reinforcement Request
+                AddReinforcementRequest(args.shortKey,side.name,updatedMission.name,totalAAWUnitsToAssign)
             end
         end
     end
@@ -1981,8 +1943,6 @@ function SupportTankerDoctrineCreateUpdateMissionAction(args)
     local rp1,rp2,rp3,rp4 = nil
     local supportBoundingBox = {}
     -- Inventory And HVT And Contacts
-    local totalFreeInventory = GetFreeAirTankerInventory(args.shortKey)
-    local totalBusyFreeInventory = GetTotalFreeBusyTankerInventory(args.shortKey)
     local totalHVTs = MemoryGetGUIDFromKey(args.shortKey.."_def_hvt")
     local coveredHVTs = PersistentGetGUID(args.shortKey.."_def_tan_hvt_cov")
     local totalHostileContacts = GetHostileAirContacts(args.shortKey)
@@ -2029,8 +1989,8 @@ function SupportTankerDoctrineCreateUpdateMissionAction(args)
             updatedMission = ScenEdit_GetMission(side.name,args.shortKey.."_tan_sup_miss_"..coveredHVT.guid)
             -- Check Defense Mission
             if updatedMission then
-                -- Determine Units To Assign
-                DetermineUnitsToAssign(args.shortKey,side.name,updatedMission.guid,1,totalBusyFreeInventory)
+                -- Add Reinforcement Request
+                AddReinforcementRequest(args.shortKey,side.name,updatedMission.name,1)
             end
         end
     end
@@ -2052,8 +2012,6 @@ function SupportAEWDoctrineCreateUpdateMissionAction(args)
     local rp1,rp2,rp3,rp4 = nil
     local supportBoundingBox = {}
     -- Inventory And HVT And Contacts
-    local totalFreeInventory = GetFreeAirAEWInventory(args.shortKey)
-    local totalBusyFreeInventory = GetTotalFreeBusyAEWInventory(args.shortKey)
     local totalHVTs = MemoryGetGUIDFromKey(args.shortKey.."_def_hvt")
     local coveredHVTs = PersistentGetGUID(args.shortKey.."_def_aew_hvt_cov")
     local totalHostileContacts = GetHostileAirContacts(args.shortKey)
@@ -2099,8 +2057,8 @@ function SupportAEWDoctrineCreateUpdateMissionAction(args)
                 updatedMission = ScenEdit_GetMission(side.name,args.shortKey.."_aew_sup_miss_"..coveredHVT.guid)
                 -- Check Defense Mission
                 if updatedMission then
-                    -- Determine Units To Assign
-                    DetermineUnitsToAssign(args.shortKey,side.name,updatedMission.guid,1,totalBusyFreeInventory)
+                    -- Add Reinforcement Request
+                    AddReinforcementRequest(args.shortKey,side.name,updatedMission.name,1)
                 end
             end
         end
@@ -2249,7 +2207,7 @@ function MonitorUpdateAirNoNavZonesAction(args)
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
--- Hampton Micromanage Unit Actions
+-- Hampton - Retreat Positions And EMCON
 --------------------------------------------------------------------------------------------------------------------------------
 function HamptonUpdateUnitsInReconMissionAction(args)
     -- Locals
@@ -2294,7 +2252,7 @@ function HamptonUpdateUnitsInOffensiveAirMissionAction(args)
     -- Take First One For Now
     updatedMission = ScenEdit_GetMission(side.name,missions[1])
     -- Find Area And Retreat Point
-    local missionUnits = GetGroupLeadsAndIndividualsFromMission(side.name,updatedMission.guid)
+    local missionUnits = GetUnitsFromMission(side.name,updatedMission.guid)
     for k,v in pairs(missionUnits) do
         local missionUnit = ScenEdit_GetUnit({side=side.name, guid=v})
         local unitRetreatPoint = GetSAMAndShipNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid)
@@ -2326,7 +2284,7 @@ function HamptonUpdateUnitsInOffensiveStealthAirMissionAction(args)
     -- Get Linked Mission
     updatedMission = ScenEdit_GetMission(side.name,missions[1])
     -- Find Area And Retreat Point
-    local missionUnits = GetGroupLeadsAndIndividualsFromMission(side.name,updatedMission.guid)
+    local missionUnits = GetUnitsFromMission(side.name,updatedMission.guid)
     for k,v in pairs(missionUnits) do
         local missionUnit = ScenEdit_GetUnit({side=side.name, guid=v})
         local unitRetreatPoint = GetAllNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,70)
@@ -2358,7 +2316,7 @@ function HamptonUpdateUnitsInOffensiveSeadMissionAction(args)
     -- Take First One For Now
     updatedMission = ScenEdit_GetMission(side.name,missions[1])
     -- Find Area And Return Point
-    local missionUnits = GetGroupLeadsAndIndividualsFromMission(side.name,updatedMission.guid)
+    local missionUnits = GetUnitsFromMission(side.name,updatedMission.guid)
     for k,v in pairs(missionUnits) do
         local missionUnit = ScenEdit_GetUnit({side=side.name, guid=v})
         local unitRetreatPoint = GetAirAndShipNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,70)
@@ -2388,7 +2346,7 @@ function HamptonUpdateUnitsInOffensiveLandMissionAction(args)
     -- Take First One For Now
     updatedMission = ScenEdit_GetMission(side.name,missions[1])
     -- Find Area And Return Point
-    local missionUnits = GetGroupLeadsAndIndividualsFromMission(side.name,updatedMission.guid)
+    local missionUnits = GetUnitsFromMission(side.name,updatedMission.guid)
     for k,v in pairs(missionUnits) do
         local missionUnit = ScenEdit_GetUnit({side=side.name, guid=v})
         local unitRetreatPoint = GetAllNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,70)
@@ -2418,7 +2376,7 @@ function HamptonUpdateUnitsInOffensiveAntiShipMissionAction(args)
     -- Take First One For Now
     updatedMission = ScenEdit_GetMission(side.name,missions[1])
     -- Find Area And Return Point
-    local missionUnits = GetGroupLeadsAndIndividualsFromMission(side.name,updatedMission.guid)
+    local missionUnits = GetUnitsFromMission(side.name,updatedMission.guid)
     for k,v in pairs(missionUnits) do
         local missionUnit = ScenEdit_GetUnit({side=side.name, guid=v})
         local unitRetreatPoint = GetAirAndSAMNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,70)
@@ -2448,7 +2406,7 @@ function HamptonUpdateUnitsInOffensiveAEWMissionAction(args)
     -- Get Linked Mission
     updatedMission = ScenEdit_GetMission(side.name,missions[1])
     -- Find Area And Retreat Point
-    local missionUnits = GetGroupLeadsAndIndividualsFromMission(side.name,updatedMission.guid)
+    local missionUnits = GetUnitsFromMission(side.name,updatedMission.guid)
     for k,v in pairs(missionUnits) do
         local missionUnit = ScenEdit_GetUnit({side=side.name, guid=v})
         local unitRetreatPoint = GetAllNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,150)
@@ -2554,7 +2512,7 @@ function HamptonUpdateUnitsInDefensiveAirMissionAction(args)
         -- Check Defense Mission
         if updatedMission then
             -- Find Area And Return Point
-            local missionUnits = GetGroupLeadsAndIndividualsFromMission(side.name,updatedMission.guid)
+            local missionUnits = GetUnitsFromMission(side.name,updatedMission.guid)
             for k1,v1 in pairs(missionUnits) do
                 local missionUnit = ScenEdit_GetUnit({side=side.name, guid=v1})
                 local unitRetreatPoint = GetSAMAndShipNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid)
@@ -2575,6 +2533,121 @@ function HamptonUpdateUnitsInDefensiveAirMissionAction(args)
     -- Return False
     return false
 end
+
+--------------------------------------------------------------------------------------------------------------------------------
+-- Cumberland - Air Reinforcement Requests Actions
+--------------------------------------------------------------------------------------------------------------------------------
+function CumberlandUpdateAirReinforcementRequestsAction(args)
+    -- Local Side And Mission
+    local side = VP_GetSide({guid=args.guid})
+    local reconMissions = PersistentGetGUID(args.shortKey.."_rec_miss")
+    local airMissions = PersistentGetGUID(args.shortKey.."_aaw_miss")
+    local stealthAirMissions = PersistentGetGUID(args.shortKey.."_saaw_miss")
+    local aewMissions = PersistentGetGUID(args.shortKey.."_aaew_miss")
+    local antiSurfaceMissions = PersistentGetGUID(args.shortKey.."_asuw_miss")
+    local seadMissions = PersistentGetGUID(args.shortKey.."_sead_miss")
+    local landMissions = PersistentGetGUID(args.shortKey.."_land_miss")
+    local airDefenseMissions = PersistentGetGUID(args.shortKey.."_aaw_d_miss")
+    local tankerSupMissions = PersistentGetGUID(args.shortKey.."_tan_sup_miss")
+    local aewSupMissions = PersistentGetGUID(args.shortKey.."_aew_sup_miss")
+    -- Local Reinforcements Requests
+    local reinforcementRequests = GetReinforcementRequests(args.shortKey)
+    -- Assign By Mission Types
+    local totalFreeBusyInventory = GetTotalFreeBusyReconAndStealthFighterInventory(args.shortKey)
+    for k,v in pairs(reconMissions) do
+        --ScenEdit_SpecialMessage("Blue Force", " - CumberlandUpdateAirReinforcementRequestsAction "..v)
+        local mission = ScenEdit_GetMission(side.name,v)
+        local reinforceNumber = reinforcementRequests[v]
+        if reinforceNumber then
+            --ScenEdit_SpecialMessage("Blue Force", " - CumberlandUpdateAirReinforcementRequestsAction "..tostring(reinforceNumber))
+            DetermineUnitsToAssign(args.shortKey,side.name,v,reinforceNumber,totalFreeBusyInventory)
+        end
+    end
+    -- Assign By Mission Types
+    totalFreeBusyInventory = GetTotalFreeBusyAirFighterInventory(args.shortKey)
+    for k,v in pairs(airMissions) do
+        local mission = ScenEdit_GetMission(side.name,v)
+        local reinforceNumber = reinforcementRequests[v]
+        if reinforceNumber then
+            DetermineUnitsToAssign(args.shortKey,side.name,v,reinforceNumber,totalFreeBusyInventory)
+        end
+    end
+    -- Assign By Mission Types
+    totalFreeBusyInventory = GetTotalFreeBusyAirStealthFighterInventory(args.shortKey)
+    for k,v in pairs(stealthAirMissions) do
+        local mission = ScenEdit_GetMission(side.name,v)
+        local reinforceNumber = reinforcementRequests[v]
+        if reinforceNumber then
+            DetermineUnitsToAssign(args.shortKey,side.name,v,reinforceNumber,totalFreeBusyInventory)
+        end
+    end
+    -- Assign By Mission Types
+    totalFreeBusyInventory = GetTotalFreeBusyAEWInventory(args.shortKey)
+    for k,v in pairs(aewMissions) do
+        local mission = ScenEdit_GetMission(side.name,v)
+        local reinforceNumber = reinforcementRequests[v]
+        if reinforceNumber then
+            DetermineUnitsToAssign(args.shortKey,side.name,v,reinforceNumber,totalFreeBusyInventory)
+        end
+    end
+    -- Assign By Mission Types
+    totalFreeBusyInventory = GetTotalFreeBusyAirAntiSurfaceInventory(args.shortKey)
+    for k,v in pairs(antiSurfaceMissions) do
+        local mission = ScenEdit_GetMission(side.name,v)
+        local reinforceNumber = reinforcementRequests[v]
+        if reinforceNumber then
+            DetermineUnitsToAssign(args.shortKey,side.name,v,reinforceNumber,totalFreeBusyInventory)
+        end
+    end
+    -- Assign By Mission Types
+    totalFreeBusyInventory = GetTotalFreeBusyAirSeadInventory(args.shortKey)
+    for k,v in pairs(seadMissions) do
+        local mission = ScenEdit_GetMission(side.name,v)
+        local reinforceNumber = reinforcementRequests[v]
+        if reinforceNumber then
+            DetermineUnitsToAssign(args.shortKey,side.name,v,reinforceNumber,totalFreeBusyInventory)
+        end
+    end
+    -- Assign By Mission Types
+    totalFreeBusyInventory = GetTotalFreeBusyAirAttackInventory(args.shortKey)
+    for k,v in pairs(landMissions) do
+        local mission = ScenEdit_GetMission(side.name,v)
+        local reinforceNumber = reinforcementRequests[v]
+        if reinforceNumber then
+            DetermineUnitsToAssign(args.shortKey,side.name,v,reinforceNumber,totalFreeBusyInventory)
+        end
+    end
+    -- Assign By Mission Types
+    totalFreeBusyInventory = GetTotalFreeBusyAirFighterInventory(args.shortKey)
+    for k,v in pairs(airDefenseMissions) do
+        local mission = ScenEdit_GetMission(side.name,v)
+        local reinforceNumber = reinforcementRequests[v]
+        if reinforceNumber then
+            DetermineUnitsToAssign(args.shortKey,side.name,v,reinforceNumber,totalFreeBusyInventory)
+        end
+    end
+    -- Assign By Mission Types
+    totalFreeBusyInventory = GetTotalFreeBusyTankerInventory(args.shortKey)
+    for k,v in pairs(tankerSupMissions) do
+        local mission = ScenEdit_GetMission(side.name,v)
+        local reinforceNumber = reinforcementRequests[v]
+        if reinforceNumber then
+            DetermineUnitsToAssign(args.shortKey,side.name,v,reinforceNumber,totalFreeBusyInventory)
+        end
+    end
+    -- Assign By Mission Types
+    totalFreeBusyInventory = GetTotalFreeBusyAEWInventory(args.shortKey)
+    for k,v in pairs(aewSupMissions) do
+        local mission = ScenEdit_GetMission(side.name,v)
+        local reinforceNumber = reinforcementRequests[v]
+        if reinforceNumber then
+            DetermineUnitsToAssign(args.shortKey,side.name,v,reinforceNumber,totalFreeBusyInventory)
+        end
+    end
+    -- Return False
+    return false
+end
+
 --------------------------------------------------------------------------------------------------------------------------------
 -- Initialize AI Attributes
 --------------------------------------------------------------------------------------------------------------------------------
@@ -2583,7 +2656,6 @@ function InitializeAIAttributes(options)
     local attributes = {aggressive = 5, defensive = 5, cunning = 5, direct = 5, determined = 5, reserved = 5}
     local preset = options.preset
     local userAttributes = options.options
-
     -- Load Presets
     if preset then
         if preset == "Leroy" then
@@ -2644,7 +2716,6 @@ function InitializeAIAttributes(options)
         local direct = attributes.direct
         local determined = attributes.determined
         local reserved = attributes.reserved
-
         -- Get Override User Values
         if userAttributes.aggressive then
             aggressive = userAttributes.aggressive
@@ -2665,7 +2736,6 @@ function InitializeAIAttributes(options)
         if userAttributes.reserved then
             reserved = userAttributes.reserved
         end
-
         -- Set Weight Back To Scale Of !0
         aggressive = math.floor((aggressive/(aggressive+defensive))*10) 
         defensive = 10 - aggressive
@@ -2673,7 +2743,6 @@ function InitializeAIAttributes(options)
         direct = 10 - cunning
         determined = math.floor((determined/(determined+reserved))*10)
         reserved = 10 - determined
-
         -- Set User Attributes
         attributes.aggressive = aggressive
         attributes.defensive = defensive
@@ -2682,7 +2751,6 @@ function InitializeAIAttributes(options)
         attributes.determined = determined
         attributes.reserved = reserved
     end
-
     -- Return
     return attributes
 end
@@ -2696,9 +2764,9 @@ function InitializeMerrimackMonitorAI(sideName,options)
     local sideGuid = side.guid
     local shortSideKey = "a"..tostring(#commandMerrimackAIArray + 1)
     local attributes = InitializeAIAttributes(options)
-
-
-    -- Main Node Sequence
+    ----------------------------------------------------------------------------------------------------------------------------
+    -- Merrimack Selector
+    ----------------------------------------------------------------------------------------------------------------------------
     local merrimackSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
     -- Doctrine Sequences
     local offensiveDoctrineSequence = BT:make(BT.sequence,sideGuid,shortSideKey,attributes)
@@ -2765,9 +2833,9 @@ function InitializeMerrimackMonitorAI(sideName,options)
     supportTankerDoctrineSelector:addChild(supportTankerDoctrineCreateUpdateMissionBT)
     -- Support AEW Sequence
     supportAEWDoctrineSelector:addChild(supportAEWDoctrineCreateUpdateMissionBT)
-
-
-    -- Setup Monitor AI
+    ----------------------------------------------------------------------------------------------------------------------------
+    -- Monitor Selector
+    ----------------------------------------------------------------------------------------------------------------------------
     local monitorSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
     -- Monitor No Fly Zones BT
     local monitorSAMNoNavSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
@@ -2789,9 +2857,9 @@ function InitializeMerrimackMonitorAI(sideName,options)
     monitorShipNoNavSelector:addChild(monitorCreateShipNoNavZonesBT)
     monitorAirNoNavSelector:addChild(monitorUpdateAirNoNavZonesBT)
     monitorAirNoNavSelector:addChild(monitorCreateAirNoNavZonesBT)
-
-
-    -- Setup Hampton AI
+    ----------------------------------------------------------------------------------------------------------------------------
+    -- Hampton Selector
+    ----------------------------------------------------------------------------------------------------------------------------
     local hamptonSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
     local hamptonUpdateReconBT = BT:make(HamptonUpdateUnitsInReconMissionAction,sideGuid,shortSideKey,attributes)
     local hamptonUpdateOffAirBT = BT:make(HamptonUpdateUnitsInOffensiveAirMissionAction,sideGuid,shortSideKey,attributes)
@@ -2803,8 +2871,6 @@ function InitializeMerrimackMonitorAI(sideName,options)
     local hamptonUpdateDefAirBT = BT:make(HamptonUpdateUnitsInDefensiveAirMissionAction,sideGuid,shortSideKey,attributes)
     local hamptonUpdateSupTankerBT = BT:make(HamptonUpdateUnitsInSupportTankerMissionAction,sideGuid,shortSideKey,attributes)
     local hamptonUpdateSupAEWBT = BT:make(HamptonUpdateUnitsInSupportAEWMissionAction,sideGuid,shortSideKey,attributes)
-
-
     -- Setup Hampton
     hamptonSelector:addChild(hamptonUpdateReconBT)
     hamptonSelector:addChild(hamptonUpdateOffAirBT)
@@ -2816,12 +2882,20 @@ function InitializeMerrimackMonitorAI(sideName,options)
     hamptonSelector:addChild(hamptonUpdateDefAirBT)
     hamptonSelector:addChild(hamptonUpdateSupTankerBT)
     hamptonSelector:addChild(hamptonUpdateSupAEWBT)
-
-
-    -- Add All AI's
+    ----------------------------------------------------------------------------------------------------------------------------
+    -- Cumberland Selector
+    ----------------------------------------------------------------------------------------------------------------------------
+    local cumberlandSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
+    local cumberlandUpdateAirReinforceRequestsBT = BT:make(CumberlandUpdateAirReinforcementRequestsAction,sideGuid,shortSideKey,attributes)
+    -- Setup Hampton
+    cumberlandSelector:addChild(cumberlandUpdateAirReinforceRequestsBT)
+    ----------------------------------------------------------------------------------------------------------------------------
+    -- Add To Arrays
+    ----------------------------------------------------------------------------------------------------------------------------
     commandMerrimackAIArray[#commandMerrimackAIArray + 1] = merrimackSelector
     commandMonitorAIArray[#commandMonitorAIArray + 1] = monitorSelector
     commandHamptonAIArray[#commandHamptonAIArray + 1] = hamptonSelector
+    commandCumberlandAIArray[#commandCumberlandAIArray + 1] = cumberlandSelector
 end
 
 function UpdateAI()
@@ -2837,6 +2911,10 @@ function UpdateAI()
     end
     -- Update Hampton AI
     for k, v in pairs(commandHamptonAIArray) do
+        v:run()
+    end
+    -- Update Cumberland AI
+    for k, v in pairs(commandCumberlandAIArray) do
         v:run()
     end
 end
