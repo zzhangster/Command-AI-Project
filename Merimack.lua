@@ -465,7 +465,7 @@ function DetermineEmconToUnits(sideShortKey,sideName,unitGuidList)
     local busyAEWInventory = GetBusyAirAEWInventory(sideShortKey)
     for k,v in pairs(unitGuidList) do
         local unit = ScenEdit_GetUnit({side=sideName, guid=v})
-        ScenEdit_SetEMCON("Unit",v,"Radar=Active")  
+        ScenEdit_SetEMCON("Unit",v,"Radar=Active")
         for k1,v1 in pairs(busyAEWInventory) do
             local aewUnit = ScenEdit_GetUnit({side=sideName, guid=v1})
             if aewUnit.speed > 0 and aewUnit.altitude > 0 then
@@ -615,7 +615,7 @@ function GetAirNoNavZoneThatContaintsUnit(sideGuid,shortSideKey,unitGuid,range)
         if currentRange < range then
             local bearing = Tool_Bearing(contact.guid,unitGuid)
             local retreatLocation = ProjectLatLong(MakeLatLong(contact.latitude,contact.longitude),bearing,range + 30)
-            return {latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=1001}
+            return {latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=600}
         end
     end
     -- Return 
@@ -638,7 +638,7 @@ function GetSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,unitGuid)
             local contactPoint = MakeLatLong(v.latitude,v.longitude)
             local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
             local retreatLocation = ProjectLatLong(contactPoint,bearing,tonumber(v.name)+30)
-            return {latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=1002}
+            return {latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=900}
         end
     end
     -- Return False
@@ -660,7 +660,7 @@ function GetShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,unitGuid)
             local contactPoint = MakeLatLong(v.latitude,v.longitude)
             local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
             local retreatLocation = ProjectLatLong(contactPoint,bearing,tonumber(v.name)+30)
-            return {latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=1003}
+            return {latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=900}
         end
     end
     -- Return nil
@@ -684,7 +684,7 @@ function GetEmergencyMissileNoNavZoneThatContainsUnit(sideGuid,shortSideKey,unit
         local currentRange = Tool_Range(v,unitGuid)
         local contact = ScenEdit_GetContact({side=side.name, guid=v})
         -- Check Between 20 and 80
-        if currentRange > 20 and currentRange < 100 then
+        if currentRange > 12 and currentRange < 90 then
             --ScenEdit_SpecialMessage("Stennis CSG", "GetEmergencyMissileNoNavZoneThatContainsUnit")
             local contactPoint = MakeLatLong(contact.latitude,contact.longitude)
             local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
@@ -1449,125 +1449,109 @@ function DefensiveConditionalCheck(args)
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
--- Recon Doctrine Create Mission Action
+-- Recon Doctrine Create Update Mission Action
 --------------------------------------------------------------------------------------------------------------------------------
-function ReconDoctrineCreateMissionAction(args)
+function ReconDoctrineCreateUpdateMissionAction(args)
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
     local missions = PersistentGetGUID(args.shortKey.."_rec_miss")
-    local missionNumber = math.random(4)
     local rp1,rp2,rp3,rp4 = ""
     -- Limit To Four Missions, When 0 Contacts And Has Air Recon Inventory
-    if #missions >= 4 then
-        return false
-    end
-    -- Get A Non Repeating Number
-    while PersistentGUIDExists(args.shortKey.."_rec_miss",args.shortKey.."_rec_miss_"..tostring(missionNumber)) do
-        missionNumber = math.random(4)
-    end
-    -- Set Reference Points
-    if missionNumber == 1 then
-        rp1rp2mid = MidPointCoordinate(aoPoints[1].latitude,aoPoints[1].longitude,aoPoints[2].latitude,aoPoints[2].longitude)
-        rp1rp3mid = MidPointCoordinate(aoPoints[1].latitude,aoPoints[1].longitude,aoPoints[3].latitude,aoPoints[3].longitude)
-        rp1rp4mid = MidPointCoordinate(aoPoints[1].latitude,aoPoints[1].longitude,aoPoints[4].latitude,aoPoints[4].longitude)
-        rp1 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_1", lat=aoPoints[1].latitude, lon=aoPoints[1].longitude})
-        rp2 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_2", lat=rp1rp2mid.latitude, lon=rp1rp2mid.longitude})
-        rp3 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_3", lat=rp1rp3mid.latitude, lon=rp1rp3mid.longitude})
-        rp4 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_4", lat=rp1rp4mid.latitude, lon=rp1rp4mid.longitude})
-    elseif missionNumber == 2 then
-        rp1rp2mid = MidPointCoordinate(aoPoints[1].latitude,aoPoints[1].longitude,aoPoints[2].latitude,aoPoints[2].longitude)
-        rp2rp3mid = MidPointCoordinate(aoPoints[2].latitude,aoPoints[2].longitude,aoPoints[3].latitude,aoPoints[3].longitude)
-        rp1rp3mid = MidPointCoordinate(aoPoints[1].latitude,aoPoints[1].longitude,aoPoints[3].latitude,aoPoints[3].longitude)
-        rp1 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_1", lat=rp1rp2mid.latitude, lon=rp1rp2mid.longitude})
-        rp2 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_2", lat=aoPoints[2].latitude, lon=aoPoints[2].longitude})
-        rp3 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_3", lat=rp2rp3mid.latitude, lon=rp2rp3mid.longitude})
-        rp4 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_4", lat=rp1rp3mid.latitude, lon=rp1rp3mid.longitude})
-    elseif missionNumber == 3 then
-        rp1rp3mid = MidPointCoordinate(aoPoints[1].latitude,aoPoints[1].longitude,aoPoints[3].latitude,aoPoints[3].longitude)
-        rp2rp3mid = MidPointCoordinate(aoPoints[2].latitude,aoPoints[2].longitude,aoPoints[3].latitude,aoPoints[3].longitude)
-        rp3rp4mid = MidPointCoordinate(aoPoints[3].latitude,aoPoints[3].longitude,aoPoints[4].latitude,aoPoints[4].longitude)
-        rp1 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_1", lat=rp1rp3mid.latitude, lon=rp1rp3mid.longitude})
-        rp2 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_2", lat=rp2rp3mid.latitude, lon=rp2rp3mid.longitude})
-        rp3 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_3", lat=aoPoints[3].latitude, lon=aoPoints[3].longitude})
-        rp4 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_4", lat=rp3rp4mid.latitude, lon=rp3rp4mid.longitude})
-    else
-        rp1rp4mid = MidPointCoordinate(aoPoints[1].latitude,aoPoints[1].longitude,aoPoints[4].latitude,aoPoints[4].longitude)
-        rp1rp3mid = MidPointCoordinate(aoPoints[1].latitude,aoPoints[1].longitude,aoPoints[3].latitude,aoPoints[3].longitude)
-        rp3rp4mid = MidPointCoordinate(aoPoints[3].latitude,aoPoints[3].longitude,aoPoints[4].latitude,aoPoints[4].longitude)
-        rp1 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_1", lat=rp1rp4mid.latitude, lon=rp1rp4mid.longitude})
-        rp2 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_2", lat=rp1rp3mid.latitude, lon=rp1rp3mid.longitude})
-        rp3 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_3", lat=rp3rp4mid.latitude, lon=rp3rp4mid.longitude})
-        rp4 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_4", lat=aoPoints[4].latitude, lon=aoPoints[4].longitude})
-    end
-    -- Create Mission
-    local createdMission = ScenEdit_AddMission(side.name,args.shortKey.."_rec_miss_"..tostring(missionNumber),"patrol",{type="naval",zone={rp1.name,rp2.name,rp3.name,rp4.name}})
-    ScenEdit_SetMission(side.name,createdMission.name,{checkOPA=false,checkWWR=true})
-    ScenEdit_SetDoctrine({side=side.name,mission=createdMission.name},{automatic_evasion="yes",maintain_standoff="yes",ignore_emcon_while_under_attack="yes",weapon_state_planned="5001",weapon_state_rtb ="0",dive_on_threat="2"})
-    -- Add Guid
-    PersistentAddGUID(args.shortKey.."_rec_miss",createdMission.name)
-    -- Return True
-    return true
-end
-
---------------------------------------------------------------------------------------------------------------------------------
--- Recon Doctrine Update Mission Action
---------------------------------------------------------------------------------------------------------------------------------
-function ReconDoctrineUpdateMissionAction(args)
-    -- Locals
-    local side = VP_GetSide({guid=args.guid})
-    local missions = PersistentGetGUID(args.shortKey.."_rec_miss")
-    local missionNumber = 0
-    local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
-    -- Check Total Is Zero
-    if #missions == 0 then
-        return false
-    end
-    -- Loop Through Existing Missions
-    for k, v in pairs(missions) do
-        -- Local Values
-        local updatedMission = ScenEdit_GetMission(side.name,v)
-        local defensiveBoundingBox = {}
-        local rp1,rp2,rp3,rp4 = ""
-        -- Assign Units To Recon Mission
-        local totalReconUnitsToAssign = 1
-        missionNumber = missionNumber + 1
-        -- Update Reference Points (AO Change)
+    if #missions < 4 then
+        local missionNumber = math.random(4)
+        -- Get A Non Repeating Number
+        while PersistentGUIDExists(args.shortKey.."_rec_miss",args.shortKey.."_rec_miss_"..tostring(missionNumber)) do
+            missionNumber = math.random(4)
+        end
+        -- Set Reference Points
         if missionNumber == 1 then
             rp1rp2mid = MidPointCoordinate(aoPoints[1].latitude,aoPoints[1].longitude,aoPoints[2].latitude,aoPoints[2].longitude)
             rp1rp3mid = MidPointCoordinate(aoPoints[1].latitude,aoPoints[1].longitude,aoPoints[3].latitude,aoPoints[3].longitude)
             rp1rp4mid = MidPointCoordinate(aoPoints[1].latitude,aoPoints[1].longitude,aoPoints[4].latitude,aoPoints[4].longitude)
-            ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_1", lat=aoPoints[1].latitude, lon=aoPoints[1].longitude})
-            ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_2", lat=rp1rp2mid.latitude, lon=rp1rp2mid.longitude})
-            ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_3", lat=rp1rp3mid.latitude, lon=rp1rp3mid.longitude})
-            ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_4", lat=rp1rp4mid.latitude, lon=rp1rp4mid.longitude})
+            rp1 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_1", lat=aoPoints[1].latitude, lon=aoPoints[1].longitude})
+            rp2 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_2", lat=rp1rp2mid.latitude, lon=rp1rp2mid.longitude})
+            rp3 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_3", lat=rp1rp3mid.latitude, lon=rp1rp3mid.longitude})
+            rp4 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_4", lat=rp1rp4mid.latitude, lon=rp1rp4mid.longitude})
         elseif missionNumber == 2 then
             rp1rp2mid = MidPointCoordinate(aoPoints[1].latitude,aoPoints[1].longitude,aoPoints[2].latitude,aoPoints[2].longitude)
             rp2rp3mid = MidPointCoordinate(aoPoints[2].latitude,aoPoints[2].longitude,aoPoints[3].latitude,aoPoints[3].longitude)
             rp1rp3mid = MidPointCoordinate(aoPoints[1].latitude,aoPoints[1].longitude,aoPoints[3].latitude,aoPoints[3].longitude)
-            ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_1", lat=rp1rp2mid.latitude, lon=rp1rp2mid.longitude})
-            ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_2", lat=aoPoints[2].latitude, lon=aoPoints[2].longitude})
-            ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_3", lat=rp2rp3mid.latitude, lon=rp2rp3mid.longitude})
-            ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_4", lat=rp1rp3mid.latitude, lon=rp1rp3mid.longitude})
+            rp1 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_1", lat=rp1rp2mid.latitude, lon=rp1rp2mid.longitude})
+            rp2 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_2", lat=aoPoints[2].latitude, lon=aoPoints[2].longitude})
+            rp3 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_3", lat=rp2rp3mid.latitude, lon=rp2rp3mid.longitude})
+            rp4 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_4", lat=rp1rp3mid.latitude, lon=rp1rp3mid.longitude})
         elseif missionNumber == 3 then
             rp1rp3mid = MidPointCoordinate(aoPoints[1].latitude,aoPoints[1].longitude,aoPoints[3].latitude,aoPoints[3].longitude)
             rp2rp3mid = MidPointCoordinate(aoPoints[2].latitude,aoPoints[2].longitude,aoPoints[3].latitude,aoPoints[3].longitude)
             rp3rp4mid = MidPointCoordinate(aoPoints[3].latitude,aoPoints[3].longitude,aoPoints[4].latitude,aoPoints[4].longitude)
-            ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_1", lat=rp1rp3mid.latitude, lon=rp1rp3mid.longitude})
-            ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_2", lat=rp2rp3mid.latitude, lon=rp2rp3mid.longitude})
-            ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_3", lat=aoPoints[3].latitude, lon=aoPoints[3].longitude})
-            ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_4", lat=rp3rp4mid.latitude, lon=rp3rp4mid.longitude})
+            rp1 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_1", lat=rp1rp3mid.latitude, lon=rp1rp3mid.longitude})
+            rp2 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_2", lat=rp2rp3mid.latitude, lon=rp2rp3mid.longitude})
+            rp3 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_3", lat=aoPoints[3].latitude, lon=aoPoints[3].longitude})
+            rp4 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_4", lat=rp3rp4mid.latitude, lon=rp3rp4mid.longitude})
         else
             rp1rp4mid = MidPointCoordinate(aoPoints[1].latitude,aoPoints[1].longitude,aoPoints[4].latitude,aoPoints[4].longitude)
             rp1rp3mid = MidPointCoordinate(aoPoints[1].latitude,aoPoints[1].longitude,aoPoints[3].latitude,aoPoints[3].longitude)
             rp3rp4mid = MidPointCoordinate(aoPoints[3].latitude,aoPoints[3].longitude,aoPoints[4].latitude,aoPoints[4].longitude)
-            ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_1", lat=rp1rp4mid.latitude, lon=rp1rp4mid.longitude})
-            ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_2", lat=rp1rp3mid.latitude, lon=rp1rp3mid.longitude})
-            ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_3", lat=rp3rp4mid.latitude, lon=rp3rp4mid.longitude})
-            ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_4", lat=aoPoints[4].latitude, lon=aoPoints[4].longitude})
+            rp1 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_1", lat=rp1rp4mid.latitude, lon=rp1rp4mid.longitude})
+            rp2 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_2", lat=rp1rp3mid.latitude, lon=rp1rp3mid.longitude})
+            rp3 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_3", lat=rp3rp4mid.latitude, lon=rp3rp4mid.longitude})
+            rp4 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_4", lat=aoPoints[4].latitude, lon=aoPoints[4].longitude})
         end
-        -- Add Reinforcement Request
-        AddReinforcementRequest(args.shortKey,side.name,updatedMission.name,1)
+        -- Create Mission
+        local createdMission = ScenEdit_AddMission(side.name,args.shortKey.."_rec_miss_"..tostring(missionNumber),"patrol",{type="naval",zone={rp1.name,rp2.name,rp3.name,rp4.name}})
+        ScenEdit_SetMission(side.name,createdMission.name,{checkOPA=false,checkWWR=true})
+        ScenEdit_SetDoctrine({side=side.name,mission=createdMission.name},{automatic_evasion="yes",maintain_standoff="yes",ignore_emcon_while_under_attack="yes",weapon_state_planned="5001",weapon_state_rtb ="0",dive_on_threat="2"})
+        -- Add Guid
+        PersistentAddGUID(args.shortKey.."_rec_miss",createdMission.name)
+    else
+        -- Loop Through Existing Missions
+        local missionNumber = 0
+        for k, v in pairs(missions) do
+            -- Local Values
+            local updatedMission = ScenEdit_GetMission(side.name,v)
+            local defensiveBoundingBox = {}
+            local rp1,rp2,rp3,rp4 = ""
+            -- Assign Units To Recon Mission
+            local totalReconUnitsToAssign = 1
+            missionNumber = missionNumber + 1
+            -- Update Reference Points (AO Change)
+            if missionNumber == 1 then
+                rp1rp2mid = MidPointCoordinate(aoPoints[1].latitude,aoPoints[1].longitude,aoPoints[2].latitude,aoPoints[2].longitude)
+                rp1rp3mid = MidPointCoordinate(aoPoints[1].latitude,aoPoints[1].longitude,aoPoints[3].latitude,aoPoints[3].longitude)
+                rp1rp4mid = MidPointCoordinate(aoPoints[1].latitude,aoPoints[1].longitude,aoPoints[4].latitude,aoPoints[4].longitude)
+                ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_1", lat=aoPoints[1].latitude, lon=aoPoints[1].longitude})
+                ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_2", lat=rp1rp2mid.latitude, lon=rp1rp2mid.longitude})
+                ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_3", lat=rp1rp3mid.latitude, lon=rp1rp3mid.longitude})
+                ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_4", lat=rp1rp4mid.latitude, lon=rp1rp4mid.longitude})
+            elseif missionNumber == 2 then
+                rp1rp2mid = MidPointCoordinate(aoPoints[1].latitude,aoPoints[1].longitude,aoPoints[2].latitude,aoPoints[2].longitude)
+                rp2rp3mid = MidPointCoordinate(aoPoints[2].latitude,aoPoints[2].longitude,aoPoints[3].latitude,aoPoints[3].longitude)
+                rp1rp3mid = MidPointCoordinate(aoPoints[1].latitude,aoPoints[1].longitude,aoPoints[3].latitude,aoPoints[3].longitude)
+                ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_1", lat=rp1rp2mid.latitude, lon=rp1rp2mid.longitude})
+                ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_2", lat=aoPoints[2].latitude, lon=aoPoints[2].longitude})
+                ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_3", lat=rp2rp3mid.latitude, lon=rp2rp3mid.longitude})
+                ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_4", lat=rp1rp3mid.latitude, lon=rp1rp3mid.longitude})
+            elseif missionNumber == 3 then
+                rp1rp3mid = MidPointCoordinate(aoPoints[1].latitude,aoPoints[1].longitude,aoPoints[3].latitude,aoPoints[3].longitude)
+                rp2rp3mid = MidPointCoordinate(aoPoints[2].latitude,aoPoints[2].longitude,aoPoints[3].latitude,aoPoints[3].longitude)
+                rp3rp4mid = MidPointCoordinate(aoPoints[3].latitude,aoPoints[3].longitude,aoPoints[4].latitude,aoPoints[4].longitude)
+                ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_1", lat=rp1rp3mid.latitude, lon=rp1rp3mid.longitude})
+                ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_2", lat=rp2rp3mid.latitude, lon=rp2rp3mid.longitude})
+                ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_3", lat=aoPoints[3].latitude, lon=aoPoints[3].longitude})
+                ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_4", lat=rp3rp4mid.latitude, lon=rp3rp4mid.longitude})
+            else
+                rp1rp4mid = MidPointCoordinate(aoPoints[1].latitude,aoPoints[1].longitude,aoPoints[4].latitude,aoPoints[4].longitude)
+                rp1rp3mid = MidPointCoordinate(aoPoints[1].latitude,aoPoints[1].longitude,aoPoints[3].latitude,aoPoints[3].longitude)
+                rp3rp4mid = MidPointCoordinate(aoPoints[3].latitude,aoPoints[3].longitude,aoPoints[4].latitude,aoPoints[4].longitude)
+                ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_1", lat=rp1rp4mid.latitude, lon=rp1rp4mid.longitude})
+                ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_2", lat=rp1rp3mid.latitude, lon=rp1rp3mid.longitude})
+                ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_3", lat=rp3rp4mid.latitude, lon=rp3rp4mid.longitude})
+                ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_4", lat=aoPoints[4].latitude, lon=aoPoints[4].longitude})
+            end
+            -- Add Reinforcement Request
+            AddReinforcementRequest(args.shortKey,side.name,updatedMission.name,1)
+        end
     end
     -- Return False
     return false
@@ -1710,6 +1694,62 @@ function AttackDoctrineCreateUpdateAEWMissionAction(args)
             ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_4", lat=patrolBoundingBox[4].latitude, lon=patrolBoundingBox[4].longitude})
             -- Add Reinforcement Request
             AddReinforcementRequest(args.shortKey,side.name,createdUpdatedMission.name,1)
+        end
+    end
+    -- Return False
+    return false
+end
+
+--------------------------------------------------------------------------------------------------------------------------------
+-- Attack Doctrine Create Update Tanker Mission Action
+--------------------------------------------------------------------------------------------------------------------------------
+function AttackDoctrineCreateUpdateTankerMissionAction(args)
+    -- Local Values
+    local side = VP_GetSide({guid=args.guid})
+    local missions = PersistentGetGUID(args.shortKey.."_atan_miss")
+    local linkedMissions = PersistentGetGUID(args.shortKey.."_aaw_miss")
+    local missionNumber = 1
+    local rp1,rp2,rp3,rp4 = ""
+    local createdUpdatedMission = {}
+    local linkedMission = {}
+    local linkedMissionPoints = {}
+    local linkedMissionCenterPoint = {}
+    local patrolBoundingBox = {}
+    local linkedMissionUnits = {}
+    local totalAirUnitsToAssign = 0
+    -- Condition Check
+    if #linkedMissions > 0 then
+        -- Get Linked Mission
+        linkedMission = ScenEdit_GetMission(side.name,linkedMissions[1])
+        linkedMissionPoints = ScenEdit_GetReferencePoints({side=side.name, area={linkedMission.name.."_rp_1",linkedMission.name.."_rp_2",linkedMission.name.."_rp_3",linkedMission.name.."_rp_4"}})
+        linkedMissionCenterPoint = MidPointCoordinate(linkedMissionPoints[1].latitude,linkedMissionPoints[1].longitude,linkedMissionPoints[3].latitude,linkedMissionPoints[3].longitude)
+        patrolBoundingBox = FindBoundingBoxForGivenLocations({MakeLatLong(linkedMissionCenterPoint.latitude,linkedMissionCenterPoint.longitude)},1.0)
+        -- Add Missions
+        if #missions == 0 then
+            -- Set Reference Points
+            rp1 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_atan_miss_"..tostring(missionNumber).."_rp_1", lat=patrolBoundingBox[1].latitude, lon=patrolBoundingBox[1].longitude})
+            rp2 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_atan_miss_"..tostring(missionNumber).."_rp_2", lat=patrolBoundingBox[2].latitude, lon=patrolBoundingBox[2].longitude})
+            rp3 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_atan_miss_"..tostring(missionNumber).."_rp_3", lat=patrolBoundingBox[3].latitude, lon=patrolBoundingBox[3].longitude})
+            rp4 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_atan_miss_"..tostring(missionNumber).."_rp_4", lat=patrolBoundingBox[4].latitude, lon=patrolBoundingBox[4].longitude})
+            -- Create Mission
+            createdUpdatedMission = ScenEdit_AddMission(side.name,args.shortKey.."_atan_miss_"..tostring(missionNumber),"support",{zone={rp1.name,rp2.name,rp3.name,rp4.name}})
+            ScenEdit_SetMission(side.name,createdUpdatedMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=true,flightSize=1,useFlightSize=true})
+            ScenEdit_SetEMCON("Mission",createdUpdatedMission.guid,"Radar=Passive")
+            -- Add Guid And Add Time Stamp
+            PersistentAddGUID(args.shortKey.."_atan_miss",createdUpdatedMission.name)
+        else
+            -- Get Linked Mission
+            createdUpdatedMission = ScenEdit_GetMission(side.name,missions[1])
+            -- Set Reference Points
+            ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_atan_miss_"..tostring(missionNumber).."_rp_1", lat=patrolBoundingBox[1].latitude, lon=patrolBoundingBox[1].longitude})
+            ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_atan_miss_"..tostring(missionNumber).."_rp_2", lat=patrolBoundingBox[2].latitude, lon=patrolBoundingBox[2].longitude})
+            ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_atan_miss_"..tostring(missionNumber).."_rp_3", lat=patrolBoundingBox[3].latitude, lon=patrolBoundingBox[3].longitude})
+            ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_atan_miss_"..tostring(missionNumber).."_rp_4", lat=patrolBoundingBox[4].latitude, lon=patrolBoundingBox[4].longitude})
+            -- Total Units
+            linkedMissionUnits = GetUnitsFromMission(side.name,linkedMission.guid)   
+            totalAirUnitsToAssign = math.floor(#linkedMissionUnits/4)
+            -- Add Reinforcement Request
+            AddReinforcementRequest(args.shortKey,side.name,createdUpdatedMission.name,totalAirUnitsToAssign)
         end
     end
     -- Return False
@@ -2218,12 +2258,13 @@ function HamptonUpdateUnitsInReconMissionAction(args)
         return false
     end
     -- Loop Through Existing Missions
-    for k, v in pairs(missions) do
+    for k,v in pairs(missions) do
         -- Local Values
         local updatedMission = ScenEdit_GetMission(side.name,v)
+        local missionUnits = GetUnitsFromMission(side.name,updatedMission.guid)
         -- Find Contact Close To Unit And Evade
-        if #updatedMission.unitlist > 0 then
-            local missionUnit = ScenEdit_GetUnit({side=side.name, guid=updatedMission.unitlist[1]})
+        for k1,v1 in pairs(missionUnits) do
+            local missionUnit = ScenEdit_GetUnit({side=side.name, guid=v1})
             local unitRetreatPoint = GetAllNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,70)
             -- SAM Retreat Point
             if unitRetreatPoint ~= nil and not DetermineUnitRTB(side.name,missionUnit.guid) then
@@ -2267,7 +2308,7 @@ function HamptonUpdateUnitsInOffensiveAirMissionAction(args)
         end
     end
     -- Determine EMCON
-    DetermineEmconToUnits(args.shortKey,side.name,updatedMission.unitlist)
+    DetermineEmconToUnits(args.shortKey,side.name,missionUnits)
     -- Return False
     return false
 end
@@ -2299,7 +2340,7 @@ function HamptonUpdateUnitsInOffensiveStealthAirMissionAction(args)
         end
     end
     -- Determine EMCON
-    DetermineEmconToUnits(args.shortKey,side.name,updatedMission.unitlist)
+    DetermineEmconToUnits(args.shortKey,side.name,missionUnits)
     -- Return False
     return false
 end
@@ -2398,6 +2439,36 @@ function HamptonUpdateUnitsInOffensiveAEWMissionAction(args)
     -- Locals
     local side = VP_GetSide({guid=args.guid})
     local missions = PersistentGetGUID(args.shortKey.."_aaew_miss")
+    local updatedMission = {}
+    -- Condition Check
+    if #missions == 0 then
+        return false
+    end
+    -- Get Linked Mission
+    updatedMission = ScenEdit_GetMission(side.name,missions[1])
+    -- Find Area And Retreat Point
+    local missionUnits = GetUnitsFromMission(side.name,updatedMission.guid)
+    for k,v in pairs(missionUnits) do
+        local missionUnit = ScenEdit_GetUnit({side=side.name, guid=v})
+        local unitRetreatPoint = GetAllNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,150)
+        -- Retreat Point
+        if unitRetreatPoint ~= nil and not DetermineUnitRTB(side.name,missionUnit.guid) then
+            ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course = "no" })
+            missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
+            missionUnit.manualSpeed = unitRetreatPoint.speed
+        else
+            ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course = "yes" })
+            missionUnit.manualSpeed = "OFF"
+        end
+    end
+    -- Return False
+    return false
+end
+
+function HamptonUpdateUnitsInOffensiveTankerMissionAction(args)
+    -- Locals
+    local side = VP_GetSide({guid=args.guid})
+    local missions = PersistentGetGUID(args.shortKey.."_atan_miss")
     local updatedMission = {}
     -- Condition Check
     if #missions == 0 then
@@ -2527,7 +2598,7 @@ function HamptonUpdateUnitsInDefensiveAirMissionAction(args)
                 end
             end
             -- Determine EMCON
-            DetermineEmconToUnits(args.shortKey,side.name,updatedMission.unitlist)
+            DetermineEmconToUnits(args.shortKey,side.name,missionUnits)
         end
     end
     -- Return False
@@ -2544,6 +2615,7 @@ function CumberlandUpdateAirReinforcementRequestsAction(args)
     local airMissions = PersistentGetGUID(args.shortKey.."_aaw_miss")
     local stealthAirMissions = PersistentGetGUID(args.shortKey.."_saaw_miss")
     local aewMissions = PersistentGetGUID(args.shortKey.."_aaew_miss")
+    local tankerMissions = PersistentGetGUID(args.shortKey.."_atan_miss")
     local antiSurfaceMissions = PersistentGetGUID(args.shortKey.."_asuw_miss")
     local seadMissions = PersistentGetGUID(args.shortKey.."_sead_miss")
     local landMissions = PersistentGetGUID(args.shortKey.."_land_miss")
@@ -2555,12 +2627,10 @@ function CumberlandUpdateAirReinforcementRequestsAction(args)
     -- Assign By Mission Types
     local totalFreeBusyInventory = GetTotalFreeBusyReconAndStealthFighterInventory(args.shortKey)
     for k,v in pairs(reconMissions) do
-        --ScenEdit_SpecialMessage("Blue Force", " - CumberlandUpdateAirReinforcementRequestsAction "..v)
         local mission = ScenEdit_GetMission(side.name,v)
         local reinforceNumber = reinforcementRequests[v]
         if reinforceNumber then
-            --ScenEdit_SpecialMessage("Blue Force", " - CumberlandUpdateAirReinforcementRequestsAction "..tostring(reinforceNumber))
-            DetermineUnitsToAssign(args.shortKey,side.name,v,reinforceNumber,totalFreeBusyInventory)
+            DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,totalFreeBusyInventory)
         end
     end
     -- Assign By Mission Types
@@ -2569,7 +2639,7 @@ function CumberlandUpdateAirReinforcementRequestsAction(args)
         local mission = ScenEdit_GetMission(side.name,v)
         local reinforceNumber = reinforcementRequests[v]
         if reinforceNumber then
-            DetermineUnitsToAssign(args.shortKey,side.name,v,reinforceNumber,totalFreeBusyInventory)
+            DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,totalFreeBusyInventory)
         end
     end
     -- Assign By Mission Types
@@ -2578,7 +2648,7 @@ function CumberlandUpdateAirReinforcementRequestsAction(args)
         local mission = ScenEdit_GetMission(side.name,v)
         local reinforceNumber = reinforcementRequests[v]
         if reinforceNumber then
-            DetermineUnitsToAssign(args.shortKey,side.name,v,reinforceNumber,totalFreeBusyInventory)
+            DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,totalFreeBusyInventory)
         end
     end
     -- Assign By Mission Types
@@ -2587,16 +2657,26 @@ function CumberlandUpdateAirReinforcementRequestsAction(args)
         local mission = ScenEdit_GetMission(side.name,v)
         local reinforceNumber = reinforcementRequests[v]
         if reinforceNumber then
-            DetermineUnitsToAssign(args.shortKey,side.name,v,reinforceNumber,totalFreeBusyInventory)
+            DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,totalFreeBusyInventory)
         end
     end
+    -- Assign By Mission Types
+    totalFreeBusyInventory = GetTotalFreeBusyTankerInventory(args.shortKey)
+    for k,v in pairs(tankerMissions) do
+        local mission = ScenEdit_GetMission(side.name,v)
+        local reinforceNumber = reinforcementRequests[v]
+        if reinforceNumber then
+            DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,totalFreeBusyInventory)
+        end
+    end
+
     -- Assign By Mission Types
     totalFreeBusyInventory = GetTotalFreeBusyAirAntiSurfaceInventory(args.shortKey)
     for k,v in pairs(antiSurfaceMissions) do
         local mission = ScenEdit_GetMission(side.name,v)
         local reinforceNumber = reinforcementRequests[v]
         if reinforceNumber then
-            DetermineUnitsToAssign(args.shortKey,side.name,v,reinforceNumber,totalFreeBusyInventory)
+            DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,totalFreeBusyInventory)
         end
     end
     -- Assign By Mission Types
@@ -2605,7 +2685,7 @@ function CumberlandUpdateAirReinforcementRequestsAction(args)
         local mission = ScenEdit_GetMission(side.name,v)
         local reinforceNumber = reinforcementRequests[v]
         if reinforceNumber then
-            DetermineUnitsToAssign(args.shortKey,side.name,v,reinforceNumber,totalFreeBusyInventory)
+            DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,totalFreeBusyInventory)
         end
     end
     -- Assign By Mission Types
@@ -2614,7 +2694,7 @@ function CumberlandUpdateAirReinforcementRequestsAction(args)
         local mission = ScenEdit_GetMission(side.name,v)
         local reinforceNumber = reinforcementRequests[v]
         if reinforceNumber then
-            DetermineUnitsToAssign(args.shortKey,side.name,v,reinforceNumber,totalFreeBusyInventory)
+            DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,totalFreeBusyInventory)
         end
     end
     -- Assign By Mission Types
@@ -2623,7 +2703,7 @@ function CumberlandUpdateAirReinforcementRequestsAction(args)
         local mission = ScenEdit_GetMission(side.name,v)
         local reinforceNumber = reinforcementRequests[v]
         if reinforceNumber then
-            DetermineUnitsToAssign(args.shortKey,side.name,v,reinforceNumber,totalFreeBusyInventory)
+            DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,totalFreeBusyInventory)
         end
     end
     -- Assign By Mission Types
@@ -2632,7 +2712,7 @@ function CumberlandUpdateAirReinforcementRequestsAction(args)
         local mission = ScenEdit_GetMission(side.name,v)
         local reinforceNumber = reinforcementRequests[v]
         if reinforceNumber then
-            DetermineUnitsToAssign(args.shortKey,side.name,v,reinforceNumber,totalFreeBusyInventory)
+            DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,totalFreeBusyInventory)
         end
     end
     -- Assign By Mission Types
@@ -2641,7 +2721,7 @@ function CumberlandUpdateAirReinforcementRequestsAction(args)
         local mission = ScenEdit_GetMission(side.name,v)
         local reinforceNumber = reinforcementRequests[v]
         if reinforceNumber then
-            DetermineUnitsToAssign(args.shortKey,side.name,v,reinforceNumber,totalFreeBusyInventory)
+            DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,totalFreeBusyInventory)
         end
     end
     -- Return False
@@ -2783,12 +2863,12 @@ function InitializeMerrimackMonitorAI(sideName,options)
     local supportTankerDoctrineSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
     local supportAEWDoctrineSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
     -- Recon Doctrine BT
-    local reconDoctrineUpdateMissionBT = BT:make(ReconDoctrineUpdateMissionAction,sideGuid,shortSideKey,attributes)
-    local reconDoctrineCreateMissionBT = BT:make(ReconDoctrineCreateMissionAction,sideGuid,shortSideKey,attributes)
+    local reconDoctrineCreateUpdateMissionBT = BT:make(ReconDoctrineCreateUpdateMissionAction,sideGuid,shortSideKey,attributes)
     -- Attack Doctrine BT
     local attackDoctrineCreateUpdateAirMissionBT = BT:make(AttackDoctrineCreateUpdateAirMissionAction,sideGuid,shortSideKey,attributes)
     local attackDoctrineCreateUpdateStealthAirMissionBT = BT:make(AttackDoctrineCreateUpdateStealthAirMissionAction,sideGuid,shortSideKey,attributes)
     local attackDoctrineCreateUpdateAEWMissionBT = BT:make(AttackDoctrineCreateUpdateAEWMissionAction,sideGuid,shortSideKey,attributes)
+    local attackDoctrineCreateUpdateTankerMissionBT = BT:make(AttackDoctrineCreateUpdateTankerMissionAction,sideGuid,shortSideKey,attributes)
     local attackDoctrineCreateUpdateAntiSurfaceShipMissionBT = BT:make(AttackDoctrineCreateUpdateAntiSurfaceShipMissionAction,sideGuid,shortSideKey,attributes)
     local attackDoctrineCreateUpdateSeadMissionBT = BT:make(AttackDoctrineCreateUpdateSeadMissionAction,sideGuid,shortSideKey,attributes)
     local attackDoctrineCreateUpdateLandAttackMissionBT = BT:make(AttackDoctrineCreateUpdateLandAttackMissionAction,sideGuid,shortSideKey,attributes)
@@ -2807,8 +2887,6 @@ function InitializeMerrimackMonitorAI(sideName,options)
     defensiveDoctrineSequence:addChild(defensiveDoctrineConditionalBT)
     defensiveDoctrineSequence:addChild(defensiveDoctrineSeletor)
     -- Offensive Selector
-    offensiveDoctrineSeletor:addChild(supportAEWDoctrineSelector)
-    offensiveDoctrineSeletor:addChild(supportTankerDoctrineSelector)
     offensiveDoctrineSeletor:addChild(reconDoctrineSelector)
     offensiveDoctrineSeletor:addChild(attackDoctrineSelector)
     offensiveDoctrineSeletor:addChild(defendDoctrineSelector)
@@ -2818,20 +2896,18 @@ function InitializeMerrimackMonitorAI(sideName,options)
     defensiveDoctrineSeletor:addChild(reconDoctrineSelector)
     defensiveDoctrineSeletor:addChild(defendDoctrineSelector)
     -- Recon Doctrine Sequence
-    reconDoctrineSelector:addChild(reconDoctrineUpdateMissionBT)
-    reconDoctrineSelector:addChild(reconDoctrineCreateMissionBT)
+    reconDoctrineSelector:addChild(reconDoctrineCreateUpdateMissionBT)
     -- Attack Doctrine Sequence
     attackDoctrineSelector:addChild(attackDoctrineCreateUpdateAirMissionBT)
     attackDoctrineSelector:addChild(attackDoctrineCreateUpdateStealthAirMissionBT)
     attackDoctrineSelector:addChild(attackDoctrineCreateUpdateAEWMissionBT)
+    attackDoctrineSelector:addChild(attackDoctrineCreateUpdateTankerMissionBT)
     attackDoctrineSelector:addChild(attackDoctrineCreateUpdateAntiSurfaceShipMissionBT)
     attackDoctrineSelector:addChild(attackDoctrineCreateUpdateSeadMissionBT)
     attackDoctrineSelector:addChild(attackDoctrineCreateUpdateLandAttackMissionBT)
     -- Defend Doctrine Sequence
     defendDoctrineSelector:addChild(defendDoctrineCreateUpdateAirMissionBT)
-    -- Support Tanker Sequence
     supportTankerDoctrineSelector:addChild(supportTankerDoctrineCreateUpdateMissionBT)
-    -- Support AEW Sequence
     supportAEWDoctrineSelector:addChild(supportAEWDoctrineCreateUpdateMissionBT)
     ----------------------------------------------------------------------------------------------------------------------------
     -- Monitor Selector
@@ -2865,6 +2941,7 @@ function InitializeMerrimackMonitorAI(sideName,options)
     local hamptonUpdateOffAirBT = BT:make(HamptonUpdateUnitsInOffensiveAirMissionAction,sideGuid,shortSideKey,attributes)
     local hamptonUpdateOffStealthAirBT = BT:make(HamptonUpdateUnitsInOffensiveStealthAirMissionAction,sideGuid,shortSideKey,attributes)
     local hamptonUpdateOffAEWBT = BT:make(HamptonUpdateUnitsInOffensiveAEWMissionAction,sideGuid,shortSideKey,attributes)
+    local hamptonUpdateOffTankerBT = BT:make(HamptonUpdateUnitsInOffensiveTankerMissionAction,sideGuid,shortSideKey,attributes)
     local hamptonUpdateOffAntiSurfBT = BT:make(HamptonUpdateUnitsInOffensiveAntiShipMissionAction,sideGuid,shortSideKey,attributes)
     local hamptonUpdateOffSeadBT = BT:make(HamptonUpdateUnitsInOffensiveSeadMissionAction,sideGuid,shortSideKey,attributes)
     local hamptonUpdateOffLandBT = BT:make(HamptonUpdateUnitsInOffensiveLandMissionAction,sideGuid,shortSideKey,attributes)
@@ -2876,6 +2953,7 @@ function InitializeMerrimackMonitorAI(sideName,options)
     hamptonSelector:addChild(hamptonUpdateOffAirBT)
     hamptonSelector:addChild(hamptonUpdateOffStealthAirBT)
     hamptonSelector:addChild(hamptonUpdateOffAEWBT)
+    hamptonSelector:addChild(hamptonUpdateOffTankerBT)
     hamptonSelector:addChild(hamptonUpdateOffAntiSurfBT)
     hamptonSelector:addChild(hamptonUpdateOffSeadBT)
     hamptonSelector:addChild(hamptonUpdateOffLandBT)
