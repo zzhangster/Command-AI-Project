@@ -426,21 +426,24 @@ end
 function DetermineUnitsToAssign(sideShortKey,sideName,missionGuid,totalRequiredUnits,unitGuidList)
     -- Local Values
     local mission = ScenEdit_GetMission(sideName,missionGuid)
+    local missionUnits = GetUnitsFromMission(sideName,missionGuid)
+    local missionUnitsCount = #missionUnits
     -- Check
     if mission then
         -- Loop Through Mission Unit Lists And Unassign RTB Units
-        for k,v in pairs(mission.unitlist) do
+        for k,v in pairs(missionUnits) do
             local unit = ScenEdit_GetUnit({side=sideName, guid=v})
             if unit then
-                if unit.speed == 0 and tostring(unit.readytime) ~= 0  then
+                if unit.speed == 0 and tostring(unit.readytime) ~= "0"  then
                     local mockMission = ScenEdit_AddMission(sideName,"MOCK MISSION",'strike',{type='land'})
                     ScenEdit_AssignUnitToMission(unit.guid, mockMission.guid)            
                     ScenEdit_DeleteMission(sideName,mockMission.guid)
+                    missionUnitsCount = missionUnitsCount - 1
                 end
             end
         end
         -- Get Units Left To Assign
-        totalRequiredUnits = totalRequiredUnits - #mission.unitlist
+        totalRequiredUnits = totalRequiredUnits - missionUnitsCount
         -- Assign Up to Total Required Units
         for k,v in pairs(unitGuidList) do
             -- Condition Check
@@ -1970,12 +1973,12 @@ function DefendDoctrineCreateUpdateAirMissionAction(args)
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
--- Support Tanker Doctrine Create Update Mission Action
+-- Defensive Tanker Doctrine Create Update Mission Action
 --------------------------------------------------------------------------------------------------------------------------------
-function SupportTankerDoctrineCreateUpdateMissionAction(args)
+function DefendTankerDoctrineCreateUpdateMissionAction(args)
     -- Local Side And Mission
     local side = VP_GetSide({guid=args.guid})
-    local missions = PersistentGetGUID(args.shortKey.."_tan_sup_miss")
+    local missions = PersistentGetGUID(args.shortKey.."_tan_d_miss")
     local createdMission = nil
     local updatedMission = nil
     -- Boxes And Coordinates
@@ -2007,15 +2010,15 @@ function SupportTankerDoctrineCreateUpdateMissionAction(args)
             -- Set Contact Bounding Box Variables
             defenseBoundingBox = FindBoundingBoxForGivenLocations({MakeLatLong(unitToSupport.latitude,unitToSupport.longitude)},1)
             -- Set Reference Points
-            rp1 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_tan_sup_miss_"..unitToSupport.guid.."_rp_1", lat=defenseBoundingBox[1].latitude, lon=defenseBoundingBox[1].longitude})
-            rp2 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_tan_sup_miss_"..unitToSupport.guid.."_rp_2", lat=defenseBoundingBox[2].latitude, lon=defenseBoundingBox[2].longitude})
-            rp3 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_tan_sup_miss_"..unitToSupport.guid.."_rp_3", lat=defenseBoundingBox[3].latitude, lon=defenseBoundingBox[3].longitude})
-            rp4 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_tan_sup_miss_"..unitToSupport.guid.."_rp_4", lat=defenseBoundingBox[4].latitude, lon=defenseBoundingBox[4].longitude})
+            rp1 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_tan_d_miss_"..unitToSupport.guid.."_rp_1", lat=defenseBoundingBox[1].latitude, lon=defenseBoundingBox[1].longitude})
+            rp2 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_tan_d_miss_"..unitToSupport.guid.."_rp_2", lat=defenseBoundingBox[2].latitude, lon=defenseBoundingBox[2].longitude})
+            rp3 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_tan_d_miss_"..unitToSupport.guid.."_rp_3", lat=defenseBoundingBox[3].latitude, lon=defenseBoundingBox[3].longitude})
+            rp4 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_tan_d_miss_"..unitToSupport.guid.."_rp_4", lat=defenseBoundingBox[4].latitude, lon=defenseBoundingBox[4].longitude})
             -- Create Mission
-            createdMission = ScenEdit_AddMission(side.name,args.shortKey.."_tan_sup_miss_"..unitToSupport.guid,"support",{zone={rp1.name,rp2.name,rp3.name,rp4.name}})
+            createdMission = ScenEdit_AddMission(side.name,args.shortKey.."_tan_d_miss_"..unitToSupport.guid,"support",{zone={rp1.name,rp2.name,rp3.name,rp4.name}})
             ScenEdit_SetEMCON("Mission",createdMission.guid,"Radar=Passive")
             -- Add Guid And Add Time Stamp
-            PersistentAddGUID(args.shortKey.."_tan_sup_miss",createdMission.name)
+            PersistentAddGUID(args.shortKey.."_tan_d_miss",createdMission.name)
             PersistentAddGUID(args.shortKey.."_def_tan_hvt_cov",unitToSupport.guid)
         end
     end
@@ -2026,7 +2029,7 @@ function SupportTankerDoctrineCreateUpdateMissionAction(args)
         -- Check Condition
         if coveredHVT then
             -- Updated Mission
-            updatedMission = ScenEdit_GetMission(side.name,args.shortKey.."_tan_sup_miss_"..coveredHVT.guid)
+            updatedMission = ScenEdit_GetMission(side.name,args.shortKey.."_tan_d_miss_"..coveredHVT.guid)
             -- Check Defense Mission
             if updatedMission then
                 -- Add Reinforcement Request
@@ -2039,12 +2042,12 @@ function SupportTankerDoctrineCreateUpdateMissionAction(args)
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
--- Support AEW Doctrine Create Update Mission Action
+-- Defend AEW Doctrine Create Update Mission Action
 --------------------------------------------------------------------------------------------------------------------------------
-function SupportAEWDoctrineCreateUpdateMissionAction(args)
+function DefendAEWDoctrineCreateUpdateMissionAction(args)
     -- Local Side And Mission
     local side = VP_GetSide({guid=args.guid})
-    local missions = PersistentGetGUID(args.shortKey.."_aew_sup_miss")
+    local missions = PersistentGetGUID(args.shortKey.."_aew_d_miss")
     local createdMission = nil
     local updatedMission = nil
     -- Boxes And Coordinates
@@ -2076,15 +2079,15 @@ function SupportAEWDoctrineCreateUpdateMissionAction(args)
             -- Set Contact Bounding Box Variables
             defenseBoundingBox = FindBoundingBoxForGivenLocations({MakeLatLong(unitToSupport.latitude,unitToSupport.longitude)},1)
             -- Set Reference Points
-            rp1 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_aew_sup_miss_"..unitToSupport.guid.."_rp_1", lat=defenseBoundingBox[1].latitude, lon=defenseBoundingBox[1].longitude})
-            rp2 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_aew_sup_miss_"..unitToSupport.guid.."_rp_2", lat=defenseBoundingBox[2].latitude, lon=defenseBoundingBox[2].longitude})
-            rp3 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_aew_sup_miss_"..unitToSupport.guid.."_rp_3", lat=defenseBoundingBox[3].latitude, lon=defenseBoundingBox[3].longitude})
-            rp4 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_aew_sup_miss_"..unitToSupport.guid.."_rp_4", lat=defenseBoundingBox[4].latitude, lon=defenseBoundingBox[4].longitude})
+            rp1 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_aew_d_miss_"..unitToSupport.guid.."_rp_1", lat=defenseBoundingBox[1].latitude, lon=defenseBoundingBox[1].longitude})
+            rp2 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_aew_d_miss_"..unitToSupport.guid.."_rp_2", lat=defenseBoundingBox[2].latitude, lon=defenseBoundingBox[2].longitude})
+            rp3 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_aew_d_miss_"..unitToSupport.guid.."_rp_3", lat=defenseBoundingBox[3].latitude, lon=defenseBoundingBox[3].longitude})
+            rp4 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_aew_d_miss_"..unitToSupport.guid.."_rp_4", lat=defenseBoundingBox[4].latitude, lon=defenseBoundingBox[4].longitude})
             -- Create Mission
-            createdMission = ScenEdit_AddMission(side.name,args.shortKey.."_aew_sup_miss_"..unitToSupport.guid,"support",{zone={rp1.name,rp2.name,rp3.name,rp4.name}})
+            createdMission = ScenEdit_AddMission(side.name,args.shortKey.."_aew_d_miss_"..unitToSupport.guid,"support",{zone={rp1.name,rp2.name,rp3.name,rp4.name}})
             ScenEdit_SetEMCON("Mission",createdMission.guid,"Radar=Active")
             -- Add Guid And Add Time Stamp
-            PersistentAddGUID(args.shortKey.."_aew_sup_miss",createdMission.name)
+            PersistentAddGUID(args.shortKey.."_aew_d_miss",createdMission.name)
             PersistentAddGUID(args.shortKey.."_def_aew_hvt_cov",unitToSupport.guid)
         end
     else
@@ -2094,7 +2097,7 @@ function SupportAEWDoctrineCreateUpdateMissionAction(args)
             local coveredHVT = ScenEdit_GetUnit({side=side.name,guid=v})
             -- Check Condition
             if coveredHVT then
-                updatedMission = ScenEdit_GetMission(side.name,args.shortKey.."_aew_sup_miss_"..coveredHVT.guid)
+                updatedMission = ScenEdit_GetMission(side.name,args.shortKey.."_aew_d_miss_"..coveredHVT.guid)
                 -- Check Defense Mission
                 if updatedMission then
                     -- Add Reinforcement Request
@@ -2498,7 +2501,7 @@ end
 function HamptonUpdateUnitsInSupportAEWMissionAction(args)
     -- Local Side And Mission
     local side = VP_GetSide({guid=args.guid})
-    local missions = PersistentGetGUID(args.shortKey.."_aew_sup_miss")
+    local missions = PersistentGetGUID(args.shortKey.."_aew_d_miss")
     local updatedMission = nil
     -- Condition Check
     if #missions == 0 then
@@ -2534,7 +2537,7 @@ end
 function HamptonUpdateUnitsInSupportTankerMissionAction(args)
     -- Local Side And Mission
     local side = VP_GetSide({guid=args.guid})
-    local missions = PersistentGetGUID(args.shortKey.."_tan_sup_miss")
+    local missions = PersistentGetGUID(args.shortKey.."_tan_d_miss")
     local updatedMission = nil
     -- Condition Check
     if #missions == 0 then
@@ -2620,8 +2623,8 @@ function CumberlandUpdateAirReinforcementRequestsAction(args)
     local seadMissions = PersistentGetGUID(args.shortKey.."_sead_miss")
     local landMissions = PersistentGetGUID(args.shortKey.."_land_miss")
     local airDefenseMissions = PersistentGetGUID(args.shortKey.."_aaw_d_miss")
-    local tankerSupMissions = PersistentGetGUID(args.shortKey.."_tan_sup_miss")
-    local aewSupMissions = PersistentGetGUID(args.shortKey.."_aew_sup_miss")
+    local tankerDefenseMissions = PersistentGetGUID(args.shortKey.."_tan_d_miss")
+    local aewDefenseMissions = PersistentGetGUID(args.shortKey.."_aew_d_miss")
     -- Local Reinforcements Requests
     local reinforcementRequests = GetReinforcementRequests(args.shortKey)
     -- Assign By Mission Types
@@ -2708,7 +2711,7 @@ function CumberlandUpdateAirReinforcementRequestsAction(args)
     end
     -- Assign By Mission Types
     totalFreeBusyInventory = GetTotalFreeBusyTankerInventory(args.shortKey)
-    for k,v in pairs(tankerSupMissions) do
+    for k,v in pairs(tankerDefenseMissions) do
         local mission = ScenEdit_GetMission(side.name,v)
         local reinforceNumber = reinforcementRequests[v]
         if reinforceNumber then
@@ -2717,7 +2720,7 @@ function CumberlandUpdateAirReinforcementRequestsAction(args)
     end
     -- Assign By Mission Types
     totalFreeBusyInventory = GetTotalFreeBusyAEWInventory(args.shortKey)
-    for k,v in pairs(aewSupMissions) do
+    for k,v in pairs(aewDefenseMissions) do
         local mission = ScenEdit_GetMission(side.name,v)
         local reinforceNumber = reinforcementRequests[v]
         if reinforceNumber then
@@ -2860,8 +2863,6 @@ function InitializeMerrimackMonitorAI(sideName,options)
     local reconDoctrineSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
     local attackDoctrineSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
     local defendDoctrineSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
-    local supportTankerDoctrineSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
-    local supportAEWDoctrineSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
     -- Recon Doctrine BT
     local reconDoctrineCreateUpdateMissionBT = BT:make(ReconDoctrineCreateUpdateMissionAction,sideGuid,shortSideKey,attributes)
     -- Attack Doctrine BT
@@ -2874,10 +2875,8 @@ function InitializeMerrimackMonitorAI(sideName,options)
     local attackDoctrineCreateUpdateLandAttackMissionBT = BT:make(AttackDoctrineCreateUpdateLandAttackMissionAction,sideGuid,shortSideKey,attributes)
     -- Defend Doctrine BT
     local defendDoctrineCreateUpdateAirMissionBT = BT:make(DefendDoctrineCreateUpdateAirMissionAction,sideGuid,shortSideKey,attributes)
-    -- Support Tanker Doctrine BT
-    local supportTankerDoctrineCreateUpdateMissionBT = BT:make(SupportTankerDoctrineCreateUpdateMissionAction,sideGuid,shortSideKey,attributes)
-    -- Support AEW Doctrine BT
-    local supportAEWDoctrineCreateUpdateMissionBT = BT:make(SupportAEWDoctrineCreateUpdateMissionAction,sideGuid,shortSideKey,attributes)
+    local defendTankerDoctrineCreateUpdateMissionBT = BT:make(DefendTankerDoctrineCreateUpdateMissionAction,sideGuid,shortSideKey,attributes)
+    local defendAEWDoctrineCreateUpdateMissionBT = BT:make(DefendAEWDoctrineCreateUpdateMissionAction,sideGuid,shortSideKey,attributes)
     -- Build AI Tree
     merrimackSelector:addChild(offensiveDoctrineSequence)
     merrimackSelector:addChild(defensiveDoctrineSequence)
@@ -2889,10 +2888,7 @@ function InitializeMerrimackMonitorAI(sideName,options)
     -- Offensive Selector
     offensiveDoctrineSeletor:addChild(reconDoctrineSelector)
     offensiveDoctrineSeletor:addChild(attackDoctrineSelector)
-    offensiveDoctrineSeletor:addChild(defendDoctrineSelector)
     -- Defensive Selector
-    defensiveDoctrineSeletor:addChild(supportAEWDoctrineSelector)
-    defensiveDoctrineSeletor:addChild(supportTankerDoctrineSelector)
     defensiveDoctrineSeletor:addChild(reconDoctrineSelector)
     defensiveDoctrineSeletor:addChild(defendDoctrineSelector)
     -- Recon Doctrine Sequence
@@ -2907,8 +2903,8 @@ function InitializeMerrimackMonitorAI(sideName,options)
     attackDoctrineSelector:addChild(attackDoctrineCreateUpdateLandAttackMissionBT)
     -- Defend Doctrine Sequence
     defendDoctrineSelector:addChild(defendDoctrineCreateUpdateAirMissionBT)
-    supportTankerDoctrineSelector:addChild(supportTankerDoctrineCreateUpdateMissionBT)
-    supportAEWDoctrineSelector:addChild(supportAEWDoctrineCreateUpdateMissionBT)
+    defendDoctrineSelector:addChild(defendTankerDoctrineCreateUpdateMissionBT)
+    defendDoctrineSelector:addChild(defendAEWDoctrineCreateUpdateMissionBT)
     ----------------------------------------------------------------------------------------------------------------------------
     -- Monitor Selector
     ----------------------------------------------------------------------------------------------------------------------------
