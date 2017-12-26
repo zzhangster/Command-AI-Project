@@ -2672,7 +2672,6 @@ function CumberlandUpdateAirReinforcementRequestsAction(args)
             DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,totalFreeBusyInventory)
         end
     end
-
     -- Assign By Mission Types
     totalFreeBusyInventory = GetTotalFreeBusyAirAntiSurfaceInventory(args.shortKey)
     for k,v in pairs(antiSurfaceMissions) do
