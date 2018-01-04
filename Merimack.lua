@@ -423,11 +423,36 @@ function GetReinforcementRequests(sideShortKey)
     return returnRequests
 end
 
-function DetermineUnitsToAssign(sideShortKey,sideName,missionGuid,totalRequiredUnits,unitGuidList)
+function AddAllocatedUnit(sideShortKey,unitGuid)
+    local allocatedUnits = MemoryGetGUIDFromKey(sideShortKey.."_alloc_units")
+    local allocatedUnitsTable = {}
+    if #allocatedUnits == 1 then
+        allocatedUnitsTable = allocatedUnits[1]
+    end
+    allocatedUnitsTable[unitGuid] = unitGuid
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_alloc_units")
+    MemoryAddGUIDToKey(sideShortKey.."_alloc_units",allocatedUnitsTable)
+end
+
+function GetAllocatedUnitExists(sideShortKey,unitGuid)
+    local allocatedUnits = MemoryGetGUIDFromKey(sideShortKey.."_alloc_units")
+    local allocatedUnitsTable = {}
+    if #allocatedUnits == 1 then
+        allocatedUnitsTable = allocatedUnits[1]
+        if allocatedUnitsTable[unitGuid] then
+            return true
+        else
+            return false
+        end
+    else
+        return false
+    end
+end
+
+function DetermineUnitsToUnAssign(sideShortKey,sideName,missionGuid)
     -- Local Values
     local mission = ScenEdit_GetMission(sideName,missionGuid)
     local missionUnits = GetUnitsFromMission(sideName,missionGuid)
-    local missionUnitsCount = #missionUnits
     -- Check
     if mission then
         -- Loop Through Mission Unit Lists And Unassign RTB Units
@@ -436,14 +461,26 @@ function DetermineUnitsToAssign(sideShortKey,sideName,missionGuid,totalRequiredU
             if unit then
                 if unit.speed == 0 and tostring(unit.readytime) ~= "0"  then
                     local mockMission = ScenEdit_AddMission(sideName,"MOCK MISSION",'strike',{type='land'})
-                    ScenEdit_AssignUnitToMission(unit.guid, mockMission.guid)            
-                    ScenEdit_DeleteMission(sideName,mockMission.guid)
-                    missionUnitsCount = missionUnitsCount - 1
+                    ScenEdit_AssignUnitToMission(unit.guid, mockMission.guid)  
+                    ScenEdit_DeleteMission(sideName,mockMission.guid) 
+                else
+                    -- Save Unit
+                    AddAllocatedUnit(sideShortKey,unit.guid)
                 end
             end
-        end
-        -- Get Units Left To Assign
-        totalRequiredUnits = totalRequiredUnits - missionUnitsCount
+        end        
+    end
+end
+
+function DetermineUnitsToAssign(sideShortKey,sideName,missionGuid,totalRequiredUnits,unitGuidList)
+    -- Local Values
+    local mission = ScenEdit_GetMission(sideName,missionGuid)
+    local missionUnits = GetUnitsFromMission(sideName,missionGuid)
+    local missionUnitsCount = #missionUnits
+    local allocatedUnitsTable = MemoryGetGUIDFromKey(sideShortKey.."_alloc_units")
+    totalRequiredUnits = totalRequiredUnits - missionUnitsCount
+    -- Check
+    if mission then
         -- Assign Up to Total Required Units
         for k,v in pairs(unitGuidList) do
             -- Condition Check
@@ -453,15 +490,25 @@ function DetermineUnitsToAssign(sideShortKey,sideName,missionGuid,totalRequiredU
             -- Check Unit And Assign
             local unit = ScenEdit_GetUnit({side=sideName, guid=v})
             -- Check If Unit Has Already Been Allocated In This Cycle
-            if not MemoryGUIDExists(sideShortKey.."_alloc_units",unit.guid) then
+            if not GetAllocatedUnitExists(sideShortKey,unit.guid) then
                 if (not DetermineUnitRTB(sideName,v) and unit.speed > 0) or (tostring(unit.readytime) == "0" and unit.speed == 0) then
+                    -- Assign Unit
                     totalRequiredUnits = totalRequiredUnits - 1
                     ScenEdit_AssignUnitToMission(v,mission.guid)
-                    MemoryAddGUIDToKey(sideShortKey.."_alloc_units",unit.guid)
+                    -- Save Unit
+                    AddAllocatedUnit(sideShortKey,unit.guid)
                 end
             end
         end
+        -- Return
+        if totalRequiredUnits == 0 then
+            return true
+        else
+            return false
+        end
     end
+    -- Return false
+    return false
 end
 
 function DetermineEmconToUnits(sideShortKey,sideName,unitGuidList)
@@ -496,9 +543,13 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 -- Save GUID In Memory Functions
 --------------------------------------------------------------------------------------------------------------------------------
+function MemoryReset()
+    commandMemory = {}
+end
+
 function MemoryRemoveAllGUIDsFromKey(primaryKey)
     --ScenEdit_SpecialMessage("Blue Force", " - MemoryRemoveAllGUIDsFromKey "..primaryKey)
-    commandMemory[primaryKey] = nil
+    commandMemory[primaryKey] = {}
 end
 
 function MemoryGetGUIDFromKey(primaryKey)
@@ -675,14 +726,7 @@ function GetEmergencyMissileNoNavZoneThatContainsUnit(sideGuid,shortSideKey,unit
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
     local hostileMissilesContacts = GetHostileWeaponContacts(shortSideKey)
-    -- Check Unit Fired On (Performance Check)
-    --[[if #unit.firedOn > 0 then
-        
-    end]]--
-    --[[if unit.firedOn then
-        if #unit.firedOn > 0 then
-        end
-    end]]--
+    -- Loop Through Contacts
     for k,v in pairs(hostileMissilesContacts) do
         local currentRange = Tool_Range(v,unitGuid)
         local contact = ScenEdit_GetContact({side=side.name, guid=v})
@@ -1196,8 +1240,6 @@ function UpdateAIInventories(sideGUID,sideShortKey)
     local submarineContacts = side:contactsBy("3")
     local landContacts = side:contactsBy("4")
     local weaponContacts = side:contactsBy("6")
-    -- Rest Inventories And Contacts
-    ResetInventoriesAndContacts(sideShortKey)
     -- Loop Through Aircraft Inventory By Subtypes And Readiness
     if aircraftInventory then
         for k, v in pairs(aircraftInventory) do
@@ -1365,62 +1407,9 @@ function UpdateAIInventories(sideGUID,sideShortKey)
     end
 end
 
-function ResetInventoriesAndContacts(sideShortKey)
+function ResetAllInventoriesAndContacts()
     -- Memory Clean
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_non_free")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_non_busy")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_non_unav")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_def_hvt")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_sfig_free")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_sfig_busy")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_fig_free")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_fig_busy")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_mul_free")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_mul_busy")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_atk_free")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_atk_busy")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_sead_free")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_sead_busy")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_aew_free")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_aew_busy")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_asw_free")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_asw_busy")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_asuw_free")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_asuw_busy")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_rec_free")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_rec_busy")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_tan_free")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_tan_busy")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_uav_free")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_uav_busy")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_ucav_free")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_ucav_busy")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_surf_free")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_surf_busy")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_sub_free")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_sub_busy")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_land_busy")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_land_free")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_base_busy")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_base_free")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_sam_busy")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_sam_free")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_air_con_X")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_air_con_H")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_surf_con_X")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_surf_con_H")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_sub_con_X")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_sub_con_H")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_land_con_X")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_land_con_H")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_base_con_X")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_base_con_H")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_sam_con_X")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_sam_con_H")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_weap_con_X")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_weap_con_H")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_alloc_units")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_reinforce_request")
+    MemoryReset()
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
@@ -1988,7 +1977,6 @@ function DefendTankerDoctrineCreateUpdateMissionAction(args)
     -- Inventory And HVT And Contacts
     local totalHVTs = MemoryGetGUIDFromKey(args.shortKey.."_def_hvt")
     local coveredHVTs = PersistentGetGUID(args.shortKey.."_def_tan_hvt_cov")
-    local totalHostileContacts = GetHostileAirContacts(args.shortKey)
     local unitToSupport = nil
     -- Condition Check
     if #coveredHVTs < #totalHVTs then
@@ -2057,7 +2045,6 @@ function DefendAEWDoctrineCreateUpdateMissionAction(args)
     -- Inventory And HVT And Contacts
     local totalHVTs = MemoryGetGUIDFromKey(args.shortKey.."_def_hvt")
     local coveredHVTs = PersistentGetGUID(args.shortKey.."_def_aew_hvt_cov")
-    local totalHostileContacts = GetHostileAirContacts(args.shortKey)
     local unitToSupport = nil
     -- Condition Check
     if #coveredHVTs < #totalHVTs then
@@ -2627,105 +2614,350 @@ function CumberlandUpdateAirReinforcementRequestsAction(args)
     local aewDefenseMissions = PersistentGetGUID(args.shortKey.."_aew_d_miss")
     -- Local Reinforcements Requests
     local reinforcementRequests = GetReinforcementRequests(args.shortKey)
-    -- Assign By Mission Types
-    local totalFreeBusyInventory = GetTotalFreeBusyReconAndStealthFighterInventory(args.shortKey)
+
+    -- Reinforce Recon Missions
     for k,v in pairs(reconMissions) do
         local mission = ScenEdit_GetMission(side.name,v)
         local reinforceNumber = reinforcementRequests[v]
+        local missionReinforced = false
+        local reinforceInventory = {}
+        -- Determine If There Is An Reinforcement Request
         if reinforceNumber then
-            DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,totalFreeBusyInventory)
+            -- Unassign Units
+            DetermineUnitsToUnAssign(args.shortKey,side.name,mission.guid)
+            -- Reinforce With Free Recon Units
+            if not missionReinforced then
+                reinforceInventory = GetFreeAirReconInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
+            -- Reinforce With Free UAV Units
+            if not missionReinforced then
+                reinforceInventory = GetFreeAirUAVInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
+            -- Reinforce With Free Stealth Units
+            if not missionReinforced then
+                reinforceInventory = GetFreeAirStealthInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
+            -- Reinforce With Busy Recon Units
+            if not missionReinforced then
+                reinforceInventory = GetBusyAirReconInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
+            -- Reinforce With Busy UAV Units
+            if not missionReinforced then
+                reinforceInventory = GetBusyAirUAVInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
+            -- Reinforce With Busy Stealth Units
+            if not missionReinforced then
+                reinforceInventory = GetBusyAirStealthInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
         end
     end
-    -- Assign By Mission Types
-    totalFreeBusyInventory = GetTotalFreeBusyAirFighterInventory(args.shortKey)
+
+    -- Reinforce Air Missions
     for k,v in pairs(airMissions) do
         local mission = ScenEdit_GetMission(side.name,v)
         local reinforceNumber = reinforcementRequests[v]
+        local missionReinforced = false
+        local reinforceInventory = {}
+        -- Determine If There Is An Reinforcement Request
         if reinforceNumber then
-            DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,totalFreeBusyInventory)
+            -- Unassign Units
+            DetermineUnitsToUnAssign(args.shortKey,side.name,mission.guid)
+            -- Reinforce With Free Fighter Units
+            if not missionReinforced then
+                reinforceInventory = GetFreeAirFighterInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
+            -- Reinforce With Free Multirole Units
+            if not missionReinforced then
+                reinforceInventory = GetFreeAirMultiroleInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
+            -- Reinforce With Busy Fighter Units
+            if not missionReinforced then
+                reinforceInventory = GetBusyAirFighterInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
+            -- Reinforce With Busy Multirole Units
+            if not missionReinforced then
+                reinforceInventory = GetBusyAirMultiroleInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
         end
     end
-    -- Assign By Mission Types
-    totalFreeBusyInventory = GetTotalFreeBusyAirStealthFighterInventory(args.shortKey)
+
+    -- Reinforce Air Stealth Missions
     for k,v in pairs(stealthAirMissions) do
         local mission = ScenEdit_GetMission(side.name,v)
         local reinforceNumber = reinforcementRequests[v]
+        local missionReinforced = false
+        local reinforceInventory = {}
+        -- Determine If There Is An Reinforcement Request
         if reinforceNumber then
-            DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,totalFreeBusyInventory)
+            -- Unassign Units
+            DetermineUnitsToUnAssign(args.shortKey,side.name,mission.guid)
+            -- Reinforce With Free Stealth Units
+            if not missionReinforced then
+                reinforceInventory = GetFreeAirStealthInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
+            -- Reinforce With Busy Stealth Units
+            if not missionReinforced then
+                reinforceInventory = GetBusyAirStealthInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
         end
     end
-    -- Assign By Mission Types
-    totalFreeBusyInventory = GetTotalFreeBusyAEWInventory(args.shortKey)
+
+    -- Reinforce Air AEW Missions
     for k,v in pairs(aewMissions) do
         local mission = ScenEdit_GetMission(side.name,v)
         local reinforceNumber = reinforcementRequests[v]
+        local missionReinforced = false
+        local reinforceInventory = {}
+        -- Determine If There Is An Reinforcement Request
         if reinforceNumber then
-            DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,totalFreeBusyInventory)
+            -- Unassign Units
+            DetermineUnitsToUnAssign(args.shortKey,side.name,mission.guid)
+            -- Reinforce With Free AEW Units
+            if not missionReinforced then
+                reinforceInventory = GetFreeAirAEWInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
+            -- Reinforce With Busy AEW Units
+            if not missionReinforced then
+                reinforceInventory = GetBusyAirAEWInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
         end
     end
-    -- Assign By Mission Types
-    totalFreeBusyInventory = GetTotalFreeBusyTankerInventory(args.shortKey)
+
+    -- Reinforce Air Tanker Missions
     for k,v in pairs(tankerMissions) do
         local mission = ScenEdit_GetMission(side.name,v)
         local reinforceNumber = reinforcementRequests[v]
+        local missionReinforced = false
+        local reinforceInventory = {}
+        -- Determine If There Is An Reinforcement Request
         if reinforceNumber then
-            DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,totalFreeBusyInventory)
+            -- Unassign Units
+            DetermineUnitsToUnAssign(args.shortKey,side.name,mission.guid)
+            -- Reinforce With Free Tanker Units
+            if not missionReinforced then
+                reinforceInventory = GetFreeAirTankerInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
+            -- Reinforce With Busy Tanker Units
+            if not missionReinforced then
+                reinforceInventory = GetBusyAirTankerInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
         end
     end
-    -- Assign By Mission Types
-    totalFreeBusyInventory = GetTotalFreeBusyAirAntiSurfaceInventory(args.shortKey)
+
+    -- Reinforce Air Anti-Surface Missions
     for k,v in pairs(antiSurfaceMissions) do
         local mission = ScenEdit_GetMission(side.name,v)
         local reinforceNumber = reinforcementRequests[v]
+        local missionReinforced = false
+        local reinforceInventory = {}
+        -- Determine If There Is An Reinforcement Request
         if reinforceNumber then
-            DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,totalFreeBusyInventory)
+            -- Unassign Units
+            DetermineUnitsToUnAssign(args.shortKey,side.name,mission.guid)
+            -- Reinforce With Free ASUW Units
+            if not missionReinforced then
+                reinforceInventory = GetFreeAirASuWInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
+            -- Reinforce With Free ASUW Units
+            if not missionReinforced then
+                reinforceInventory = GetFreeAirMultiroleInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
+            -- Reinforce With Busy ASUW Units
+            if not missionReinforced then
+                reinforceInventory = GetBusyAirASuWInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
+            -- Reinforce With Busy ASUW Units
+            if not missionReinforced then
+                reinforceInventory = GetBusyAirMultiroleInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
         end
     end
-    -- Assign By Mission Types
-    totalFreeBusyInventory = GetTotalFreeBusyAirSeadInventory(args.shortKey)
+
+    -- Reinforce Air SEAD Missions
     for k,v in pairs(seadMissions) do
         local mission = ScenEdit_GetMission(side.name,v)
         local reinforceNumber = reinforcementRequests[v]
+        local missionReinforced = false
+        local reinforceInventory = {}
+        -- Determine If There Is An Reinforcement Request
         if reinforceNumber then
-            DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,totalFreeBusyInventory)
+            -- Unassign Units
+            DetermineUnitsToUnAssign(args.shortKey,side.name,mission.guid)
+            -- Reinforce With Free Sead Units
+            if not missionReinforced then
+                reinforceInventory = GetFreeAirSeadInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
+            -- Reinforce With Free Atk Units
+            if not missionReinforced then
+                reinforceInventory = GetFreeAirAttackInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
+            -- Reinforce With Free Multirole Units
+            if not missionReinforced then
+                reinforceInventory = GetFreeAirMultiroleInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
+            -- Reinforce With Busy Sead Units
+            if not missionReinforced then
+                reinforceInventory = GetBusyAirSeadInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
+            -- Reinforce With Busy Atk Units
+            if not missionReinforced then
+                reinforceInventory = GetBusyAirAttackInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
+            -- Reinforce With Busy Multirole Units
+            if not missionReinforced then
+                reinforceInventory = GetBusyAirMultiroleInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
         end
     end
-    -- Assign By Mission Types
-    totalFreeBusyInventory = GetTotalFreeBusyAirAttackInventory(args.shortKey)
+
+    -- Reinforce Air Attack Missions
     for k,v in pairs(landMissions) do
         local mission = ScenEdit_GetMission(side.name,v)
         local reinforceNumber = reinforcementRequests[v]
+        local missionReinforced = false
+        local reinforceInventory = {}
+        -- Determine If There Is An Reinforcement Request
         if reinforceNumber then
-            DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,totalFreeBusyInventory)
+            -- Unassign Units
+            DetermineUnitsToUnAssign(args.shortKey,side.name,mission.guid)
+            -- Reinforce With Free Atk Units
+            if not missionReinforced then
+                reinforceInventory = GetFreeAirAttackInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
+            -- Reinforce With Free Multirole Units
+            if not missionReinforced then
+                reinforceInventory = GetFreeAirMultiroleInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
+            -- Reinforce With Busy Atk Units
+            if not missionReinforced then
+                reinforceInventory = GetBusyAirAttackInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
+            -- Reinforce With Busy Multirole Units
+            if not missionReinforced then
+                reinforceInventory = GetBusyAirMultiroleInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
         end
     end
-    -- Assign By Mission Types
-    totalFreeBusyInventory = GetTotalFreeBusyAirFighterInventory(args.shortKey)
+
+    -- Reinforce Air Defensive Missions
     for k,v in pairs(airDefenseMissions) do
         local mission = ScenEdit_GetMission(side.name,v)
         local reinforceNumber = reinforcementRequests[v]
+        local missionReinforced = false
+        local reinforceInventory = {}
+        -- Determine If There Is An Reinforcement Request
         if reinforceNumber then
-            DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,totalFreeBusyInventory)
+            -- Unassign Units
+            DetermineUnitsToUnAssign(args.shortKey,side.name,mission.guid)
+            -- Reinforce With Free Fighter Units
+            if not missionReinforced then
+                reinforceInventory = GetFreeAirFighterInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
+            -- Reinforce With Free Stealth Units
+            if not missionReinforced then
+                reinforceInventory = GetFreeAirStealthInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
+            -- Reinforce With Free Multirole Units
+            if not missionReinforced then
+                reinforceInventory = GetFreeAirMultiroleInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
+            -- Reinforce With Busy Fighter Units
+            if not missionReinforced then
+                reinforceInventory = GetBusyAirFighterInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
+            -- Reinforce With Busy Stealth Units
+            if not missionReinforced then
+                reinforceInventory = GetBusyAirStealthInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
+            -- Reinforce With Busy Multirole Units
+            if not missionReinforced then
+                reinforceInventory = GetBusyAirMultiroleInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
         end
     end
-    -- Assign By Mission Types
-    totalFreeBusyInventory = GetTotalFreeBusyTankerInventory(args.shortKey)
-    for k,v in pairs(tankerDefenseMissions) do
-        local mission = ScenEdit_GetMission(side.name,v)
-        local reinforceNumber = reinforcementRequests[v]
-        if reinforceNumber then
-            DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,totalFreeBusyInventory)
-        end
-    end
-    -- Assign By Mission Types
-    totalFreeBusyInventory = GetTotalFreeBusyAEWInventory(args.shortKey)
+
+    -- Reinforce Air Defensive AEW Missions
     for k,v in pairs(aewDefenseMissions) do
         local mission = ScenEdit_GetMission(side.name,v)
         local reinforceNumber = reinforcementRequests[v]
+        local missionReinforced = false
+        local reinforceInventory = {}
+        -- Determine If There Is An Reinforcement Request
         if reinforceNumber then
-            DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,totalFreeBusyInventory)
+            -- Unassign Units
+            DetermineUnitsToUnAssign(args.shortKey,side.name,mission.guid)
+            -- Reinforce With Free AEW Units
+            if not missionReinforced then
+                reinforceInventory = GetFreeAirAEWInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
+            -- Reinforce With Busy AEW Units
+            if not missionReinforced then
+                reinforceInventory = GetBusyAirAEWInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
         end
     end
+
+    -- Reinforce Air Defensive Tanker Missions
+    for k,v in pairs(tankerDefenseMissions) do
+        local mission = ScenEdit_GetMission(side.name,v)
+        local reinforceNumber = reinforcementRequests[v]
+        local missionReinforced = false
+        local reinforceInventory = {}
+        -- Determine If There Is An Reinforcement Request
+        if reinforceNumber then
+            -- Unassign Units
+            DetermineUnitsToUnAssign(args.shortKey,side.name,mission.guid)
+            -- Reinforce With Free Tanker Units
+            if not missionReinforced then
+                reinforceInventory = GetFreeAirTankerInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
+            -- Reinforce With Busy Tanker Units
+            if not missionReinforced then
+                reinforceInventory = GetBusyAirTankerInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
+        end
+    end
+    
     -- Return False
     return false
 end
@@ -2972,6 +3204,8 @@ function InitializeMerrimackMonitorAI(sideName,options)
 end
 
 function UpdateAI()
+    -- Reset All Inventories
+    ResetAllInventoriesAndContacts()
     -- Update Inventories And Update Merrimack AI
     for k, v in pairs(commandMerrimackAIArray) do
         UpdateAIInventories(v.guid,v.shortKey)
