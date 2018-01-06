@@ -1416,12 +1416,17 @@ end
 -- Offensive Conditional Check
 --------------------------------------------------------------------------------------------------------------------------------
 function OffensiveConditionalCheck(args)
-    --return false
-    if GetAllHostileContactStrength(args.shortKey) <= GetAllInventoryStrength(args.shortKey) then
-        --ScenEdit_SpecialMessage("Neutral", "OffensiveConditionalCheck - True")
+    -- Local Values
+    local hostileStrength = GetAllHostileContactStrength(args.shortKey)
+    local inventoryStrength = GetAllInventoryStrength(args.shortKey)
+    local aggressiveModifier = args.options.aggressive * GetAllInventoryStrength(args.shortKey)
+    local defensiveModifier = args.options.defensive * GetAllHostileContactStrength(args.shortKey)
+    -- Check
+    if hostileStrength <= 0 then
+        return false
+    elseif hostileStrength * defensiveModifier <= inventoryStrength * aggressiveModifier then
         return true
     else
-        --ScenEdit_SpecialMessage("Neutral", "OffensiveConditionalCheck - False")
         return false
     end
 end
@@ -1430,12 +1435,17 @@ end
 -- Defensive Conditional Check
 --------------------------------------------------------------------------------------------------------------------------------
 function DefensiveConditionalCheck(args)
-    --return true
-    if GetAllHostileContactStrength(args.shortKey) > GetAllInventoryStrength(args.shortKey) then
-        --ScenEdit_SpecialMessage("Neutral", "DefensiveConditionalCheck - True")
+    -- Local Values
+    local hostileStrength = GetAllHostileContactStrength(args.shortKey)
+    local inventoryStrength = GetAllInventoryStrength(args.shortKey)
+    local aggressiveModifier = args.options.aggressive * GetAllInventoryStrength(args.shortKey)
+    local defensiveModifier = args.options.defensive * GetAllHostileContactStrength(args.shortKey)
+    -- Check
+    if hostileStrength <= 0 then
+        return true
+    elseif hostileStrength * defensiveModifier > inventoryStrength * aggressiveModifier then
         return true
     else
-        --ScenEdit_SpecialMessage("Neutral", "DefensiveConditionalCheck - False")
         return false
     end
 end
@@ -3229,5 +3239,4 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 -- Global Call
 --------------------------------------------------------------------------------------------------------------------------------
-InitializeMerrimackMonitorAI("Blue Force",{preset="Grant",options={aggressive=5,defensive=5,cunning=5,direct=5,determined=5,reserved=5}})
-InitializeMerrimackMonitorAI("Red Force",{preset="Grant",options={aggressive=5,defensive=5,cunning=5,direct=5,determined=5,reserved=5}})
+InitializeMerrimackMonitorAI("Stennis CSG",{preset="Grant",options={aggressive=5,defensive=5,cunning=5,direct=5,determined=5,reserved=5}})
