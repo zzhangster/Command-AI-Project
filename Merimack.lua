@@ -409,7 +409,9 @@ function DetermineThreatRangeByUnitDatabaseId(sideGuid,contactGuid)
     return range
 end
 
-function AddReinforcementRequest(sideShortKey,sideName,missionName,quantity)
+function AddReinforcementRequest(sideShortKey,sideAttributes,sideName,missionName,quantity)
+    local determinedModifier = sideAttributes.determined * 2 / (sideAttributes.determined + sideAttributes.reserved)
+    quantity = math.ceil(quantity * determinedModifier)
     MemoryAddGUIDToKey(sideShortKey.."_reinforce_request",{name=missionName,number=quantity})
 end
 
@@ -511,20 +513,60 @@ function DetermineUnitsToAssign(sideShortKey,sideName,missionGuid,totalRequiredU
     return false
 end
 
-function DetermineEmconToUnits(sideShortKey,sideName,unitGuidList)
+function DetermineEmconToUnits(sideShortKey,sideAttributes,sideName,unitGuidList)
+    -- Local Values
     local busyAEWInventory = GetBusyAirAEWInventory(sideShortKey)
+    local directModifier = sideAttributes.direct * 2 / (sideAttributes.direct + sideAttributes.cunning)
+    -- Loop
     for k,v in pairs(unitGuidList) do
         local unit = ScenEdit_GetUnit({side=sideName, guid=v})
         ScenEdit_SetEMCON("Unit",v,"Radar=Active")
-        for k1,v1 in pairs(busyAEWInventory) do
-            local aewUnit = ScenEdit_GetUnit({side=sideName, guid=v1})
-            if aewUnit.speed > 0 and aewUnit.altitude > 0 then
-                if Tool_Range(v1,v) < 150 then
-                    ScenEdit_SetEMCON("Unit",v,"Radar=Passive")
+        -- Check
+        if directModifier > 1.75 then
+            for k1,v1 in pairs(busyAEWInventory) do
+                local aewUnit = ScenEdit_GetUnit({side=sideName, guid=v1})
+                if aewUnit.speed > 0 and aewUnit.altitude > 0 then
+                    if Tool_Range(v1,v) < 200 then
+                        ScenEdit_SetEMCON("Unit",v,"Radar=Passive")
+                    end
                 end
             end
-        end      
+        end
     end
+end
+
+function DetermineUnitToRetreat(sideShortKey,sideGuid,sideAttributes,missionGuid,unitGuidList,zoneType,retreatRange)
+    -- Local Values
+    local side = VP_GetSide({guid=sideGuid})
+    local directModifier = sideAttributes.direct * 2 / (sideAttributes.direct + sideAttributes.cunning)
+    local missionUnits = GetUnitsFromMission(side.name,missionGuid)
+    -- Loop Unit Guid List
+    for k,v in pairs(unitGuidList) do
+        local missionUnit = ScenEdit_GetUnit({side=side.name, guid=v})
+        local unitRetreatPoint = {}
+        -- Check By Type
+        if zoneType == 0 then
+            unitRetreatPoint = GetAllNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,retreatRange)
+        elseif zoneType == 1 then
+            unitRetreatPoint = GetSAMAndShipNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid)
+        elseif zoneType == 2 then
+            unitRetreatPoint = GetAirAndShipNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,retreatRange)
+        elseif zoneType == 3 then
+            unitRetreatPoint = GetAirAndSAMNoNavZoneThatContainsUnit(args.guid,args.shortKey,missionUnit.guid,retreatRange)
+        else
+            unitRetreatPoint = nil
+        end
+        -- Retreat Point
+        if unitRetreatPoint ~= nil and not DetermineUnitRTB(side.name,missionUnit.guid) then
+            ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course = "no" })
+            missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
+            missionUnit.manualSpeed = unitRetreatPoint.speed
+        else
+            ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course = "yes" })
+            missionUnit.manualSpeed = "OFF"
+        end
+    end
+
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
@@ -1552,7 +1594,7 @@ function ReconDoctrineCreateUpdateMissionAction(args)
                 ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_recon_miss_"..tostring(missionNumber).."_rp_4", lat=aoPoints[4].latitude, lon=aoPoints[4].longitude})
             end
             -- Add Reinforcement Request
-            AddReinforcementRequest(args.shortKey,side.name,updatedMission.name,1)
+            AddReinforcementRequest(args.shortKey,args.options,side.name,updatedMission.name,1)
         end
     end
     -- Return False
@@ -1601,7 +1643,7 @@ function AttackDoctrineCreateUpdateAirMissionAction(args)
             totalAirUnitsToAssign = totalAirUnitsToAssign + 1
         end
         -- Add Reinforcement Request
-        AddReinforcementRequest(args.shortKey,side.name,createdUpdatedMission.name,totalAirUnitsToAssign)
+        AddReinforcementRequest(args.shortKey,args.options,side.name,createdUpdatedMission.name,totalAirUnitsToAssign)
     end
     -- Return False
     return false
@@ -1645,7 +1687,7 @@ function AttackDoctrineCreateUpdateStealthAirMissionAction(args)
                 totalAirUnitsToAssign = totalAirUnitsToAssign + 1
             end
             -- Add Reinforcement Request
-            AddReinforcementRequest(args.shortKey,side.name,createdUpdatedMission.name,totalAirUnitsToAssign)
+            AddReinforcementRequest(args.shortKey,args.options,side.name,createdUpdatedMission.name,totalAirUnitsToAssign)
         end
     end
     -- Return False
@@ -1695,7 +1737,7 @@ function AttackDoctrineCreateUpdateAEWMissionAction(args)
             ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_3", lat=patrolBoundingBox[3].latitude, lon=patrolBoundingBox[3].longitude})
             ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_4", lat=patrolBoundingBox[4].latitude, lon=patrolBoundingBox[4].longitude})
             -- Add Reinforcement Request
-            AddReinforcementRequest(args.shortKey,side.name,createdUpdatedMission.name,1)
+            AddReinforcementRequest(args.shortKey,args.options,side.name,createdUpdatedMission.name,1)
         end
     end
     -- Return False
@@ -1751,7 +1793,7 @@ function AttackDoctrineCreateUpdateTankerMissionAction(args)
             linkedMissionUnits = GetUnitsFromMission(side.name,linkedMission.guid)   
             totalAirUnitsToAssign = math.floor(#linkedMissionUnits/4)
             -- Add Reinforcement Request
-            AddReinforcementRequest(args.shortKey,side.name,createdUpdatedMission.name,totalAirUnitsToAssign)
+            AddReinforcementRequest(args.shortKey,args.options,side.name,createdUpdatedMission.name,totalAirUnitsToAssign)
         end
     end
     -- Return False
@@ -1795,7 +1837,7 @@ function AttackDoctrineCreateUpdateAntiSurfaceShipMissionAction(args)
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_asuw_miss_"..tostring(missionNumber).."_rp_3", lat=hostileContactBoundingBox[3].latitude, lon=hostileContactBoundingBox[3].longitude})
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_asuw_miss_"..tostring(missionNumber).."_rp_4", lat=hostileContactBoundingBox[4].latitude, lon=hostileContactBoundingBox[4].longitude})
         -- Add Reinforcement Request
-        AddReinforcementRequest(args.shortKey,side.name,createdUpdatedMission.name,totalAirUnitsToAssign)
+        AddReinforcementRequest(args.shortKey,args.options,side.name,createdUpdatedMission.name,totalAirUnitsToAssign)
     end
     -- Return False
     return false
@@ -1837,7 +1879,7 @@ function AttackDoctrineCreateUpdateSeadMissionAction(args)
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_sead_miss_"..tostring(missionNumber).."_rp_3", lat=hostileContactBoundingBox[3].latitude, lon=hostileContactBoundingBox[3].longitude})
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_sead_miss_"..tostring(missionNumber).."_rp_4", lat=hostileContactBoundingBox[4].latitude, lon=hostileContactBoundingBox[4].longitude})
         -- Add Reinforcement Request
-        AddReinforcementRequest(args.shortKey,side.name,createdUpdatedMission.name,totalAirUnitsToAssign)
+        AddReinforcementRequest(args.shortKey,args.options,side.name,createdUpdatedMission.name,totalAirUnitsToAssign)
     end
     -- Return False
     return false
@@ -1879,7 +1921,7 @@ function AttackDoctrineCreateUpdateLandAttackMissionAction(args)
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_land_miss_"..tostring(missionNumber).."_rp_3", lat=hostileContactBoundingBox[3].latitude, lon=hostileContactBoundingBox[3].longitude})
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_land_miss_"..tostring(missionNumber).."_rp_4", lat=hostileContactBoundingBox[4].latitude, lon=hostileContactBoundingBox[4].longitude})
         -- Add Reinforcement Request
-        AddReinforcementRequest(args.shortKey,side.name,createdUpdatedMission.name,totalAirUnitsToAssign)
+        AddReinforcementRequest(args.shortKey,args.options,side.name,createdUpdatedMission.name,totalAirUnitsToAssign)
     end
     -- Return False
     return false
@@ -1963,7 +2005,7 @@ function DefendDoctrineCreateUpdateAirMissionAction(args)
                     end
                 end
                 -- Add Reinforcement Request
-                AddReinforcementRequest(args.shortKey,side.name,updatedMission.name,totalAAWUnitsToAssign)
+                AddReinforcementRequest(args.shortKey,args.options,side.name,updatedMission.name,totalAAWUnitsToAssign)
             end
         end
     end
@@ -2031,7 +2073,7 @@ function DefendTankerDoctrineCreateUpdateMissionAction(args)
             -- Check Defense Mission
             if updatedMission then
                 -- Add Reinforcement Request
-                AddReinforcementRequest(args.shortKey,side.name,updatedMission.name,1)
+                AddReinforcementRequest(args.shortKey,args.options,side.name,updatedMission.name,1)
             end
         end
     end
@@ -2098,7 +2140,7 @@ function DefendAEWDoctrineCreateUpdateMissionAction(args)
                 -- Check Defense Mission
                 if updatedMission then
                     -- Add Reinforcement Request
-                    AddReinforcementRequest(args.shortKey,side.name,updatedMission.name,1)
+                    AddReinforcementRequest(args.shortKey,args.options,side.name,updatedMission.name,1)
                 end
             end
         end
@@ -2262,6 +2304,8 @@ function HamptonUpdateUnitsInReconMissionAction(args)
         -- Local Values
         local updatedMission = ScenEdit_GetMission(side.name,v)
         local missionUnits = GetUnitsFromMission(side.name,updatedMission.guid)
+        -- Determine Retreat
+        --DetermineUnitToRetreat(args.shortKey,args.guid,args.options,updatedMission.guid,missionUnits,0,70)
         -- Find Contact Close To Unit And Evade
         for k1,v1 in pairs(missionUnits) do
             local missionUnit = ScenEdit_GetUnit({side=side.name, guid=v1})
@@ -2308,7 +2352,7 @@ function HamptonUpdateUnitsInOffensiveAirMissionAction(args)
         end
     end
     -- Determine EMCON
-    DetermineEmconToUnits(args.shortKey,side.name,missionUnits)
+    DetermineEmconToUnits(args.shortKey,args.options,side.name,missionUnits)
     -- Return False
     return false
 end
@@ -2340,7 +2384,7 @@ function HamptonUpdateUnitsInOffensiveStealthAirMissionAction(args)
         end
     end
     -- Determine EMCON
-    DetermineEmconToUnits(args.shortKey,side.name,missionUnits)
+    DetermineEmconToUnits(args.shortKey,args.options,side.name,missionUnits)
     -- Return False
     return false
 end
@@ -2598,7 +2642,7 @@ function HamptonUpdateUnitsInDefensiveAirMissionAction(args)
                 end
             end
             -- Determine EMCON
-            DetermineEmconToUnits(args.shortKey,side.name,missionUnits)
+            DetermineEmconToUnits(args.shortKey,args.options,side.name,missionUnits)
         end
     end
     -- Return False
@@ -2624,6 +2668,7 @@ function CumberlandUpdateAirReinforcementRequestsAction(args)
     local aewDefenseMissions = PersistentGetGUID(args.shortKey.."_aew_d_miss")
     -- Local Reinforcements Requests
     local reinforcementRequests = GetReinforcementRequests(args.shortKey)
+    local determinedModifier = args.options.determined * 2 / (args.options.determined + args.options.reserved)
 
     -- Reinforce Recon Missions
     for k,v in pairs(reconMissions) do
