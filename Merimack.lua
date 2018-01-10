@@ -2008,8 +2008,8 @@ function DefendDoctrineCreateUpdateAirMissionAction(args)
         -- Check If No Unit To Defend
         if unitToDefend then
             -- Set Contact Bounding Box Variables
-            defenseBoundingBox = FindBoundingBoxForGivenLocations({MakeLatLong(unitToDefend.latitude,unitToDefend.longitude)},2)
-            prosecutionBoundingBox = FindBoundingBoxForGivenLocations({MakeLatLong(unitToDefend.latitude,unitToDefend.longitude)},3)
+            defenseBoundingBox = FindBoundingBoxForGivenLocations({MakeLatLong(unitToDefend.latitude,unitToDefend.longitude)},1)
+            prosecutionBoundingBox = FindBoundingBoxForGivenLocations({MakeLatLong(unitToDefend.latitude,unitToDefend.longitude)},2)
             -- Set Reference Points
             rp1 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..unitToDefend.guid.."_rp_1", lat=defenseBoundingBox[1].latitude, lon=defenseBoundingBox[1].longitude})
             rp2 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..unitToDefend.guid.."_rp_2", lat=defenseBoundingBox[2].latitude, lon=defenseBoundingBox[2].longitude})
@@ -2022,7 +2022,7 @@ function DefendDoctrineCreateUpdateAirMissionAction(args)
             prp4 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..unitToDefend.guid.."_prp_4", lat=prosecutionBoundingBox[4].latitude, lon=prosecutionBoundingBox[4].longitude})
             -- Create Mission
             createdMission = ScenEdit_AddMission(side.name,args.shortKey.."_aaw_d_miss_"..unitToDefend.guid,"patrol",{type="aaw",zone={rp1.name,rp2.name,rp3.name,rp4.name}})
-            ScenEdit_SetMission(side.name,createdMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=false,flightSize=2,useFlightSize=true,prosecutionZone={prp1.name,prp2.name,prp3.name,prp4.name}})
+            ScenEdit_SetMission(side.name,createdMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=false,flightSize=2,useFlightSize=true})
             ScenEdit_SetDoctrine({side=side.name,mission=createdMission.name},{automatic_evasion="yes",maintain_standoff="yes",ignore_emcon_while_under_attack="yes",weapon_state_planned="5001",weapon_state_rtb ="1",dive_on_threat="2"})
             ScenEdit_SetEMCON("Mission",createdMission.guid,"Radar=Passive")
             -- Add Guid And Add Time Stamp
@@ -2041,8 +2041,8 @@ function DefendDoctrineCreateUpdateAirMissionAction(args)
             -- Check Defense Mission
             if updatedMission then
                 -- Set Contact Bounding Box Variables
-                defenseBoundingBox = FindBoundingBoxForGivenLocations({MakeLatLong(coveredHVT.latitude,coveredHVT.longitude)},2)
-                prosecutionBoundingBox = FindBoundingBoxForGivenLocations({MakeLatLong(unitToDefend.latitude,unitToDefend.longitude)},3)
+                defenseBoundingBox = FindBoundingBoxForGivenLocations({MakeLatLong(coveredHVT.latitude,coveredHVT.longitude)},1)
+                prosecutionBoundingBox = FindBoundingBoxForGivenLocations({MakeLatLong(coveredHVT.latitude,coveredHVT.longitude)},2)
                 -- Update Coordinates
                 rp1 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVT.guid.."_rp_1", lat=defenseBoundingBox[1].latitude, lon=defenseBoundingBox[1].longitude})
                 rp2 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVT.guid.."_rp_2", lat=defenseBoundingBox[2].latitude, lon=defenseBoundingBox[2].longitude})
@@ -2054,14 +2054,27 @@ function DefendDoctrineCreateUpdateAirMissionAction(args)
                 prp3 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVT.guid.."_prp_3", lat=prosecutionBoundingBox[3].latitude, lon=prosecutionBoundingBox[3].longitude})
                 prp4 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVT.guid.."_prp_4", lat=prosecutionBoundingBox[4].latitude, lon=prosecutionBoundingBox[4].longitude})
                 -- Find Enemy Strength In Area
+                local contactsInZone = 0
                 for k1, v1 in pairs(totalHostileContacts) do
                     local contact = ScenEdit_GetContact({side=side.name, guid=v1})
                     if contact:inArea({prp1.name,prp2.name,prp3.name,prp4.name}) then
-                        totalAAWUnitsToAssign = totalAAWUnitsToAssign + 1
+                        contactsInZone = contactsInZone + 1
                     end
                 end
+                -- Check
+                if contactsInZone > 0 then
+                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVT.guid.."_rp_1", lat=prosecutionBoundingBox[1].latitude, lon=prosecutionBoundingBox[1].longitude})
+                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVT.guid.."_rp_2", lat=prosecutionBoundingBox[2].latitude, lon=prosecutionBoundingBox[2].longitude})
+                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVT.guid.."_rp_3", lat=prosecutionBoundingBox[3].latitude, lon=prosecutionBoundingBox[3].longitude})
+                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVT.guid.."_rp_4", lat=prosecutionBoundingBox[4].latitude, lon=prosecutionBoundingBox[4].longitude})
+                else
+                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVT.guid.."_rp_1", lat=defenseBoundingBox[1].latitude, lon=defenseBoundingBox[1].longitude})
+                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVT.guid.."_rp_2", lat=defenseBoundingBox[2].latitude, lon=defenseBoundingBox[2].longitude})
+                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVT.guid.."_rp_3", lat=defenseBoundingBox[3].latitude, lon=defenseBoundingBox[3].longitude})
+                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVT.guid.."_rp_4", lat=defenseBoundingBox[4].latitude, lon=defenseBoundingBox[4].longitude})
+                end
                 -- Add Reinforcement Request
-                AddReinforcementRequest(args.shortKey,args.options,side.name,updatedMission.name,totalAAWUnitsToAssign)
+                AddReinforcementRequest(args.shortKey,args.options,side.name,updatedMission.name,totalAAWUnitsToAssign + contactsInZone)
             end
         end
     end
@@ -2630,6 +2643,11 @@ function CumberlandUpdateAirReinforcementRequestsAction(args)
                 reinforceInventory = GetFreeAirStealthInventory(args.shortKey)
                 missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
             end
+            -- Reinforce With Free Sead Units
+            if not missionReinforced then
+                reinforceInventory = GetFreeAirSeadInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
             -- Reinforce With Busy Recon Units
             if not missionReinforced then
                 reinforceInventory = GetBusyAirReconInventory(args.shortKey)
@@ -2643,6 +2661,11 @@ function CumberlandUpdateAirReinforcementRequestsAction(args)
             -- Reinforce With Busy Stealth Units
             if not missionReinforced then
                 reinforceInventory = GetBusyAirStealthInventory(args.shortKey)
+                missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
+            -- Reinforce With Busy Sead Units
+            if not missionReinforced then
+                reinforceInventory = GetBusyAirSeadInventory(args.shortKey)
                 missionReinforced = DetermineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
             end
         end
