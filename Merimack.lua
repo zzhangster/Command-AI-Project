@@ -375,7 +375,22 @@ function DetermineUnitRTB(sideName,unitGuid)
             return false
         end
     end
-    
+end
+
+function DetermineHVAByUnitDatabaseId(sideShortKey,unitGuid,unitDBID)
+    local hva = ScenEdit_GetKeyValue("hv_"..tostring(unitDBID))
+    if hva == "HV" then
+        return true
+    else
+        return false
+    end
+end
+
+function DetermineAndAddHVTByUnitDatabaseId(sideShortKey,unitGuid,unitDBID)
+    local hva = ScenEdit_GetKeyValue("hv_"..tostring(unitDBID))
+    if hva == "HV" then
+        MemoryAddGUIDToKey(sideShortKey.."_def_hvt",unitGuid)
+    end
 end
 
 function DetermineThreatRangeByUnitDatabaseId(sideGuid,contactGuid)
@@ -513,7 +528,6 @@ function DetermineUnitsToAssign(sideShortKey,sideName,missionGuid,totalRequiredU
     return false
 end
 
-
 function GetTimeStampForGUID(primaryKey)
     local timeStamp = ScenEdit_GetKeyValue(primaryKey)
     if timeStamp == "" or timeStamp == nil then
@@ -624,12 +638,10 @@ function MemoryReset()
 end
 
 function MemoryRemoveAllGUIDsFromKey(primaryKey)
-    --ScenEdit_SpecialMessage("Blue Force", " - MemoryRemoveAllGUIDsFromKey "..primaryKey)
     commandMemory[primaryKey] = {}
 end
 
 function MemoryGetGUIDFromKey(primaryKey)
-    --ScenEdit_SpecialMessage("Blue Force", " - MemoryGetGUIDFromKey "..primaryKey)
     local table = commandMemory[primaryKey]
     if table then
         return table
@@ -639,7 +651,6 @@ function MemoryGetGUIDFromKey(primaryKey)
 end
 
 function MemoryAddGUIDToKey(primaryKey,guid)
-    --ScenEdit_SpecialMessage("Blue Force", " - MemoryAddGUIDToKey "..primaryKey)
     local table = commandMemory[primaryKey]
     if not table then
         table = {}
@@ -649,7 +660,6 @@ function MemoryAddGUIDToKey(primaryKey,guid)
 end
 
 function MemoryGUIDExists(primaryKey,guid)
-    --ScenEdit_SpecialMessage("Blue Force", " - PersistentGUIDExists "..primaryKey)
     local table = MemoryGetGUIDFromKey(primaryKey)
     for k, v in pairs(table) do
         if guid == v then
@@ -663,12 +673,10 @@ end
 -- Save GUID Persistent Functions
 --------------------------------------------------------------------------------------------------------------------------------
 function PersistentRemoveAllGUID(primaryKey)
-    --ScenEdit_SpecialMessage("Blue Force", " - PersistentRemoveAllGUID "..primaryKey)
     ScenEdit_SetKeyValue(primaryKey,"")
 end
 
 function PersistentGetGUID(primaryKey)
-    --ScenEdit_SpecialMessage("Blue Force", " - PersistentGetGUID "..primaryKey)
     local guidString = ScenEdit_GetKeyValue(primaryKey)
     if guidString == nil then
         guidString = ""
@@ -677,7 +685,6 @@ function PersistentGetGUID(primaryKey)
 end
 
 function PersistentAddGUID(primaryKey,guid)
-    --ScenEdit_SpecialMessage("Blue Force", " - PersistentAddGUID "..primaryKey)
     local guidString = ScenEdit_GetKeyValue(primaryKey)
     if guidString == nil then
         guidString = guid
@@ -688,7 +695,6 @@ function PersistentAddGUID(primaryKey,guid)
 end
 
 function PersistentRemoveGUID(primaryKey,guid)
-    --ScenEdit_SpecialMessage("Blue Force", " - PersistentRemoveGUID "..primaryKey)
     local table = PersistentGetGUID(primaryKey)
     local guidString = nil
     for k, v in pairs(table) do
@@ -704,7 +710,6 @@ function PersistentRemoveGUID(primaryKey,guid)
 end
 
 function PersistentGUIDExists(primaryKey,guid)
-    --ScenEdit_SpecialMessage("Blue Force", " - PersistentGUIDExists "..primaryKey)
     local table = PersistentGetGUID(primaryKey)
     for k, v in pairs(table) do
         if guid == v then
@@ -745,7 +750,7 @@ function GetAirNoNavZoneThatContaintsUnit(sideGuid,shortSideKey,unitGuid,range)
         if currentRange < range then
             local bearing = Tool_Bearing(contact.guid,unitGuid)
             local retreatLocation = ProjectLatLong(MakeLatLong(contact.latitude,contact.longitude),bearing,range + 30)
-            return {latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=1000}
+            return {latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=2000}
         end
     end
     -- Check Unknown Contacts Points
@@ -755,10 +760,10 @@ function GetAirNoNavZoneThatContaintsUnit(sideGuid,shortSideKey,unitGuid,range)
         if currentRange < range then
             local bearing = Tool_Bearing(contact.guid,unitGuid)
             local retreatLocation = ProjectLatLong(MakeLatLong(contact.latitude,contact.longitude),bearing,range + 30)
-            return {latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=1000}
+            return {latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=2000}
         end
     end
-    -- Return 
+    -- Return nil
     return nil
 end
 
@@ -780,7 +785,7 @@ function GetSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,unitGuid)
             return {latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=600}
         end
     end
-    -- Return False
+    -- Return nil
     return nil
 end
 
@@ -815,7 +820,7 @@ function GetEmergencyMissileNoNavZoneThatContainsUnit(sideGuid,shortSideKey,unit
         local currentRange = Tool_Range(v,unitGuid)
         local contact = ScenEdit_GetContact({side=side.name, guid=v})
         -- Check Between 20 and 80
-        if currentRange > 12 and currentRange < 90 then
+        if currentRange > 12 and currentRange < 70 then
             --ScenEdit_SpecialMessage("Stennis CSG", "GetEmergencyMissileNoNavZoneThatContainsUnit")
             local contactPoint = MakeLatLong(contact.latitude,contact.longitude)
             local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
@@ -1383,10 +1388,10 @@ function UpdateAIInventories(sideGUID,sideShortKey)
             -- Check Status
             if unit.mission == nil then
                 unitStatus = "free"
-            end
+            end 
             -- Save Unit As HVT (Carriers)
             if unit.subtype == "2001" or unit.subtype == "2008"then
-                MemoryAddGUIDToKey(sideShortKey.."_def_hvt",unit.guid)
+                MemoryAddGUIDToKey(sideShortKey.."_def_hva",unit.guid)
             end
             -- Save Unit GUID
             MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..unitStatus,unit.guid)
@@ -1418,12 +1423,15 @@ function UpdateAIInventories(sideGUID,sideShortKey)
             if unit.mission == nil then
                 unitStatus = "free"
             end
-            -- Save Unit As HVT (Airport)
+            -- Save Unit As HVA (Airport)
             if unit.subtype == "9001" then
                 unitType = "base"
-                MemoryAddGUIDToKey(sideShortKey.."_def_hvt",unit.guid)
             elseif unit.subtype == "5001" then
                 unitType = "sam"
+            end
+            -- Determine And Add HVA
+            if DetermineHVAByUnitDatabaseId(sideShortKey,unit.guid,unit.dbid) then
+                MemoryAddGUIDToKey(sideShortKey.."_def_hva",unit.guid)
             end
             -- Save Unit GUID
             MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..unitStatus,unit.guid)
@@ -1984,18 +1992,18 @@ function DefendDoctrineCreateUpdateAirMissionAction(args)
     local prosecutionBoundingBox = {}
     local rp1,rp2,rp3,rp4 = ""
     local prp1,prp2,prp3,prp4 = ""
-    -- Inventory And HVT And Contacts
+    -- Inventory And HVA And Contacts
     local totalHostileContacts = GetHostileAirContacts(args.shortKey)
-    local totalHVTs = MemoryGetGUIDFromKey(args.shortKey.."_def_hvt")
-    local coveredHVTs = PersistentGetGUID(args.shortKey.."_def_hvt_cov")
+    local totalHVAs = MemoryGetGUIDFromKey(args.shortKey.."_def_hva")
+    local coveredHVAs = PersistentGetGUID(args.shortKey.."_def_hva_cov")
     local unitToDefend = nil
     local totalAAWUnitsToAssign = 4
     -- Condition Check
-    if #coveredHVTs < #totalHVTs then
+    if #coveredHVAs < #totalHVAs then
         -- Find Unit That Is Not Covered
-        for k, v in pairs(totalHVTs) do
+        for k, v in pairs(totalHVAs) do
             local found = false
-            for k2, v2 in pairs(coveredHVTs) do 
+            for k2, v2 in pairs(coveredHVAs) do 
                 if v == v2 then
                     found = true
                 end
@@ -2027,32 +2035,32 @@ function DefendDoctrineCreateUpdateAirMissionAction(args)
             ScenEdit_SetEMCON("Mission",createdMission.guid,"Radar=Passive")
             -- Add Guid And Add Time Stamp
             PersistentAddGUID(args.shortKey.."_aaw_d_miss",createdMission.name)
-            PersistentAddGUID(args.shortKey.."_def_hvt_cov",unitToDefend.guid)
+            PersistentAddGUID(args.shortKey.."_def_hva_cov",unitToDefend.guid)
         end
     end
     -- Update Mission
-    for k, v in pairs(coveredHVTs) do
-        -- Local Covered HVT
-        local coveredHVT = ScenEdit_GetUnit({side=side.name,guid=v})
+    for k, v in pairs(coveredHVAs) do
+        -- Local Covered HVA
+        local coveredHVA = ScenEdit_GetUnit({side=side.name,guid=v})
         -- Check Condition
-        if coveredHVT then
+        if coveredHVA then
             -- Get Defense Mission
-            updatedMission = ScenEdit_GetMission(side.name,args.shortKey.."_aaw_d_miss_"..coveredHVT.guid)
+            updatedMission = ScenEdit_GetMission(side.name,args.shortKey.."_aaw_d_miss_"..coveredHVA.guid)
             -- Check Defense Mission
             if updatedMission then
                 -- Set Contact Bounding Box Variables
-                defenseBoundingBox = FindBoundingBoxForGivenLocations({MakeLatLong(coveredHVT.latitude,coveredHVT.longitude)},1)
-                prosecutionBoundingBox = FindBoundingBoxForGivenLocations({MakeLatLong(coveredHVT.latitude,coveredHVT.longitude)},2)
+                defenseBoundingBox = FindBoundingBoxForGivenLocations({MakeLatLong(coveredHVA.latitude,coveredHVA.longitude)},1)
+                prosecutionBoundingBox = FindBoundingBoxForGivenLocations({MakeLatLong(coveredHVA.latitude,coveredHVA.longitude)},2)
                 -- Update Coordinates
-                rp1 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVT.guid.."_rp_1", lat=defenseBoundingBox[1].latitude, lon=defenseBoundingBox[1].longitude})
-                rp2 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVT.guid.."_rp_2", lat=defenseBoundingBox[2].latitude, lon=defenseBoundingBox[2].longitude})
-                rp3 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVT.guid.."_rp_3", lat=defenseBoundingBox[3].latitude, lon=defenseBoundingBox[3].longitude})
-                rp4 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVT.guid.."_rp_4", lat=defenseBoundingBox[4].latitude, lon=defenseBoundingBox[4].longitude})
+                rp1 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVA.guid.."_rp_1", lat=defenseBoundingBox[1].latitude, lon=defenseBoundingBox[1].longitude})
+                rp2 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVA.guid.."_rp_2", lat=defenseBoundingBox[2].latitude, lon=defenseBoundingBox[2].longitude})
+                rp3 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVA.guid.."_rp_3", lat=defenseBoundingBox[3].latitude, lon=defenseBoundingBox[3].longitude})
+                rp4 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVA.guid.."_rp_4", lat=defenseBoundingBox[4].latitude, lon=defenseBoundingBox[4].longitude})
                 -- Update Coordinates
-                prp1 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVT.guid.."_prp_1", lat=prosecutionBoundingBox[1].latitude, lon=prosecutionBoundingBox[1].longitude})
-                prp2 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVT.guid.."_prp_2", lat=prosecutionBoundingBox[2].latitude, lon=prosecutionBoundingBox[2].longitude})
-                prp3 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVT.guid.."_prp_3", lat=prosecutionBoundingBox[3].latitude, lon=prosecutionBoundingBox[3].longitude})
-                prp4 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVT.guid.."_prp_4", lat=prosecutionBoundingBox[4].latitude, lon=prosecutionBoundingBox[4].longitude})
+                prp1 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVA.guid.."_prp_1", lat=prosecutionBoundingBox[1].latitude, lon=prosecutionBoundingBox[1].longitude})
+                prp2 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVA.guid.."_prp_2", lat=prosecutionBoundingBox[2].latitude, lon=prosecutionBoundingBox[2].longitude})
+                prp3 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVA.guid.."_prp_3", lat=prosecutionBoundingBox[3].latitude, lon=prosecutionBoundingBox[3].longitude})
+                prp4 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVA.guid.."_prp_4", lat=prosecutionBoundingBox[4].latitude, lon=prosecutionBoundingBox[4].longitude})
                 -- Find Enemy Strength In Area
                 local contactsInZone = 0
                 for k1, v1 in pairs(totalHostileContacts) do
@@ -2063,15 +2071,15 @@ function DefendDoctrineCreateUpdateAirMissionAction(args)
                 end
                 -- Check
                 if contactsInZone > 0 then
-                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVT.guid.."_rp_1", lat=prosecutionBoundingBox[1].latitude, lon=prosecutionBoundingBox[1].longitude})
-                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVT.guid.."_rp_2", lat=prosecutionBoundingBox[2].latitude, lon=prosecutionBoundingBox[2].longitude})
-                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVT.guid.."_rp_3", lat=prosecutionBoundingBox[3].latitude, lon=prosecutionBoundingBox[3].longitude})
-                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVT.guid.."_rp_4", lat=prosecutionBoundingBox[4].latitude, lon=prosecutionBoundingBox[4].longitude})
+                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVA.guid.."_rp_1", lat=prosecutionBoundingBox[1].latitude, lon=prosecutionBoundingBox[1].longitude})
+                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVA.guid.."_rp_2", lat=prosecutionBoundingBox[2].latitude, lon=prosecutionBoundingBox[2].longitude})
+                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVA.guid.."_rp_3", lat=prosecutionBoundingBox[3].latitude, lon=prosecutionBoundingBox[3].longitude})
+                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVA.guid.."_rp_4", lat=prosecutionBoundingBox[4].latitude, lon=prosecutionBoundingBox[4].longitude})
                 else
-                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVT.guid.."_rp_1", lat=defenseBoundingBox[1].latitude, lon=defenseBoundingBox[1].longitude})
-                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVT.guid.."_rp_2", lat=defenseBoundingBox[2].latitude, lon=defenseBoundingBox[2].longitude})
-                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVT.guid.."_rp_3", lat=defenseBoundingBox[3].latitude, lon=defenseBoundingBox[3].longitude})
-                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVT.guid.."_rp_4", lat=defenseBoundingBox[4].latitude, lon=defenseBoundingBox[4].longitude})
+                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVA.guid.."_rp_1", lat=defenseBoundingBox[1].latitude, lon=defenseBoundingBox[1].longitude})
+                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVA.guid.."_rp_2", lat=defenseBoundingBox[2].latitude, lon=defenseBoundingBox[2].longitude})
+                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVA.guid.."_rp_3", lat=defenseBoundingBox[3].latitude, lon=defenseBoundingBox[3].longitude})
+                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVA.guid.."_rp_4", lat=defenseBoundingBox[4].latitude, lon=defenseBoundingBox[4].longitude})
                 end
                 -- Add Reinforcement Request
                 AddReinforcementRequest(args.shortKey,args.options,side.name,updatedMission.name,totalAAWUnitsToAssign + contactsInZone)
@@ -2095,16 +2103,16 @@ function DefendTankerDoctrineCreateUpdateMissionAction(args)
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
     local rp1,rp2,rp3,rp4 = nil
     local supportBoundingBox = {}
-    -- Inventory And HVT And Contacts
-    local totalHVTs = MemoryGetGUIDFromKey(args.shortKey.."_def_hvt")
-    local coveredHVTs = PersistentGetGUID(args.shortKey.."_def_tan_hvt_cov")
+    -- Inventory And HVA And Contacts
+    local totalHVAs = MemoryGetGUIDFromKey(args.shortKey.."_def_hva")
+    local coveredHVAs = PersistentGetGUID(args.shortKey.."_def_tan_hva_cov")
     local unitToSupport = nil
     -- Condition Check
-    if #coveredHVTs < #totalHVTs then
+    if #coveredHVAs < #totalHVAs then
         -- Find Unit That Is Not Covered
-        for k, v in pairs(totalHVTs) do
+        for k, v in pairs(totalHVAs) do
             local found = false
-            for k2, v2 in pairs(coveredHVTs) do 
+            for k2, v2 in pairs(coveredHVAs) do 
                 if v == v2 then
                     found = true
                 end
@@ -2128,17 +2136,17 @@ function DefendTankerDoctrineCreateUpdateMissionAction(args)
             ScenEdit_SetEMCON("Mission",createdMission.guid,"Radar=Passive")
             -- Add Guid And Add Time Stamp
             PersistentAddGUID(args.shortKey.."_tan_d_miss",createdMission.name)
-            PersistentAddGUID(args.shortKey.."_def_tan_hvt_cov",unitToSupport.guid)
+            PersistentAddGUID(args.shortKey.."_def_tan_hva_cov",unitToSupport.guid)
         end
     end
-    -- Loop Through Coverted HVTs Missions
-    for k, v in pairs(coveredHVTs) do
-        -- Local Covered HVT
-        local coveredHVT = ScenEdit_GetUnit({side=side.name,guid=v})
+    -- Loop Through Coverted HVAs Missions
+    for k, v in pairs(coveredHVAs) do
+        -- Local Covered HVA
+        local coveredHVA = ScenEdit_GetUnit({side=side.name,guid=v})
         -- Check Condition
-        if coveredHVT then
+        if coveredHVA then
             -- Updated Mission
-            updatedMission = ScenEdit_GetMission(side.name,args.shortKey.."_tan_d_miss_"..coveredHVT.guid)
+            updatedMission = ScenEdit_GetMission(side.name,args.shortKey.."_tan_d_miss_"..coveredHVA.guid)
             -- Check Defense Mission
             if updatedMission then
                 -- Add Reinforcement Request
@@ -2163,16 +2171,16 @@ function DefendAEWDoctrineCreateUpdateMissionAction(args)
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
     local rp1,rp2,rp3,rp4 = nil
     local supportBoundingBox = {}
-    -- Inventory And HVT And Contacts
-    local totalHVTs = MemoryGetGUIDFromKey(args.shortKey.."_def_hvt")
-    local coveredHVTs = PersistentGetGUID(args.shortKey.."_def_aew_hvt_cov")
+    -- Inventory And HVA And Contacts
+    local totalHVAs = MemoryGetGUIDFromKey(args.shortKey.."_def_hva")
+    local coveredHVAs = PersistentGetGUID(args.shortKey.."_def_aew_hva_cov")
     local unitToSupport = nil
     -- Condition Check
-    if #coveredHVTs < #totalHVTs then
+    if #coveredHVAs < #totalHVAs then
         -- Find Unit That Is Not Covered
-        for k, v in pairs(totalHVTs) do
+        for k, v in pairs(totalHVAs) do
             local found = false
-            for k2, v2 in pairs(coveredHVTs) do 
+            for k2, v2 in pairs(coveredHVAs) do 
                 if v == v2 then
                     found = true
                 end
@@ -2196,16 +2204,16 @@ function DefendAEWDoctrineCreateUpdateMissionAction(args)
             ScenEdit_SetEMCON("Mission",createdMission.guid,"Radar=Active")
             -- Add Guid And Add Time Stamp
             PersistentAddGUID(args.shortKey.."_aew_d_miss",createdMission.name)
-            PersistentAddGUID(args.shortKey.."_def_aew_hvt_cov",unitToSupport.guid)
+            PersistentAddGUID(args.shortKey.."_def_aew_hva_cov",unitToSupport.guid)
         end
     else
-        -- Loop Through Coverted HVTs Missions
-        for k, v in pairs(coveredHVTs) do
-            -- Local Covered HVT
-            local coveredHVT = ScenEdit_GetUnit({side=side.name,guid=v})
+        -- Loop Through Coverted HVAs Missions
+        for k, v in pairs(coveredHVAs) do
+            -- Local Covered HVA
+            local coveredHVA = ScenEdit_GetUnit({side=side.name,guid=v})
             -- Check Condition
-            if coveredHVT then
-                updatedMission = ScenEdit_GetMission(side.name,args.shortKey.."_aew_d_miss_"..coveredHVT.guid)
+            if coveredHVA then
+                updatedMission = ScenEdit_GetMission(side.name,args.shortKey.."_aew_d_miss_"..coveredHVA.guid)
                 -- Check Defense Mission
                 if updatedMission then
                     -- Add Reinforcement Request
@@ -2225,7 +2233,7 @@ function MonitorCreateSAMNoNavZonesAction(args)
     -- Local Side And Mission
     local side = VP_GetSide({guid=args.guid})
     local zones = PersistentGetGUID(args.shortKey.."_sam_ex_zone")
-    -- Inventory And HVT And Contacts
+    -- Inventory And HVA And Contacts
     local totalHostileContacts = GetHostileSAMContacts(args.shortKey)
     -- Zones
     local noNavZoneBoundary = {}
@@ -2251,7 +2259,7 @@ function MonitorUpdateSAMNoNavZonesAction(args)
     -- Local Side And Mission
     local side = VP_GetSide({guid=args.guid})
     local zones = PersistentGetGUID(args.shortKey.."_sam_ex_zone")
-    -- Inventory And HVT And Contacts
+    -- Inventory And HVA And Contacts
     local totalHostileContacts = GetHostileSAMContacts(args.shortKey)
     local zoneCounter = 1
     -- Condition Check
@@ -2286,7 +2294,7 @@ function MonitorCreateShipNoNavZonesAction(args)
     -- Local Side And Mission
     local side = VP_GetSide({guid=args.guid})
     local zones = PersistentGetGUID(args.shortKey.."_ship_ex_zone")
-    -- Inventory And HVT And Contacts
+    -- Inventory And HVA And Contacts
     local totalHostileContacts = GetHostileSurfaceShipContacts(args.shortKey)
     -- Zones
     local noNavZoneBoundary = {}
@@ -2312,7 +2320,7 @@ function MonitorUpdateShipNoNavZonesAction(args)
     -- Local Side And Mission
     local side = VP_GetSide({guid=args.guid})
     local zones = PersistentGetGUID(args.shortKey.."_ship_ex_zone")
-    -- Inventory And HVT And Contacts
+    -- Inventory And HVA And Contacts
     local totalHostileContacts = GetHostileSurfaceShipContacts(args.shortKey)
     local zoneCounter = 1
     -- Condition Check
@@ -2373,7 +2381,7 @@ function HamptonUpdateUnitsInReconMissionAction(args)
         local updatedMission = ScenEdit_GetMission(side.name,v)
         local missionUnits = GetUnitsFromMission(side.name,updatedMission.guid)
         -- Determine Retreat
-        DetermineUnitToRetreat(args.shortKey,args.guid,args.options,updatedMission.guid,missionUnits,0,70)
+        DetermineUnitToRetreat(args.shortKey,args.guid,args.options,updatedMission.guid,missionUnits,0,100)
         -- Determine EMCON
         DetermineEmconToUnits(args.shortKey,args.options,side.name,missionUnits)
     end
@@ -2395,7 +2403,7 @@ function HamptonUpdateUnitsInOffensiveAirMissionAction(args)
     -- Find Area And Retreat Point
     local missionUnits = GetUnitsFromMission(side.name,updatedMission.guid)
     -- Determine Retreat
-    DetermineUnitToRetreat(args.shortKey,args.guid,args.options,updatedMission.guid,missionUnits,1,0)
+    DetermineUnitToRetreat(args.shortKey,args.guid,args.options,updatedMission.guid,missionUnits,1,100)
     -- Determine EMCON
     DetermineEmconToUnits(args.shortKey,args.options,side.name,missionUnits)
     -- Return False
@@ -2529,7 +2537,7 @@ function HamptonUpdateUnitsInSupportAEWMissionAction(args)
     if #missions == 0 then
         return false
     end
-    -- Loop Through Coverted HVTs Missions
+    -- Loop Through Coverted HVAs Missions
     for k, v in pairs(missions) do
         -- Update Mission
         updatedMission = ScenEdit_GetMission(side.name,v)
@@ -2554,7 +2562,7 @@ function HamptonUpdateUnitsInSupportTankerMissionAction(args)
     if #missions == 0 then
         return false
     end
-    -- Loop Through Coverted HVTs Missions
+    -- Loop Through Coverted HVAs Missions
     for k, v in pairs(missions) do
         -- Updated Mission
         updatedMission = ScenEdit_GetMission(side.name,v)
@@ -2579,7 +2587,7 @@ function HamptonUpdateUnitsInDefensiveAirMissionAction(args)
     if #missions == 0 then
         return false
     end
-    -- Loop Through Coverted HVTs Missions
+    -- Loop Through Coverted HVAs Missions
     for k, v in pairs(missions) do
         -- Get Defense Mission
         updatedMission = ScenEdit_GetMission(side.name,v)
@@ -2588,7 +2596,7 @@ function HamptonUpdateUnitsInDefensiveAirMissionAction(args)
             -- Find Area And Return Point
             local missionUnits = GetUnitsFromMission(side.name,updatedMission.guid)
             -- Determine Retreat
-            DetermineUnitToRetreat(args.shortKey,args.guid,args.options,updatedMission.guid,missionUnits,1,0)
+            DetermineUnitToRetreat(args.shortKey,args.guid,args.options,updatedMission.guid,missionUnits,1,100)
             -- Determine EMCON
             DetermineEmconToUnits(args.shortKey,args.options,side.name,missionUnits)
         end
@@ -3242,4 +3250,4 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 -- Global Call
 --------------------------------------------------------------------------------------------------------------------------------
-InitializeMerrimackMonitorAI("Stennis CSG",{preset="Grant",options={aggressive=5,defensive=5,cunning=5,direct=5,determined=5,reserved=5}})
+InitializeMerrimackMonitorAI("South Korea",{preset="Grant",options={aggressive=5,defensive=5,cunning=5,direct=5,determined=5,reserved=5}})
