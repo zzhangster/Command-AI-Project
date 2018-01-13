@@ -1404,12 +1404,11 @@ function OffensiveConditionalCheck(args)
     -- Local Values
     local hostileStrength = GetAllHostileContactStrength(args.shortKey)
     local inventoryStrength = GetAllInventoryStrength(args.shortKey)
-    local aggressiveModifier = args.options.aggressive * GetAllInventoryStrength(args.shortKey)
-    local defensiveModifier = args.options.defensive * GetAllHostileContactStrength(args.shortKey)
+    local aggressiveModifier = args.options.aggressive * 2 / (args.options.aggressive + args.options.defensive)
     -- Check
     if hostileStrength <= 0 then
         return false
-    elseif hostileStrength * defensiveModifier <= inventoryStrength * aggressiveModifier then
+    elseif hostileStrength <= inventoryStrength * aggressiveModifier then
         return true
     else
         return false
@@ -1423,12 +1422,11 @@ function DefensiveConditionalCheck(args)
     -- Local Values
     local hostileStrength = GetAllHostileContactStrength(args.shortKey)
     local inventoryStrength = GetAllInventoryStrength(args.shortKey)
-    local aggressiveModifier = args.options.aggressive * GetAllInventoryStrength(args.shortKey)
-    local defensiveModifier = args.options.defensive * GetAllHostileContactStrength(args.shortKey)
+    local aggressiveModifier = args.options.aggressive * 2 / (args.options.aggressive + args.options.defensive)
     -- Check
     if hostileStrength <= 0 then
         return true
-    elseif hostileStrength * defensiveModifier > inventoryStrength * aggressiveModifier then
+    elseif hostileStrength > inventoryStrength * aggressiveModifier then
         return true
     else
         return false
@@ -1887,10 +1885,11 @@ function DefendDoctrineCreateUpdateAirMissionAction(args)
     local prp1,prp2,prp3,prp4 = ""
     -- Inventory And HVA And Contacts
     local totalHostileContacts = GetHostileAirContacts(args.shortKey)
+    local totalUnknownContacts = GetUnknownAirContacts(args.shortKey)
     local totalHVAs = MemoryGetGUIDFromKey(args.shortKey.."_def_hva")
     local coveredHVAs = PersistentGetGUID(args.shortKey.."_def_hva_cov")
     local unitToDefend = nil
-    local totalAAWUnitsToAssign = 4
+    local totalAAWUnitsToAssign = 2
     -- Condition Check
     if #coveredHVAs < #totalHVAs then
         -- Find Unit That Is Not Covered
@@ -1909,8 +1908,8 @@ function DefendDoctrineCreateUpdateAirMissionAction(args)
         -- Check If No Unit To Defend
         if unitToDefend then
             -- Set Contact Bounding Box Variables
-            defenseBoundingBox = FindBoundingBoxForGivenLocations({MakeLatLong(unitToDefend.latitude,unitToDefend.longitude)},1)
-            prosecutionBoundingBox = FindBoundingBoxForGivenLocations({MakeLatLong(unitToDefend.latitude,unitToDefend.longitude)},2)
+            defenseBoundingBox = FindBoundingBoxForGivenLocations({MakeLatLong(unitToDefend.latitude,unitToDefend.longitude)},1.5)
+            prosecutionBoundingBox = FindBoundingBoxForGivenLocations({MakeLatLong(unitToDefend.latitude,unitToDefend.longitude)},2.5)
             -- Set Reference Points
             rp1 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..unitToDefend.guid.."_rp_1", lat=defenseBoundingBox[1].latitude, lon=defenseBoundingBox[1].longitude})
             rp2 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..unitToDefend.guid.."_rp_2", lat=defenseBoundingBox[2].latitude, lon=defenseBoundingBox[2].longitude})
@@ -1923,7 +1922,7 @@ function DefendDoctrineCreateUpdateAirMissionAction(args)
             prp4 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..unitToDefend.guid.."_prp_4", lat=prosecutionBoundingBox[4].latitude, lon=prosecutionBoundingBox[4].longitude})
             -- Create Mission
             createdMission = ScenEdit_AddMission(side.name,args.shortKey.."_aaw_d_miss_"..unitToDefend.guid,"patrol",{type="aaw",zone={rp1.name,rp2.name,rp3.name,rp4.name}})
-            ScenEdit_SetMission(side.name,createdMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=false,flightSize=2,useFlightSize=true})
+            ScenEdit_SetMission(side.name,createdMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=true,flightSize=2,useFlightSize=true})
             ScenEdit_SetDoctrine({side=side.name,mission=createdMission.name},{automatic_evasion="yes",maintain_standoff="yes",ignore_emcon_while_under_attack="yes",weapon_state_planned="5001",weapon_state_rtb ="1",dive_on_threat="2"})
             ScenEdit_SetEMCON("Mission",createdMission.guid,"Radar=Passive")
             -- Add Guid And Add Time Stamp
@@ -1942,8 +1941,8 @@ function DefendDoctrineCreateUpdateAirMissionAction(args)
             -- Check Defense Mission
             if updatedMission then
                 -- Set Contact Bounding Box Variables
-                defenseBoundingBox = FindBoundingBoxForGivenLocations({MakeLatLong(coveredHVA.latitude,coveredHVA.longitude)},1)
-                prosecutionBoundingBox = FindBoundingBoxForGivenLocations({MakeLatLong(coveredHVA.latitude,coveredHVA.longitude)},2)
+                defenseBoundingBox = FindBoundingBoxForGivenLocations({MakeLatLong(coveredHVA.latitude,coveredHVA.longitude)},1.5)
+                prosecutionBoundingBox = FindBoundingBoxForGivenLocations({MakeLatLong(coveredHVA.latitude,coveredHVA.longitude)},2.5)
                 -- Update Coordinates
                 rp1 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVA.guid.."_rp_1", lat=defenseBoundingBox[1].latitude, lon=defenseBoundingBox[1].longitude})
                 rp2 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_d_miss_"..coveredHVA.guid.."_rp_2", lat=defenseBoundingBox[2].latitude, lon=defenseBoundingBox[2].longitude})
@@ -1957,6 +1956,12 @@ function DefendDoctrineCreateUpdateAirMissionAction(args)
                 -- Find Enemy Strength In Area
                 local contactsInZone = 0
                 for k1, v1 in pairs(totalHostileContacts) do
+                    local contact = ScenEdit_GetContact({side=side.name, guid=v1})
+                    if contact:inArea({prp1.name,prp2.name,prp3.name,prp4.name}) then
+                        contactsInZone = contactsInZone + 1
+                    end
+                end
+                for k1, v1 in pairs(totalUnknownContacts) do
                     local contact = ScenEdit_GetContact({side=side.name, guid=v1})
                     if contact:inArea({prp1.name,prp2.name,prp3.name,prp4.name}) then
                         contactsInZone = contactsInZone + 1
@@ -3258,4 +3263,4 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 -- Global Call
 --------------------------------------------------------------------------------------------------------------------------------
-InitializeMerrimackMonitorAI("South Korea",{preset="Sherman"})
+InitializeMerrimackMonitorAI("Saudi Arabia",{preset="Sherman"})
