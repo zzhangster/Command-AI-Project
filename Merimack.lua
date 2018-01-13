@@ -912,11 +912,11 @@ end
 -- Get Dedicated Fighter Inventory
 --------------------------------------------------------------------------------------------------------------------------------
 function GetFreeAirFighterInventory(sideShortKey)
-    return CombineTablesNew(MemoryGetGUIDFromKey(sideShortKey.."_fig_free"),MemoryGetGUIDFromKey(sideShortKey.."_sfig_free"))
+    return MemoryGetGUIDFromKey(sideShortKey.."_fig_free")
 end
 
 function GetBusyAirFighterInventory(sideShortKey)
-    return CombineTablesNew(MemoryGetGUIDFromKey(sideShortKey.."_fig_busy"),MemoryGetGUIDFromKey(sideShortKey.."_sfig_busy"))
+    return MemoryGetGUIDFromKey(sideShortKey.."_fig_busy")
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
@@ -1063,115 +1063,33 @@ function GetBusySubmarineInventory(sideShortKey)
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
--- Get Total Free Recon Inventory
---------------------------------------------------------------------------------------------------------------------------------
-function GetTotalFreeReconInventory(sideShortKey)
-    return CombineTablesNew(GetFreeAirReconInventory(sideShortKey),GetFreeAirUAVInventory(sideShortKey))
-end
-
-function GetTotalBusyReconInventory(sideShortKey)
-    return CombineTablesNew(GetBusyAirReconInventory(sideShortKey),GetBusyAirUAVInventory(sideShortKey))
-end
-
-function GetTotalFreeBusyReconInventory(sideShortKey)
-    return CombineTables(GetTotalFreeReconInventory(sideShortKey),GetTotalBusyReconInventory(sideShortKey))
-end
-
-function GetTotalFreeReconAndStealthFighterInventory(sideShortKey)
-    return CombineTables(GetTotalFreeReconInventory(sideShortKey),GetFreeAirStealthInventory(sideShortKey))
-end
-
-function GetTotalFreeBusyReconAndStealthFighterInventory(sideShortKey)
-    return CombineTables(GetTotalFreeBusyReconInventory(sideShortKey),GetTotalFreeBusyAirStealthFighterInventory(sideShortKey))
-end
-
---------------------------------------------------------------------------------------------------------------------------------
--- Get Total Air Superiority Inventory
---------------------------------------------------------------------------------------------------------------------------------
-function GetTotalFreeAirFighterInventory(sideShortKey)
-    return CombineTablesNew(GetFreeAirFighterInventory(sideShortKey),GetFreeAirMultiroleInventory(sideShortKey))
-end
-
-function GetTotalBusyAirFighterInventory(sideShortKey)
-    return CombineTablesNew(GetBusyAirFighterInventory(sideShortKey),GetBusyAirMultiroleInventory(sideShortKey))
-end
-
-function GetTotalFreeBusyAirFighterInventory(sideShortKey)
-    return CombineTablesNew(GetTotalFreeAirFighterInventory(sideShortKey),GetTotalBusyAirFighterInventory(sideShortKey))
-end
-
---------------------------------------------------------------------------------------------------------------------------------
--- Get Total Air Stealth Fighter Inventory
---------------------------------------------------------------------------------------------------------------------------------
-function GetTotalFreeBusyAirStealthFighterInventory(sideShortKey)
-    return CombineTablesNew(GetFreeAirStealthInventory(sideShortKey),GetBusyAirStealthInventory(sideShortKey))
-end
-
---------------------------------------------------------------------------------------------------------------------------------
--- Get Total Air Anti-surface Ship Inventory
---------------------------------------------------------------------------------------------------------------------------------
-function GetTotalFreeAirAntiSurfaceInventory(sideShortKey)
-    return CombineTablesNew(GetFreeAirASuWInventory(sideShortKey),GetFreeAirMultiroleInventory(sideShortKey))
-end
-
-function GetTotalBusyAirAntiSurfaceInventory(sideShortKey)
-    return CombineTablesNew(GetBusyAirASuWInventory(sideShortKey),GetBusyAirMultiroleInventory(sideShortKey))
-end
-
-function GetTotalFreeBusyAirAntiSurfaceInventory(sideShortKey)
-    return CombineTablesNew(GetTotalFreeAirAntiSurfaceInventory(sideShortKey),GetTotalBusyAirAntiSurfaceInventory(sideShortKey))
-end
-
---------------------------------------------------------------------------------------------------------------------------------
--- Get Total Air Attack Inventory
---------------------------------------------------------------------------------------------------------------------------------
-function GetTotalFreeAirAttackInventory(sideShortKey)
-    return CombineTablesNew(GetFreeAirAttackInventory(sideShortKey),GetFreeAirMultiroleInventory(sideShortKey))
-end
-
-function GetTotalBusyAirAttackInventory(sideShortKey)
-    return CombineTablesNew(GetBusyAirAttackInventory(sideShortKey),GetBusyAirMultiroleInventory(sideShortKey))
-end
-
-function GetTotalFreeBusyAirAttackInventory(sideShortKey)
-    return CombineTablesNew(GetTotalFreeAirAttackInventory(sideShortKey),GetTotalBusyAirAttackInventory(sideShortKey))
-end
-
---------------------------------------------------------------------------------------------------------------------------------
--- Get Total Air Tanker Inventory
---------------------------------------------------------------------------------------------------------------------------------
-function GetTotalFreeBusyTankerInventory(sideShortKey)
-    return CombineTablesNew(GetFreeAirTankerInventory(sideShortKey),GetBusyAirTankerInventory(sideShortKey))
-end
-
---------------------------------------------------------------------------------------------------------------------------------
--- Get Total Air AEW Inventory
---------------------------------------------------------------------------------------------------------------------------------
-function GetTotalFreeBusyAEWInventory(sideShortKey)
-    return CombineTablesNew(GetFreeAirAEWInventory(sideShortKey),GetBusyAirAEWInventory(sideShortKey))
-end
-
---------------------------------------------------------------------------------------------------------------------------------
--- Get All Inventory
--------------------------------------------------------------------------------------------------------------------------------
-function GetTotalInventory(sideShortKey)
-    local totalInventory = CombineTablesNew(GetTotalFreeBusyReconInventory(sideShortKey),GetTotalFreeBusyAirFighterInventory(sideShortKey))
-    totalInventory = CombineTables(totalInventory,GetTotalFreeBusyAirAntiSurfaceInventory(sideShortKey))
-    totalInventory = CombineTables(totalInventory,GetTotalFreeBusyAirAttackInventory(sideShortKey))
-    totalInventory = CombineTables(totalInventory,GetTotalFreeBusyTankerInventory(sideShortKey))
-    totalInventory = CombineTables(totalInventory,GetTotalFreeBusyAEWInventory(sideShortKey))
-    return totalInventory
-end
-
---------------------------------------------------------------------------------------------------------------------------------
 -- Get Total Inventory Strength
 --------------------------------------------------------------------------------------------------------------------------------
 function GetAllInventoryStrength(sideShortKey)
-    local totalStrength = #GetTotalFreeBusyReconInventory(sideShortKey)
-    totalStrength = totalStrength + #GetTotalFreeBusyAirFighterInventory(sideShortKey)
-    totalStrength = totalStrength + #GetTotalFreeBusyAirAntiSurfaceInventory(sideShortKey)
-    totalStrength = totalStrength + #GetTotalFreeBusyTankerInventory(sideShortKey)
-    totalStrength = totalStrength + #GetTotalFreeBusyAEWInventory(sideShortKey)
+    local totalStrength = #GetFreeAirFighterInventory(sideShortKey)
+    totalStrength = totalStrength + #GetBusyAirFighterInventory(sideShortKey)
+    totalStrength = totalStrength + #GetFreeAirStealthInventory(sideShortKey)
+    totalStrength = totalStrength + #GetBusyAirStealthInventory(sideShortKey)
+    totalStrength = totalStrength + #GetFreeAirMultiroleInventory(sideShortKey)
+    totalStrength = totalStrength + #GetBusyAirMultiroleInventory(sideShortKey)
+    totalStrength = totalStrength + #GetFreeAirAttackInventory(sideShortKey)
+    totalStrength = totalStrength + #GetBusyAirAttackInventory(sideShortKey)
+    totalStrength = totalStrength + #GetFreeAirSeadInventory(sideShortKey)
+    totalStrength = totalStrength + #GetBusyAirSeadInventory(sideShortKey)
+    totalStrength = totalStrength + #GetFreeAirAEWInventory(sideShortKey)
+    totalStrength = totalStrength + #GetBusyAirAEWInventory(sideShortKey)
+    totalStrength = totalStrength + #GetFreeAirASuWInventory(sideShortKey)
+    totalStrength = totalStrength + #GetBusyAirASuWInventory(sideShortKey)
+    totalStrength = totalStrength + #GetFreeAirASWInventory(sideShortKey)
+    totalStrength = totalStrength + #GetBusyAirASWInventory(sideShortKey)
+    totalStrength = totalStrength + #GetFreeAirReconInventory(sideShortKey)
+    totalStrength = totalStrength + #GetBusyAirReconInventory(sideShortKey)
+    totalStrength = totalStrength + #GetFreeAirTankerInventory(sideShortKey)
+    totalStrength = totalStrength + #GetBusyAirTankerInventory(sideShortKey)
+    totalStrength = totalStrength + #GetFreeAirUAVInventory(sideShortKey)
+    totalStrength = totalStrength + #GetBusyAirUAVInventory(sideShortKey)
+    totalStrength = totalStrength + #GetFreeAirUCAVInventory(sideShortKey)
+    totalStrength = totalStrength + #GetBusyAirUCAVInventory(sideShortKey)
     return totalStrength
 end
 
@@ -1234,15 +1152,6 @@ function GetHostileLandContacts(sideShortKey)
     return MemoryGetGUIDFromKey(sideShortKey.."_land_con_H")
 end
 
-function GetTotalHostileContacts(sideShortKey)
-    local totalContacts = CombineTablesNew(GetHostileAirContacts(sideShortKey),GetHostileSurfaceShipContacts(sideShortKey))
-    totalContacts = CombineTables(totalContacts,GetHostileSubmarineContacts(sideShortKey))
-    totalContacts = CombineTables(totalContacts,GetHostileBaseContacts(sideShortKey))
-    totalContacts = CombineTables(totalContacts,GetHostileSAMContacts(sideShortKey))
-    totalContacts = CombineTables(totalContacts,GetHostileLandContacts(sideShortKey))
-    return totalContacts
-end
-
 --------------------------------------------------------------------------------------------------------------------------------
 -- Get Contact Strength
 --------------------------------------------------------------------------------------------------------------------------------
@@ -1272,32 +1181,16 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 -- Area of Operation Functions
 --------------------------------------------------------------------------------------------------------------------------------
-function UpdateAIAreaOfOperations(sideGUID,sideShortKey)
+function UpdateAIAreaOfOperations(sideGUID,sideShortKey,coordinates)
     -- Local Values
     local side = VP_GetSide({guid=sideGUID})
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
-    local coordinates = {}
     local boundingBox = {}
     local currentTime = ScenEdit_CurrentTime()
     local lastTime = GetTimeStampForGUID(sideShortKey.."_ao_recalc_ts")
     
     -- Area Of Operation Points Check And Create Area Of Operation Points
     if #aoPoints < 4 or (currentTime - lastTime) > 5 * 60 then 
-        -- Set Contact Bounding Box Variables
-        local hostileContacts = GetTotalHostileContacts(sideShortKey)
-        local inventory = GetTotalInventory(sideShortKey)
-
-        -- Loop and Get Coordinates
-        for k,v in pairs(hostileContacts) do
-            local contact = ScenEdit_GetContact({side=side.name, guid=v})
-            coordinates[#coordinates + 1] = MakeLatLong(contact.latitude,contact.longitude)
-        end
-
-        for k,v in pairs(inventory) do
-            local unit = ScenEdit_GetUnit({side=side.name, guid=v})
-            coordinates[#coordinates + 1] = MakeLatLong(unit.latitude,unit.longitude)
-        end
-
         -- Create Defense Bounding Box
         boundingBox = FindBoundingBoxForGivenLocations(coordinates,3)
 
@@ -1329,6 +1222,7 @@ function UpdateAIInventories(sideGUID,sideShortKey)
     local submarineContacts = side:contactsBy("3")
     local landContacts = side:contactsBy("4")
     local weaponContacts = side:contactsBy("6")
+    local coordinates = {}
     -- Loop Through Aircraft Inventory By Subtypes And Readiness
     if aircraftInventory then
         --ScenEdit_SpecialMessage("South Korea", tostring(#aircraftInventory))
@@ -1374,6 +1268,9 @@ function UpdateAIInventories(sideGUID,sideShortKey)
             elseif unit.subtype == "8002" then
                 unitType = DetermineRoleFromLoadOutDatabase(unit.loadoutdbid,"ucav")
             end
+            -- Add Location
+            coordinates[#coordinates + 1] = MakeLatLong(unit.latitude,unit.longitude)
+            -- Add To Memory
             MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..unitStatus,unit.guid)
         end
     end
@@ -1392,7 +1289,9 @@ function UpdateAIInventories(sideGUID,sideShortKey)
             if unit.subtype == "2001" or unit.subtype == "2008"then
                 MemoryAddGUIDToKey(sideShortKey.."_def_hva",unit.guid)
             end
-            -- Save Unit GUID
+            -- Add Location
+            coordinates[#coordinates + 1] = MakeLatLong(unit.latitude,unit.longitude)
+            -- Add To Memory
             MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..unitStatus,unit.guid)
         end
     end
@@ -1407,6 +1306,8 @@ function UpdateAIInventories(sideGUID,sideShortKey)
             if unit.mission == nil then
                 unitStatus = "free"
             end
+            -- Add Location
+            coordinates[#coordinates + 1] = MakeLatLong(unit.latitude,unit.longitude)
             -- Save Unit GUID
             MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..unitStatus,unit.guid)
         end
@@ -1432,6 +1333,8 @@ function UpdateAIInventories(sideGUID,sideShortKey)
             if DetermineHVAByUnitDatabaseId(sideShortKey,unit.guid,unit.dbid) then
                 MemoryAddGUIDToKey(sideShortKey.."_def_hva",unit.guid)
             end
+            -- Add Location
+            coordinates[#coordinates + 1] = MakeLatLong(unit.latitude,unit.longitude)
             -- Save Unit GUID
             MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..unitStatus,unit.guid)
         end
@@ -1442,6 +1345,8 @@ function UpdateAIInventories(sideGUID,sideShortKey)
             -- Local Values
             local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
             local unitType = "air_con"
+            -- Add Location
+            coordinates[#coordinates + 1] = MakeLatLong(contact.latitude,contact.longitude)
             -- Save Unit GUID
             MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..contact.posture,contact.guid)
         end
@@ -1452,6 +1357,8 @@ function UpdateAIInventories(sideGUID,sideShortKey)
             -- Local Values
             local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
             local unitType = "surf_con"
+            -- Add Location
+            coordinates[#coordinates + 1] = MakeLatLong(contact.latitude,contact.longitude)
             -- Save Unit GUID
             MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..contact.posture,contact.guid)
         end
@@ -1462,6 +1369,8 @@ function UpdateAIInventories(sideGUID,sideShortKey)
             -- Local Values
             local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
             local unitType = "sub_con"
+            -- Add Location
+            coordinates[#coordinates + 1] = MakeLatLong(contact.latitude,contact.longitude)
             -- Save Unit GUID
             MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..contact.posture,contact.guid)
         end
@@ -1476,6 +1385,8 @@ function UpdateAIInventories(sideGUID,sideShortKey)
             if string.find(contact.type_description,"SAM") then
                 unitType = "sam_con"
             end
+            -- Add Location
+            coordinates[#coordinates + 1] = MakeLatLong(contact.latitude,contact.longitude)
             -- Save Unit GUID
             MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..contact.posture,contact.guid)
         end
@@ -1498,6 +1409,8 @@ function UpdateAIInventories(sideGUID,sideShortKey)
             end
         end
     end
+    -- Update AO
+    UpdateAIAreaOfOperations(sideGUID,sideShortKey,coordinates)
 end
 
 function ResetAllInventoriesAndContacts()
@@ -3347,7 +3260,6 @@ function UpdateAI()
     -- Update Inventories And Update Merrimack AI
     for k, v in pairs(commandMerrimackAIArray) do
         UpdateAIInventories(v.guid,v.shortKey)
-        UpdateAIAreaOfOperations(v.guid,v.shortKey)
         v:run()
     end
     -- Update Monitor AI
