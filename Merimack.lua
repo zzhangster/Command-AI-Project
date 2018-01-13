@@ -312,27 +312,6 @@ function FindBoundingBoxForGivenContacts(sideName,contacts,defaults,padding)
     return contactBoundingBox
 end
 
-function CombineTablesNew(table1,table2)
-    local combinedTable = {}
-
-    for k, v in pairs(table1) do
-        combinedTable[#combinedTable + 1] = v
-    end
-    
-    for k, v in pairs(table2) do
-        combinedTable[#combinedTable + 1] = v
-    end
-
-    return combinedTable
-end
-
-function CombineTables(table1,table2)
-    for k, v in pairs(table2) do
-        table1[#table1 + 1] = v
-    end
-    return table1
-end
-
 function Split(s, sep)
     local fields = {}
     local sep = sep or " "
