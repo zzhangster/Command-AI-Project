@@ -1273,6 +1273,7 @@ function UpdateAIInventories(sideGUID,sideShortKey)
     local submarineContacts = side:contactsBy("3")
     local landContacts = side:contactsBy("4")
     local weaponContacts = side:contactsBy("6")
+    local currentTime = ScenEdit_CurrentTime()
     -- Loop Through Aircraft Inventory By Subtypes And Readiness
     if aircraftInventory then
         --ScenEdit_SpecialMessage("South Korea", tostring(#aircraftInventory))
@@ -1382,48 +1383,64 @@ function UpdateAIInventories(sideGUID,sideShortKey)
         end
     end
     -- Loop Through Aircraft Contacts
-    if aircraftContacts then
-        for k, v in pairs(aircraftContacts) do
-            -- Local Values
-            local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
-            local unitType = "air_con"
-            -- Save Unit GUID
-            MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..contact.posture,contact.guid)
+    local previousTime = GetTimeStampForGUID(sideShortKey.."_air_con_ts")
+    if (currentTime - previousTime) > 60 or currentTime == previousTime then 
+        if aircraftContacts then
+            for k, v in pairs(aircraftContacts) do
+                -- Local Values
+                local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
+                local unitType = "air_con"
+                -- Save Unit GUID
+                MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..contact.posture,contact.guid)
+            end
         end
+        SetTimeStampForGUID(sideShortKey.."_air_con_ts",currentTime)
     end
-    -- Loop Through Aircraft Contacts
-    if shipContacts then
-        for k, v in pairs(shipContacts) do
-            -- Local Values
-            local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
-            local unitType = "surf_con"
-            -- Save Unit GUID
-            MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..contact.posture,contact.guid)
+    -- Loop Through Ship Contacts
+    previousTime = GetTimeStampForGUID(sideShortKey.."_ship_con_ts")
+    if (currentTime - previousTime) > 60 or currentTime == previousTime then 
+        if shipContacts then
+            for k, v in pairs(shipContacts) do
+                -- Local Values
+                local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
+                local unitType = "surf_con"
+                -- Save Unit GUID
+                MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..contact.posture,contact.guid)
+            end
         end
+        SetTimeStampForGUID(sideShortKey.."_ship_con_ts",currentTime)
     end
-    -- Loop Through Aircraft Contacts
-    if submarineContacts then
-        for k, v in pairs(submarineContacts) do
-            -- Local Values
-            local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
-            local unitType = "sub_con"
-            -- Save Unit GUID
-            MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..contact.posture,contact.guid)
+    -- Loop Through Submarine Contacts
+    previousTime = GetTimeStampForGUID(sideShortKey.."_sub_con_ts")
+    if (currentTime - previousTime) > 60 or currentTime == previousTime then 
+        if submarineContacts then
+            for k, v in pairs(submarineContacts) do
+                -- Local Values
+                local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
+                local unitType = "sub_con"
+                -- Save Unit GUID
+                MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..contact.posture,contact.guid)
+            end
         end
+        SetTimeStampForGUID(sideShortKey.."_sub_con_ts",currentTime)
     end
     -- Loop Through Land Contacts
-    if landContacts then
-        for k, v in pairs(landContacts) do
-            -- Local Values
-            local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
-            local unitType = "land_con"
-            -- Check
-            if string.find(contact.type_description,"SAM") then
-                unitType = "sam_con"
+    previousTime = GetTimeStampForGUID(sideShortKey.."_land_con_ts")
+    if (currentTime - previousTime) > 5 * 60 or currentTime == previousTime then 
+        if landContacts then
+            for k, v in pairs(landContacts) do
+                -- Local Values
+                local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
+                local unitType = "land_con"
+                -- Check
+                if string.find(contact.type_description,"SAM") then
+                    unitType = "sam_con"
+                end
+                -- Save Unit GUID
+                MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..contact.posture,contact.guid)
             end
-            -- Save Unit GUID
-            MemoryAddGUIDToKey(sideShortKey.."_"..unitType.."_"..contact.posture,contact.guid)
         end
+        SetTimeStampForGUID(sideShortKey.."_land_con_ts",currentTime)
     end
     -- Loop Through Weapon Contacts
     if weaponContacts then
