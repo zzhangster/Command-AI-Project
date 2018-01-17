@@ -1273,6 +1273,11 @@ function GetReinforcementRequests(sideShortKey)
     return returnRequests
 end
 
+function ClearReinforcementRequests(sideShortKey)
+    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_reinforce_request")
+end
+
+
 function AddAllocatedUnit(sideShortKey,unitGuid)
     local allocatedUnits = MemoryGetGUIDFromKey(sideShortKey.."_alloc_units")
     local allocatedUnitsTable = {}
@@ -1791,11 +1796,13 @@ function UpdateAIInventories(sideGUID,sideShortKey)
 
     -- Loop Through Land Inventory
     local previousTime = GetTimeStampForGUID(sideShortKey.."_land_inv_ts")
-    if (currentTime - previousTime) > 5 * 60 or currentTime == previousTime then
+    if (currentTime - previousTime) > 10 * 60 then
         local landInventory = side:unitsBy("4")
         MemoryRemoveAllGUIDsFromKey(sideShortKey.."_saved_land_inventory")
+        MemoryRemoveAllGUIDsFromKey(sideShortKey.."_def_hva")
         if landInventory then
             local savedInventory = {}
+            local savedDefHVT = {}
             for k, v in pairs(landInventory) do
                 -- Local Values
                 local unit = ScenEdit_GetUnit({side=side.name, guid=v.guid})
@@ -1813,7 +1820,14 @@ function UpdateAIInventories(sideGUID,sideShortKey)
                 end
                 -- Determine And Add HVA
                 if DetermineHVAByUnitDatabaseId(sideShortKey,unit.guid,unit.dbid) then
-                    MemoryAddGUIDToKey(sideShortKey.."_def_hva",unit.guid)
+                    local leadGuid = unit.guid
+                    if unit.group then
+                        leadGuid = unit.group.lead
+                    end
+                    if not savedDefHVT[leadGuid] then
+                        MemoryAddGUIDToKey(sideShortKey.."_def_hva",unit.guid)
+                        savedDefHVT[leadGuid] = leadGuid
+                    end
                 end
                 -- Add To Memory
                 local stringKey = sideShortKey.."_"..unitType.."_"..unitStatus
@@ -3218,6 +3232,8 @@ function CumberlandUpdateAirReinforcementRequestsAction(args)
     -- Local Reinforcements Requests
     local reinforcementRequests = GetReinforcementRequests(args.shortKey)
     local determinedModifier = args.options.determined * 2 / (args.options.determined + args.options.reserved)
+    -- Clear Reinforcements Requests
+    ClearReinforcementRequests(args.shortKey)
 
     -- Reinforce Recon Missions
     for k,v in pairs(reconMissions) do
