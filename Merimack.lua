@@ -11,6 +11,8 @@ local commandMonitorAIArray = {} -- Create Threat Checker
 local commandHamptonAIArray = {} -- Micro Management
 local commandCumberlandAIArray = {} -- Priority Unit Assignment
 local commandMemory = {}
+local commandInventoryMemory = {}
+local commandContactMemory = {}
 
 --[[
     Wrap function values to our results list so that we can use functions
@@ -243,6 +245,78 @@ end
 
 function MemoryGUIDExists(primaryKey,guid)
     local table = MemoryGetGUIDFromKey(primaryKey)
+    for k, v in pairs(table) do
+        if guid == v then
+            return true
+        end
+    end
+    return false
+end
+
+function MemoryInventoryReset()
+    commandInventoryMemory = {}
+end
+
+function MemoryInventoryRemoveAllGUIDsFromKey(primaryKey)
+    commandInventoryMemory[primaryKey] = {}
+end
+
+function MemoryInventoryGetGUIDFromKey(primaryKey)
+    local table = commandInventoryMemory[primaryKey]
+    if table then
+        return table
+    else
+        return {}
+    end
+end
+
+function MemoryInventoryAddGUIDToKey(primaryKey,guid)
+    local table = commandInventoryMemory[primaryKey]
+    if not table then
+        table = {}
+    end
+    table[#table + 1] = guid
+    commandInventoryMemory[primaryKey] = table
+end
+
+function MemoryInventoryGUIDExists(primaryKey,guid)
+    local table = MemoryInventoryGetGUIDFromKey(primaryKey)
+    for k, v in pairs(table) do
+        if guid == v then
+            return true
+        end
+    end
+    return false
+end
+
+function MemoryContactReset()
+    commandContactMemory = {}
+end
+
+function MemoryContactRemoveAllGUIDsFromKey(primaryKey)
+    commandContactMemory[primaryKey] = {}
+end
+
+function MemoryContactGetGUIDFromKey(primaryKey)
+    local table = commandContactMemory[primaryKey]
+    if table then
+        return table
+    else
+        return {}
+    end
+end
+
+function MemoryContactAddGUIDToKey(primaryKey,guid)
+    local table = commandContactMemory[primaryKey]
+    if not table then
+        table = {}
+    end
+    table[#table + 1] = guid
+    commandContactMemory[primaryKey] = table
+end
+
+function MemoryContactGUIDExists(primaryKey,guid)
+    local table = MemoryContactGetGUIDFromKey(primaryKey)
     for k, v in pairs(table) do
         if guid == v then
             return true
@@ -561,7 +635,7 @@ end
 -- Get Dedicated Fighter Inventory
 --------------------------------------------------------------------------------------------------------------------------------
 function GetFreeAirFighterInventory(sideShortKey)
-    local savedInventory = MemoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
+    local savedInventory = MemoryInventoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_fig_free"] then
@@ -575,7 +649,7 @@ function GetFreeAirFighterInventory(sideShortKey)
 end
 
 function GetBusyAirFighterInventory(sideShortKey)
-    local savedInventory = MemoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
+    local savedInventory = MemoryInventoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_fig_busy"] then
@@ -592,7 +666,7 @@ end
 -- Get Stealth Fighter Inventory
 --------------------------------------------------------------------------------------------------------------------------------
 function GetFreeAirStealthInventory(sideShortKey)
-    local savedInventory = MemoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
+    local savedInventory = MemoryInventoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_sfig_free"] then
@@ -606,7 +680,7 @@ function GetFreeAirStealthInventory(sideShortKey)
 end
 
 function GetBusyAirStealthInventory(sideShortKey)
-    local savedInventory = MemoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
+    local savedInventory = MemoryInventoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_sfig_busy"] then
@@ -623,7 +697,7 @@ end
 -- Get Multirole AA Inventory
 --------------------------------------------------------------------------------------------------------------------------------
 function GetFreeAirMultiroleInventory(sideShortKey)
-    local savedInventory = MemoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
+    local savedInventory = MemoryInventoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_mul_free"] then
@@ -637,7 +711,7 @@ function GetFreeAirMultiroleInventory(sideShortKey)
 end
 
 function GetBusyAirMultiroleInventory(sideShortKey)
-    local savedInventory = MemoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
+    local savedInventory = MemoryInventoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_mul_busy"] then
@@ -654,7 +728,7 @@ end
 -- Get Attack Inventory
 --------------------------------------------------------------------------------------------------------------------------------
 function GetFreeAirAttackInventory(sideShortKey)
-    local savedInventory = MemoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
+    local savedInventory = MemoryInventoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_atk_free"] then
@@ -668,7 +742,7 @@ function GetFreeAirAttackInventory(sideShortKey)
 end
 
 function GetBusyAirAttackInventory(sideShortKey)
-    local savedInventory = MemoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
+    local savedInventory = MemoryInventoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_atk_busy"] then
@@ -685,7 +759,7 @@ end
 -- Get SEAD Inventory
 --------------------------------------------------------------------------------------------------------------------------------
 function GetFreeAirSeadInventory(sideShortKey)
-    local savedInventory = MemoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
+    local savedInventory = MemoryInventoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_sead_free"] then
@@ -699,7 +773,7 @@ function GetFreeAirSeadInventory(sideShortKey)
 end
 
 function GetBusyAirSeadInventory(sideShortKey)
-    local savedInventory = MemoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
+    local savedInventory = MemoryInventoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_sead_busy"] then
@@ -716,7 +790,7 @@ end
 -- Get Dedicated AEW Inventory
 --------------------------------------------------------------------------------------------------------------------------------
 function GetFreeAirAEWInventory(sideShortKey)
-    local savedInventory = MemoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
+    local savedInventory = MemoryInventoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_aew_free"] then
@@ -730,7 +804,7 @@ function GetFreeAirAEWInventory(sideShortKey)
 end
 
 function GetBusyAirAEWInventory(sideShortKey)
-    local savedInventory = MemoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
+    local savedInventory = MemoryInventoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_aew_busy"] then
@@ -747,7 +821,7 @@ end
 -- Get Dedicated ASuW Inventory
 --------------------------------------------------------------------------------------------------------------------------------
 function GetFreeAirASuWInventory(sideShortKey)
-    local savedInventory = MemoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
+    local savedInventory = MemoryInventoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_asuw_free"] then
@@ -761,7 +835,7 @@ function GetFreeAirASuWInventory(sideShortKey)
 end
 
 function GetBusyAirASuWInventory(sideShortKey)
-    local savedInventory = MemoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
+    local savedInventory = MemoryInventoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_asuw_busy"] then
@@ -778,7 +852,7 @@ end
 -- Get Dedicated ASW Inventory
 --------------------------------------------------------------------------------------------------------------------------------
 function GetFreeAirASWInventory(sideShortKey)
-    local savedInventory = MemoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
+    local savedInventory = MemoryInventoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_asw_free"] then
@@ -792,7 +866,7 @@ function GetFreeAirASWInventory(sideShortKey)
 end
 
 function GetBusyAirASWInventory(sideShortKey)
-    local savedInventory = MemoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
+    local savedInventory = MemoryInventoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_asw_busy"] then
@@ -809,7 +883,7 @@ end
 -- Get Dedicated Recon Inventory
 --------------------------------------------------------------------------------------------------------------------------------
 function GetFreeAirReconInventory(sideShortKey)
-    local savedInventory = MemoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
+    local savedInventory = MemoryInventoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_rec_free"] then
@@ -823,7 +897,7 @@ function GetFreeAirReconInventory(sideShortKey)
 end
 
 function GetBusyAirReconInventory(sideShortKey)
-    local savedInventory = MemoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
+    local savedInventory = MemoryInventoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_rec_busy"] then
@@ -840,7 +914,7 @@ end
 -- Get Dedicated Tanker Inventory
 --------------------------------------------------------------------------------------------------------------------------------
 function GetFreeAirTankerInventory(sideShortKey)
-    local savedInventory = MemoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
+    local savedInventory = MemoryInventoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_tan_free"] then
@@ -854,7 +928,7 @@ function GetFreeAirTankerInventory(sideShortKey)
 end
 
 function GetBusyAirTankerInventory(sideShortKey)
-    local savedInventory = MemoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
+    local savedInventory = MemoryInventoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_tan_busy"] then
@@ -871,7 +945,7 @@ end
 -- Get Dedicated UAV Inventory
 --------------------------------------------------------------------------------------------------------------------------------
 function GetFreeAirUAVInventory(sideShortKey)
-    local savedInventory = MemoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
+    local savedInventory = MemoryInventoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_uav_free"] then
@@ -885,7 +959,7 @@ function GetFreeAirUAVInventory(sideShortKey)
 end
 
 function GetBusyAirUAVInventory(sideShortKey)
-    local savedInventory = MemoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
+    local savedInventory = MemoryInventoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_uav_busy"] then
@@ -902,7 +976,7 @@ end
 -- Get Dedicated UCAV Inventory
 --------------------------------------------------------------------------------------------------------------------------------
 function GetFreeAirUCAVInventory(sideShortKey)
-    local savedInventory = MemoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
+    local savedInventory = MemoryInventoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_ucav_free"] then
@@ -916,7 +990,7 @@ function GetFreeAirUCAVInventory(sideShortKey)
 end
 
 function GetBusyAirUCAVInventory(sideShortKey)
-    local savedInventory = MemoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
+    local savedInventory = MemoryInventoryGetGUIDFromKey(sideShortKey.."_saved_air_inventory")
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_ucav_busy"] then
@@ -933,7 +1007,7 @@ end
 -- Get Dedicated Surface Ship Inventory
 --------------------------------------------------------------------------------------------------------------------------------
 function GetFreeSurfaceShipInventory(sideShortKey)
-    local savedInventory = MemoryGetGUIDFromKey(sideShortKey.."_saved_ship_inventory")
+    local savedInventory = MemoryInventoryGetGUIDFromKey(sideShortKey.."_saved_ship_inventory")
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_surf_free"] then
@@ -947,7 +1021,7 @@ function GetFreeSurfaceShipInventory(sideShortKey)
 end
 
 function GetBusySurfaceShipInventory(sideShortKey)
-    local savedInventory = MemoryGetGUIDFromKey(sideShortKey.."_saved_ship_inventory")
+    local savedInventory = MemoryInventoryGetGUIDFromKey(sideShortKey.."_saved_ship_inventory")
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_surf_busy"] then
@@ -964,7 +1038,7 @@ end
 -- Get Dedicated Submarine Inventory
 --------------------------------------------------------------------------------------------------------------------------------
 function GetFreeSubmarineInventory(sideShortKey)
-    local savedInventory = MemoryGetGUIDFromKey(sideShortKey.."_saved_sub_inventory")
+    local savedInventory = MemoryInventoryGetGUIDFromKey(sideShortKey.."_saved_sub_inventory")
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_sub_free"] then
@@ -978,7 +1052,7 @@ function GetFreeSubmarineInventory(sideShortKey)
 end
 
 function GetBusySubmarineInventory(sideShortKey)
-    local savedInventory = MemoryGetGUIDFromKey(sideShortKey.."_saved_sub_inventory")
+    local savedInventory = MemoryInventoryGetGUIDFromKey(sideShortKey.."_saved_sub_inventory")
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_sub_busy"] then
@@ -1053,7 +1127,7 @@ end
 -- Get Contacts
 --------------------------------------------------------------------------------------------------------------------------------
 function GetUnknownAirContacts(sideShortKey)
-    local savedContacts = MemoryGetGUIDFromKey(sideShortKey.."_saved_air_contact")
+    local savedContacts = MemoryContactGetGUIDFromKey(sideShortKey.."_saved_air_contact")
     if #savedContacts > 0 then
         savedContacts = savedContacts[1]
         if savedContacts[sideShortKey.."_air_con_X"] then
@@ -1067,7 +1141,7 @@ function GetUnknownAirContacts(sideShortKey)
 end
 
 function GetHostileAirContacts(sideShortKey)
-    local savedContacts = MemoryGetGUIDFromKey(sideShortKey.."_saved_air_contact")
+    local savedContacts = MemoryContactGetGUIDFromKey(sideShortKey.."_saved_air_contact")
     if #savedContacts > 0 then
         savedContacts = savedContacts[1]
         if savedContacts[sideShortKey.."_air_con_H"] then
@@ -1081,7 +1155,7 @@ function GetHostileAirContacts(sideShortKey)
 end
 
 function GetUnknownSurfaceShipContacts(sideShortKey)
-    local savedContacts = MemoryGetGUIDFromKey(sideShortKey.."_saved_ship_contact")
+    local savedContacts = MemoryContactGetGUIDFromKey(sideShortKey.."_saved_ship_contact")
     if #savedContacts > 0 then
         savedContacts = savedContacts[1]
         if savedContacts[sideShortKey.."_surf_con_X"] then
@@ -1095,7 +1169,7 @@ function GetUnknownSurfaceShipContacts(sideShortKey)
 end
 
 function GetHostileSurfaceShipContacts(sideShortKey)
-    local savedContacts = MemoryGetGUIDFromKey(sideShortKey.."_saved_ship_contact")
+    local savedContacts = MemoryContactGetGUIDFromKey(sideShortKey.."_saved_ship_contact")
     if #savedContacts > 0 then
         savedContacts = savedContacts[1]
         if savedContacts[sideShortKey.."_surf_con_H"] then
@@ -1109,7 +1183,7 @@ function GetHostileSurfaceShipContacts(sideShortKey)
 end
 
 function GetUnknownSubmarineContacts(sideShortKey)
-    local savedContacts = MemoryGetGUIDFromKey(sideShortKey.."_saved_sub_contact")
+    local savedContacts = MemoryContactGetGUIDFromKey(sideShortKey.."_saved_sub_contact")
     if #savedContacts > 0 then
         savedContacts = savedContacts[1]
         if savedContacts[sideShortKey.."_sub_con_X"] then
@@ -1123,7 +1197,7 @@ function GetUnknownSubmarineContacts(sideShortKey)
 end
 
 function GetHostileSubmarineContacts(sideShortKey)
-    local savedContacts = MemoryGetGUIDFromKey(sideShortKey.."_saved_sub_contact")
+    local savedContacts = MemoryContactGetGUIDFromKey(sideShortKey.."_saved_sub_contact")
     if #savedContacts > 0 then
         savedContacts = savedContacts[1]
         if savedContacts[sideShortKey.."_sub_con_H"] then
@@ -1137,7 +1211,7 @@ function GetHostileSubmarineContacts(sideShortKey)
 end
 
 function GetUnknownSAMContacts(sideShortKey)
-    local savedContacts = MemoryGetGUIDFromKey(sideShortKey.."_saved_land_contact")
+    local savedContacts = MemoryContactGetGUIDFromKey(sideShortKey.."_saved_land_contact")
     if #savedContacts > 0 then
         savedContacts = savedContacts[1]
         if savedContacts[sideShortKey.."_sam_con_X"] then
@@ -1151,7 +1225,7 @@ function GetUnknownSAMContacts(sideShortKey)
 end
 
 function GetHostileSAMContacts(sideShortKey)
-    local savedContacts = MemoryGetGUIDFromKey(sideShortKey.."_saved_land_contact")
+    local savedContacts = MemoryContactGetGUIDFromKey(sideShortKey.."_saved_land_contact")
     if #savedContacts > 0 then
         savedContacts = savedContacts[1]
         if savedContacts[sideShortKey.."_sam_con_H"] then
@@ -1165,7 +1239,7 @@ function GetHostileSAMContacts(sideShortKey)
 end
 
 function GetUnknownLandContacts(sideShortKey)
-    local savedContacts = MemoryGetGUIDFromKey(sideShortKey.."_saved_land_contact")
+    local savedContacts = MemoryContactGetGUIDFromKey(sideShortKey.."_saved_land_contact")
     if #savedContacts > 0 then
         savedContacts = savedContacts[1]
         if savedContacts[sideShortKey.."_land_con_X"] then
@@ -1179,7 +1253,7 @@ function GetUnknownLandContacts(sideShortKey)
 end
 
 function GetHostileLandContacts(sideShortKey)
-    local savedContacts = MemoryGetGUIDFromKey(sideShortKey.."_saved_land_contact")
+    local savedContacts = MemoryContactGetGUIDFromKey(sideShortKey.."_saved_land_contact")
     if #savedContacts > 0 then
         savedContacts = savedContacts[1]
         if savedContacts[sideShortKey.."_land_con_H"] then
@@ -1193,7 +1267,7 @@ function GetHostileLandContacts(sideShortKey)
 end
 
 function GetUnknownWeaponContacts(sideShortKey)
-    local savedContacts = MemoryGetGUIDFromKey(sideShortKey.."_saved_weap_contact")
+    local savedContacts = MemoryContactGetGUIDFromKey(sideShortKey.."_saved_weap_contact")
     if #savedContacts > 0 then
         savedContacts = savedContacts[1]
         if savedContacts[sideShortKey.."_weap_con_X"] then
@@ -1207,7 +1281,7 @@ function GetUnknownWeaponContacts(sideShortKey)
 end
 
 function GetHostileWeaponContacts(sideShortKey)
-    local savedContacts = MemoryGetGUIDFromKey(sideShortKey.."_saved_weap_contact")
+    local savedContacts = MemoryContactGetGUIDFromKey(sideShortKey.."_saved_weap_contact")
     if #savedContacts > 0 then
         savedContacts = savedContacts[1]
         if savedContacts[sideShortKey.."_weap_con_H"] then
@@ -1272,11 +1346,6 @@ function GetReinforcementRequests(sideShortKey)
     end
     return returnRequests
 end
-
-function ClearReinforcementRequests(sideShortKey)
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_reinforce_request")
-end
-
 
 function AddAllocatedUnit(sideShortKey,unitGuid)
     local allocatedUnits = MemoryGetGUIDFromKey(sideShortKey.."_alloc_units")
@@ -1680,7 +1749,7 @@ function UpdateAIInventories(sideGUID,sideShortKey)
 
     -- Loop Through Aircraft Inventory By Subtypes And Readiness
     local aircraftInventory = side:unitsBy("1")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_saved_air_inventory")
+    MemoryInventoryRemoveAllGUIDsFromKey(sideShortKey.."_saved_air_inventory")
     -- Check Inventory
     if aircraftInventory then
         local savedInventory = {}
@@ -1735,12 +1804,12 @@ function UpdateAIInventories(sideGUID,sideShortKey)
             stringArray[#stringArray + 1] = unit.guid
             savedInventory[stringKey] = stringArray
         end
-        MemoryAddGUIDToKey(sideShortKey.."_saved_air_inventory",savedInventory)
+        MemoryInventoryAddGUIDToKey(sideShortKey.."_saved_air_inventory",savedInventory)
     end
 
     -- Loop Through Surface Ship Inventory
     local shipInventory = side:unitsBy("2")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_saved_ship_inventory")
+    MemoryInventoryRemoveAllGUIDsFromKey(sideShortKey.."_saved_ship_inventory")
     if shipInventory then
         local savedInventory = {}
         for k, v in pairs(shipInventory) do
@@ -1765,12 +1834,12 @@ function UpdateAIInventories(sideGUID,sideShortKey)
             stringArray[#stringArray + 1] = unit.guid
             savedInventory[stringKey] = stringArray
         end
-        MemoryAddGUIDToKey(sideShortKey.."_saved_ship_inventory",savedInventory)
+        MemoryInventoryAddGUIDToKey(sideShortKey.."_saved_ship_inventory",savedInventory)
     end
 
     -- Loop Through Submarine Inventory
     local submarineInventory = side:unitsBy("3")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_saved_sub_inventory")
+    MemoryInventoryRemoveAllGUIDsFromKey(sideShortKey.."_saved_sub_inventory")
     if submarineInventory then
         local savedInventory = {}
         for k, v in pairs(submarineInventory) do
@@ -1791,15 +1860,14 @@ function UpdateAIInventories(sideGUID,sideShortKey)
             stringArray[#stringArray + 1] = unit.guid
             savedInventory[stringKey] = stringArray
         end
-        MemoryAddGUIDToKey(sideShortKey.."_saved_sub_inventory",savedInventory)
+        MemoryInventoryAddGUIDToKey(sideShortKey.."_saved_sub_inventory",savedInventory)
     end
 
     -- Loop Through Land Inventory
     local previousTime = GetTimeStampForGUID(sideShortKey.."_land_inv_ts")
     if (currentTime - previousTime) > 10 * 60 then
         local landInventory = side:unitsBy("4")
-        MemoryRemoveAllGUIDsFromKey(sideShortKey.."_saved_land_inventory")
-        MemoryRemoveAllGUIDsFromKey(sideShortKey.."_def_hva")
+        MemoryInventoryRemoveAllGUIDsFromKey(sideShortKey.."_saved_land_inventory")
         if landInventory then
             local savedInventory = {}
             local savedDefHVT = {}
@@ -1838,7 +1906,7 @@ function UpdateAIInventories(sideGUID,sideShortKey)
                 stringArray[#stringArray + 1] = unit.guid
                 savedInventory[stringKey] = stringArray
             end
-            MemoryAddGUIDToKey(sideShortKey.."_saved_land_inventory",savedInventory)
+            MemoryInventoryAddGUIDToKey(sideShortKey.."_saved_land_inventory",savedInventory)
         end
         SetTimeStampForGUID(sideShortKey.."_land_inv_ts",currentTime)
     end
@@ -1847,7 +1915,7 @@ function UpdateAIInventories(sideGUID,sideShortKey)
     previousTime = GetTimeStampForGUID(sideShortKey.."_air_con_ts")
     if (currentTime - previousTime) > 60 or currentTime == previousTime then
         local aircraftContacts = side:contactsBy("1")
-        MemoryRemoveAllGUIDsFromKey(sideShortKey.."_saved_air_contact")
+        MemoryContactRemoveAllGUIDsFromKey(sideShortKey.."_saved_air_contact")
         if aircraftContacts then
             local savedContacts = {}
             for k, v in pairs(aircraftContacts) do
@@ -1863,7 +1931,7 @@ function UpdateAIInventories(sideGUID,sideShortKey)
                 stringArray[#stringArray + 1] = contact.guid
                 savedContacts[stringKey] = stringArray
             end
-            MemoryAddGUIDToKey(sideShortKey.."_saved_air_contact",savedContacts)
+            MemoryContactAddGUIDToKey(sideShortKey.."_saved_air_contact",savedContacts)
         end
         SetTimeStampForGUID(sideShortKey.."_air_con_ts",currentTime)
     end
@@ -1872,7 +1940,7 @@ function UpdateAIInventories(sideGUID,sideShortKey)
     previousTime = GetTimeStampForGUID(sideShortKey.."_ship_con_ts")
     if (currentTime - previousTime) > 60 or currentTime == previousTime then
         local shipContacts = side:contactsBy("2") 
-        MemoryRemoveAllGUIDsFromKey(sideShortKey.."_saved_ship_contact")
+        MemoryContactRemoveAllGUIDsFromKey(sideShortKey.."_saved_ship_contact")
         if shipContacts then
             local savedContacts = {}
             for k, v in pairs(shipContacts) do
@@ -1888,7 +1956,7 @@ function UpdateAIInventories(sideGUID,sideShortKey)
                 stringArray[#stringArray + 1] = contact.guid
                 savedContacts[stringKey] = stringArray
             end
-            MemoryAddGUIDToKey(sideShortKey.."_ship_con_ts",savedContacts)
+            MemoryContactAddGUIDToKey(sideShortKey.."_saved_ship_contact",savedContacts)
         end
         SetTimeStampForGUID(sideShortKey.."_ship_con_ts",currentTime)
     end
@@ -1897,7 +1965,7 @@ function UpdateAIInventories(sideGUID,sideShortKey)
     previousTime = GetTimeStampForGUID(sideShortKey.."_sub_con_ts")
     if (currentTime - previousTime) > 60 or currentTime == previousTime then 
         local submarineContacts = side:contactsBy("3")
-        MemoryRemoveAllGUIDsFromKey(sideShortKey.."_saved_sub_contact")
+        MemoryContactRemoveAllGUIDsFromKey(sideShortKey.."_saved_sub_contact")
         if submarineContacts then
             local savedContacts = {}
             for k, v in pairs(submarineContacts) do
@@ -1913,7 +1981,7 @@ function UpdateAIInventories(sideGUID,sideShortKey)
                 stringArray[#stringArray + 1] = contact.guid
                 savedContacts[stringKey] = stringArray
             end
-            MemoryAddGUIDToKey(sideShortKey.."_saved_sub_contact",savedContacts)
+            MemoryContactAddGUIDToKey(sideShortKey.."_saved_sub_contact",savedContacts)
         end
         SetTimeStampForGUID(sideShortKey.."_sub_con_ts",currentTime)
     end
@@ -1922,7 +1990,7 @@ function UpdateAIInventories(sideGUID,sideShortKey)
     previousTime = GetTimeStampForGUID(sideShortKey.."_land_con_ts")
     if (currentTime - previousTime) > 5 * 60 then 
         local landContacts = side:contactsBy("4")
-        MemoryRemoveAllGUIDsFromKey(sideShortKey.."_saved_land_contact")
+        MemoryContactRemoveAllGUIDsFromKey(sideShortKey.."_saved_land_contact")
         if landContacts then
             local savedContacts = {}
             for k, v in pairs(landContacts) do
@@ -1942,14 +2010,14 @@ function UpdateAIInventories(sideGUID,sideShortKey)
                 stringArray[#stringArray + 1] = contact.guid
                 savedContacts[stringKey] = stringArray
             end
-            MemoryAddGUIDToKey(sideShortKey.."_saved_land_contact",savedContacts)
+            MemoryContactAddGUIDToKey(sideShortKey.."_saved_land_contact",savedContacts)
         end
         SetTimeStampForGUID(sideShortKey.."_land_con_ts",currentTime)
     end
 
     -- Loop Through Weapon Contacts
     local weaponContacts = side:contactsBy("6")
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_saved_weap_contact")
+    MemoryContactRemoveAllGUIDsFromKey(sideShortKey.."_saved_weap_contact")
     if weaponContacts then
         local savedContacts = {}
         for k, v in pairs(weaponContacts) do
@@ -1979,7 +2047,7 @@ function UpdateAIInventories(sideGUID,sideShortKey)
                 savedContacts[stringKey] = stringArray
             end
         end
-        MemoryAddGUIDToKey(sideShortKey.."_saved_weap_contact",savedContacts)
+        MemoryContactAddGUIDToKey(sideShortKey.."_saved_weap_contact",savedContacts)
     end
 end
 
@@ -3232,8 +3300,6 @@ function CumberlandUpdateAirReinforcementRequestsAction(args)
     -- Local Reinforcements Requests
     local reinforcementRequests = GetReinforcementRequests(args.shortKey)
     local determinedModifier = args.options.determined * 2 / (args.options.determined + args.options.reserved)
-    -- Clear Reinforcements Requests
-    ClearReinforcementRequests(args.shortKey)
 
     -- Reinforce Recon Missions
     for k,v in pairs(reconMissions) do
@@ -3845,7 +3911,7 @@ end
 
 function UpdateAI()
     -- Reset All Inventories
-    -- ResetAllInventoriesAndContacts()
+    ResetAllInventoriesAndContacts()
     -- Update Inventories And Update Merrimack AI
     for k, v in pairs(commandMerrimackAIArray) do
         -- Update AI Inventories
