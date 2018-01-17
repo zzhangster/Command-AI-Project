@@ -302,7 +302,6 @@ function PersistentGUIDExists(primaryKey,guid)
 end
 
 function CombineTablesNew(table1,table2)
-    ScenEdit_SpecialMessage("Saudi Arabia","CombineTablesNew")
     local combinedTable = {}
     for k, v in pairs(table1) do
         combinedTable[#combinedTable + 1] = v
@@ -316,7 +315,6 @@ function CombineTablesNew(table1,table2)
 end
 
 function CombineTables(table1,table2)
-    ScenEdit_SpecialMessage("Saudi Arabia","CombineTables")
     for k, v in pairs(table2) do
         table1[#table1 + 1] = v
     end
@@ -1025,53 +1023,29 @@ function GetAllInventoryStrength(sideShortKey)
 end
 
 function GetAllInventory(sideShortKey)
-    ScenEdit_SpecialMessage("Saudi Arabia","GetAllInventory")
     local totalInventory = CombineTablesNew(GetFreeAirFighterInventory(sideShortKey),GetBusyAirFighterInventory(sideShortKey))
-    ScenEdit_SpecialMessage("Saudi Arabia","GetAllInventory - 1")
     totalInventory = CombineTables(totalInventory,GetFreeAirStealthInventory(sideShortKey))
-    ScenEdit_SpecialMessage("Saudi Arabia","GetAllInventory - 2")
     totalInventory = CombineTables(totalInventory,GetBusyAirStealthInventory(sideShortKey))
-    ScenEdit_SpecialMessage("Saudi Arabia","GetAllInventory - 3")
     totalInventory = CombineTables(totalInventory,GetFreeAirMultiroleInventory(sideShortKey))
-    ScenEdit_SpecialMessage("Saudi Arabia","GetAllInventory - 4")
     totalInventory = CombineTables(totalInventory,GetBusyAirMultiroleInventory(sideShortKey))
-    ScenEdit_SpecialMessage("Saudi Arabia","GetAllInventory - 5")
     totalInventory = CombineTables(totalInventory,GetFreeAirAttackInventory(sideShortKey))
-    ScenEdit_SpecialMessage("Saudi Arabia","GetAllInventory - 6")
     totalInventory = CombineTables(totalInventory,GetBusyAirAttackInventory(sideShortKey))
-    ScenEdit_SpecialMessage("Saudi Arabia","GetAllInventory - 7")
     totalInventory = CombineTables(totalInventory,GetFreeAirSeadInventory(sideShortKey))
-    ScenEdit_SpecialMessage("Saudi Arabia","GetAllInventory - 8")
     totalInventory = CombineTables(totalInventory,GetBusyAirSeadInventory(sideShortKey))
-    ScenEdit_SpecialMessage("Saudi Arabia","GetAllInventory - 9")
     totalInventory = CombineTables(totalInventory,GetFreeAirAEWInventory(sideShortKey))
-    ScenEdit_SpecialMessage("Saudi Arabia","GetAllInventory - 10")
     totalInventory = CombineTables(totalInventory,GetBusyAirAEWInventory(sideShortKey))
-    ScenEdit_SpecialMessage("Saudi Arabia","GetAllInventory - 11")
     totalInventory = CombineTables(totalInventory,GetFreeAirASuWInventory(sideShortKey))
-    ScenEdit_SpecialMessage("Saudi Arabia","GetAllInventory - 12")
     totalInventory = CombineTables(totalInventory,GetBusyAirASuWInventory(sideShortKey))
-    ScenEdit_SpecialMessage("Saudi Arabia","GetAllInventory - 13")
     totalInventory = CombineTables(totalInventory,GetFreeAirASWInventory(sideShortKey))
-    ScenEdit_SpecialMessage("Saudi Arabia","GetAllInventory - 14")
     totalInventory = CombineTables(totalInventory,GetBusyAirASWInventory(sideShortKey))
-    ScenEdit_SpecialMessage("Saudi Arabia","GetAllInventory - 15")
     totalInventory = CombineTables(totalInventory,GetFreeAirReconInventory(sideShortKey))
-    ScenEdit_SpecialMessage("Saudi Arabia","GetAllInventory - 16")
     totalInventory = CombineTables(totalInventory,GetBusyAirReconInventory(sideShortKey))
-    ScenEdit_SpecialMessage("Saudi Arabia","GetAllInventory - 17")
     totalInventory = CombineTables(totalInventory,GetFreeAirTankerInventory(sideShortKey))
-    ScenEdit_SpecialMessage("Saudi Arabia","GetAllInventory - 18")
     totalInventory = CombineTables(totalInventory,GetBusyAirTankerInventory(sideShortKey))
-    ScenEdit_SpecialMessage("Saudi Arabia","GetAllInventory - 19")
     totalInventory = CombineTables(totalInventory,GetFreeAirUAVInventory(sideShortKey))
-    ScenEdit_SpecialMessage("Saudi Arabia","GetAllInventory - 20")
     totalInventory = CombineTables(totalInventory,GetBusyAirUAVInventory(sideShortKey))
-    ScenEdit_SpecialMessage("Saudi Arabia","GetAllInventory - 21")
     totalInventory = CombineTables(totalInventory,GetFreeAirUCAVInventory(sideShortKey))
-    ScenEdit_SpecialMessage("Saudi Arabia","GetAllInventory - 22")
     totalInventory = CombineTables(totalInventory,GetBusyAirUCAVInventory(sideShortKey))
-    ScenEdit_SpecialMessage("Saudi Arabia","GetAllInventory - 23")
     return totalInventory
 end
 
@@ -1247,15 +1221,10 @@ function GetHostileWeaponContacts(sideShortKey)
 end
 
 function GetAllHostileContacts(sideShortKey)
-    ScenEdit_SpecialMessage("Saudi Arabia","GetAllHostileContacts")
     local totalContacts = CombineTablesNew(GetHostileAirContacts(sideShortKey),GetHostileSurfaceShipContacts(sideShortKey))
-    ScenEdit_SpecialMessage("Saudi Arabia","GetAllHostileContacts - 1")
     totalContacts = CombineTables(totalContacts,GetHostileSubmarineContacts(sideShortKey))
-    ScenEdit_SpecialMessage("Saudi Arabia","GetAllHostileContacts - 2")
     totalContacts = CombineTables(totalContacts,GetHostileSAMContacts(sideShortKey))
-    ScenEdit_SpecialMessage("Saudi Arabia","GetAllHostileContacts - 4")
     totalContacts = CombineTables(totalContacts,GetHostileLandContacts(sideShortKey))
-    ScenEdit_SpecialMessage("Saudi Arabia","GetAllHostileContacts - 5")
     return totalContacts
 end
 
