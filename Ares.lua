@@ -337,7 +337,7 @@ function persistentMemoryResetFromKey(primaryKey)
 end
 
 function persistentMemoryRemoveFromKey(primaryKey,value)
-    local table = PersistentGetGUID(primaryKey)
+    local table = persistentMemoryGetForKey(primaryKey)
     local valueString = nil
     for k, v in pairs(table) do
         if value ~= v then
@@ -1279,61 +1279,63 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 -- Get Contact Strength
 --------------------------------------------------------------------------------------------------------------------------------
-function GetHostileAirContactsStrength(sideShortKey)
-    return #GetHostileAirContacts(sideShortKey)
+function getHostileAirContactsStrength(sideShortKey)
+    return #getHostileAirContacts(sideShortKey)
 end
 
-function GetHostileSurfaceShipContactsStrength(sideShortKey)
-    return #GetHostileSurfaceShipContacts(sideShortKey)
+function getHostileSurfaceShipContactsStrength(sideShortKey)
+    return #getHostileSurfaceShipContacts(sideShortKey)
 end
 
-function GetHostileSAMContactsStrength(sideShortKey)
-    return #GetHostileSAMContacts(sideShortKey)
+function getHostileSAMContactsStrength(sideShortKey)
+    return #getHostileSAMContacts(sideShortKey)
 end
 
-function GetHostileLandContactsStrength(sideShortKey)
-    return #GetHostileLandContacts(sideShortKey)
+function getHostileLandContactsStrength(sideShortKey)
+    return #getHostileLandContacts(sideShortKey)
 end
 
-function GetAllHostileContactStrength(sideShortKey)
-    local totalHostileStrength = #GetHostileAirContacts(sideShortKey)
-    totalHostileStrength = totalHostileStrength + #GetHostileSurfaceShipContacts(sideShortKey)
-    totalHostileStrength = totalHostileStrength + #GetHostileSubmarineContacts(sideShortKey)
+function getAllHostileContactStrength(sideShortKey)
+    local totalHostileStrength = #getHostileAirContacts(sideShortKey)
+    totalHostileStrength = totalHostileStrength + #getHostileSurfaceShipContacts(sideShortKey)
+    totalHostileStrength = totalHostileStrength + #getHostileSubmarineContacts(sideShortKey)
     return totalHostileStrength
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
--- Reinforcement Requests And Others
+-- Reinforcement Requests Functions
 --------------------------------------------------------------------------------------------------------------------------------
-function AddReinforcementRequest(sideShortKey,sideAttributes,sideName,missionName,quantity)
+function addReinforcementRequest(sideShortKey,sideAttributes,sideName,missionName,quantity)
     local determinedModifier = sideAttributes.determined * 2 / (sideAttributes.determined + sideAttributes.reserved)
     quantity = math.ceil(quantity * determinedModifier)
-    MemoryAddGUIDToKey(sideShortKey.."_reinforce_request",{name=missionName,number=quantity})
+    localMemoryAddToKey(sideShortKey.."_reinforce_request",{name=missionName,number=quantity})
 end
 
-function GetReinforcementRequests(sideShortKey)
-    local reinforceRequests = MemoryGetGUIDFromKey(sideShortKey.."_reinforce_request")
+function getReinforcementRequests(sideShortKey)
+    local reinforceRequests = localMemoryGetFromKey(sideShortKey.."_reinforce_request")
     local returnRequests = {}
-    -- Loop And Determine 
     for k,v in pairs(reinforceRequests) do
         returnRequests[tostring(v.name)] = v.number
     end
     return returnRequests
 end
 
-function AddAllocatedUnit(sideShortKey,unitGuid)
-    local allocatedUnits = MemoryGetGUIDFromKey(sideShortKey.."_alloc_units")
+--------------------------------------------------------------------------------------------------------------------------------
+-- Allocate Functions
+--------------------------------------------------------------------------------------------------------------------------------
+function addAllocatedUnit(sideShortKey,unitGuid)
+    local allocatedUnits = localMemoryGetFromKey(sideShortKey.."_alloc_units")
     local allocatedUnitsTable = {}
     if #allocatedUnits == 1 then
         allocatedUnitsTable = allocatedUnits[1]
     end
     allocatedUnitsTable[unitGuid] = unitGuid
-    MemoryRemoveAllGUIDsFromKey(sideShortKey.."_alloc_units")
-    MemoryAddGUIDToKey(sideShortKey.."_alloc_units",allocatedUnitsTable)
+    localMemoryRemoveFromKey(sideShortKey.."_alloc_units")
+    localMemoryAddToKey(sideShortKey.."_alloc_units",allocatedUnitsTable)
 end
 
-function GetAllocatedUnitExists(sideShortKey,unitGuid)
-    local allocatedUnits = MemoryGetGUIDFromKey(sideShortKey.."_alloc_units")
+function getAllocatedUnitExists(sideShortKey,unitGuid)
+    local allocatedUnits = localMemoryGetFromKey(sideShortKey.."_alloc_units")
     local allocatedUnitsTable = {}
     if #allocatedUnits == 1 then
         allocatedUnitsTable = allocatedUnits[1]
@@ -1347,13 +1349,13 @@ function GetAllocatedUnitExists(sideShortKey,unitGuid)
     end
 end
 
-function DetermineUnitsToUnAssign(sideShortKey,sideName,missionGuid)
-    -- Local Values
+--------------------------------------------------------------------------------------------------------------------------------
+-- Determine Assign Functions
+--------------------------------------------------------------------------------------------------------------------------------
+function determineUnitsToUnAssign(sideShortKey,sideName,missionGuid)
     local mission = ScenEdit_GetMission(sideName,missionGuid)
-    local missionUnits = GetUnitsFromMission(sideName,missionGuid)
-    -- Check
+    local missionUnits = getUnitsFromMission(sideName,missionGuid)
     if mission then
-        -- Loop Through Mission Unit Lists And Unassign RTB Units
         for k,v in pairs(missionUnits) do
             local unit = ScenEdit_GetUnit({side=sideName, guid=v})
             if unit then
@@ -1362,81 +1364,57 @@ function DetermineUnitsToUnAssign(sideShortKey,sideName,missionGuid)
                     ScenEdit_AssignUnitToMission(unit.guid, mockMission.guid)  
                     ScenEdit_DeleteMission(sideName,mockMission.guid) 
                 else
-                    -- Save Unit
-                    AddAllocatedUnit(sideShortKey,unit.guid)
+                    addAllocatedUnit(sideShortKey,unit.guid)
                 end
             end
         end        
     end
 end
 
-function DetermineUnitsToAssign(sideShortKey,sideName,missionGuid,totalRequiredUnits,unitGuidList)
+function determineUnitsToAssign(sideShortKey,sideName,missionGuid,totalRequiredUnits,unitGuidList)
     -- Local Values
     local mission = ScenEdit_GetMission(sideName,missionGuid)
-    local missionUnits = GetUnitsFromMission(sideName,missionGuid)
+    local missionUnits = getUnitsFromMission(sideName,missionGuid)
     local missionUnitsCount = #missionUnits
-    local allocatedUnitsTable = MemoryGetGUIDFromKey(sideShortKey.."_alloc_units")
+    local allocatedUnitsTable = localMemoryGetFromKey(sideShortKey.."_alloc_units")
     totalRequiredUnits = totalRequiredUnits - missionUnitsCount
-    -- Check
     if mission then
-        -- Assign Up to Total Required Units
         for k,v in pairs(unitGuidList) do
-            -- Condition Check
             if totalRequiredUnits <= 0 then
                 break
             end
-            -- Check Unit And Assign
             local unit = ScenEdit_GetUnit({side=sideName, guid=v})
-            -- Check If Unit Has Already Been Allocated In This Cycle
-            if not GetAllocatedUnitExists(sideShortKey,unit.guid) then
-                if (not DetermineUnitRTB(sideName,v) and unit.speed > 0) or (tostring(unit.readytime) == "0" and unit.speed == 0) then
-                    -- Assign Unit
+            if not getAllocatedUnitExists(sideShortKey,unit.guid) then
+                if (not determineUnitRTB(sideName,v) and unit.speed > 0) or (tostring(unit.readytime) == "0" and unit.speed == 0) then
                     totalRequiredUnits = totalRequiredUnits - 1
                     ScenEdit_AssignUnitToMission(v,mission.guid)
-                    -- Save Unit
-                    AddAllocatedUnit(sideShortKey,unit.guid)
+                    addAllocatedUnit(sideShortKey,unit.guid)
                 end
             end
         end
-        -- Return
         if totalRequiredUnits == 0 then
             return true
         else
             return false
         end
     end
-    -- Return false
     return false
 end
 
-function GetTimeStampForGUID(primaryKey)
-    local timeStamp = ScenEdit_GetKeyValue(primaryKey)
-    if timeStamp == "" or timeStamp == nil then
-        ScenEdit_SetKeyValue(primaryKey,tostring(ScenEdit_CurrentTime()))
-        timeStamp = ScenEdit_GetKeyValue(primaryKey)
-    end
-    return tonumber(timeStamp)
-end
-
-function SetTimeStampForGUID(primaryKey,time)
-    ScenEdit_SetKeyValue(primaryKey,tostring(time))
-end
-
-function DetermineEmconToUnits(sideShortKey,sideAttributes,sideName,unitGuidList)
-    -- Local Values
-    local busyAEWInventory = GetBusyAirAEWInventory(sideShortKey)
+--------------------------------------------------------------------------------------------------------------------------------
+-- Determine Emcon Functions
+--------------------------------------------------------------------------------------------------------------------------------
+function determineEmconToUnits(sideShortKey,sideAttributes,sideName,unitGuidList)
+    local busyAEWInventory = getBusyAirAEWInventory(sideShortKey)
     local cunningModifier = sideAttributes.cunning * 2 / (sideAttributes.direct + sideAttributes.cunning)
     local emconChangeState = ScenEdit_GetKeyValue(sideShortKey.."_emcon_chg_st")
-    local emconChangeTime = GetTimeStampForGUID(sideShortKey.."_emcon_chg")
+    local emconChangeTime = getTimeStampForGUID(sideShortKey.."_emcon_chg")
     local currentTime = ScenEdit_CurrentTime ()
-    -- Loop
     for k,v in pairs(unitGuidList) do
         local unit = ScenEdit_GetUnit({side=sideName, guid=v})
-        -- Determine Unit Firing At
         if not unit.firingAt then
             -- Check
             if cunningModifier > 0.75 then
-                -- Determine Active Or Deactivate Cycle
                 if (emconChangeTime - currentTime) <= 0 then
                     if emconChangeState == "" or emconChangeState == "Active" then
                         ScenEdit_SetKeyValue(sideShortKey.."_emcon_chg_st","Passive")
@@ -1444,12 +1422,11 @@ function DetermineEmconToUnits(sideShortKey,sideAttributes,sideName,unitGuidList
                         ScenEdit_SetKeyValue(sideShortKey.."_emcon_chg_st","Active")
                     end
                     ScenEdit_SetEMCON("Unit",v,"Radar="..emconChangeState)
-                    SetTimeStampForGUID(sideShortKey.."_emcon_chg",tostring(currentTime + 30))
+                    setTimeStampForGUID(sideShortKey.."_emcon_chg",tostring(currentTime + 30))
                 end
             else
                 ScenEdit_SetEMCON("Unit",v,"Radar=Active")
             end
-            -- Check
             if cunningModifier > 1.25 then
                 for k1,v1 in pairs(busyAEWInventory) do
                     local aewUnit = ScenEdit_GetUnit({side=sideName, guid=v1})
@@ -1464,28 +1441,27 @@ function DetermineEmconToUnits(sideShortKey,sideAttributes,sideName,unitGuidList
     end
 end
 
-function DetermineUnitToRetreat(sideShortKey,sideGuid,sideAttributes,missionGuid,unitGuidList,zoneType,retreatRange)
-    -- Local Values
+--------------------------------------------------------------------------------------------------------------------------------
+-- Determine Unit Retreat Functions
+--------------------------------------------------------------------------------------------------------------------------------
+function determineUnitToRetreat(sideShortKey,sideGuid,sideAttributes,missionGuid,unitGuidList,zoneType,retreatRange)
     local side = VP_GetSide({guid=sideGuid})
-    local missionUnits = GetUnitsFromMission(side.name,missionGuid)
-    -- Loop Unit Guid List
+    local missionUnits = getUnitsFromMission(side.name,missionGuid)
     for k,v in pairs(unitGuidList) do
         local missionUnit = ScenEdit_GetUnit({side=side.name, guid=v})
         local unitRetreatPoint = {}
-        -- Check By Type
         if zoneType == 0 then
-            unitRetreatPoint = GetAllNoNavZoneThatContainsUnit(sideGuid,sideShortKey,sideAttributes,missionUnit.guid,retreatRange)
+            unitRetreatPoint = getAllNoNavZoneThatContainsUnit(sideGuid,sideShortKey,sideAttributes,missionUnit.guid,retreatRange)
         elseif zoneType == 1 then
-            unitRetreatPoint = GetSAMAndShipNoNavZoneThatContainsUnit(sideGuid,sideShortKey,sideAttributes,missionUnit.guid)
+            unitRetreatPoint = getSAMAndShipNoNavZoneThatContainsUnit(sideGuid,sideShortKey,sideAttributes,missionUnit.guid)
         elseif zoneType == 2 then
-            unitRetreatPoint = GetAirAndShipNoNavZoneThatContainsUnit(sideGuid,sideShortKey,sideAttributes,missionUnit.guid,retreatRange)
+            unitRetreatPoint = getAirAndShipNoNavZoneThatContainsUnit(sideGuid,sideShortKey,sideAttributes,missionUnit.guid,retreatRange)
         elseif zoneType == 3 then
-            unitRetreatPoint = GetAirAndSAMNoNavZoneThatContainsUnit(sideGuid,sideShortKey,sideAttributes,missionUnit.guid,retreatRange)
+            unitRetreatPoint = getAirAndSAMNoNavZoneThatContainsUnit(sideGuid,sideShortKey,sideAttributes,missionUnit.guid,retreatRange)
         else
             unitRetreatPoint = nil
         end
-        -- Retreat Point
-        if unitRetreatPoint ~= nil and not DetermineUnitRTB(side.name,missionUnit.guid) then
+        if unitRetreatPoint ~= nil and not determineUnitRTB(side.name,missionUnit.guid) then
             ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course = "no" })
             missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
             missionUnit.manualSpeed = unitRetreatPoint.speed
@@ -1494,174 +1470,156 @@ function DetermineUnitToRetreat(sideShortKey,sideGuid,sideAttributes,missionGuid
             missionUnit.manualSpeed = "OFF"
         end
     end
-
 end
 
---------------------------------------------------------------------------------------------------------------------------------
--- Determine If Unit Is In Zone - Returned Desired Retreat Point
---------------------------------------------------------------------------------------------------------------------------------
-function GetAirNoNavZoneThatContaintsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,range)
+function getAirNoNavZoneThatContaintsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,range)
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
-    local hostileAirContacts = GetHostileAirContacts(shortSideKey)
-    local unknownAirContacts = GetUnknownAirContacts(shortSideKey)
+    local hostileAirContacts = getHostileAirContacts(shortSideKey)
+    local unknownAirContacts = getUnknownAirContacts(shortSideKey)
     local reservedModifier = sideAttributes.reserved * 2 / (sideAttributes.determined + sideAttributes.reserved)
     local desiredRange = range * reservedModifier
-    -- Check Hostile Contacts Points
     for k,v in pairs(hostileAirContacts) do
         local contact = ScenEdit_GetContact({side=side.name, guid=v})
         if contact then
             local currentRange = Tool_Range(contact.guid,unitGuid)
             if currentRange < desiredRange then
                 local bearing = Tool_Bearing(contact.guid,unitGuid)
-                local retreatLocation = ProjectLatLong(MakeLatLong(contact.latitude,contact.longitude),bearing,desiredRange + 20)
+                local retreatLocation = projectLatLong(MakeLatLong(contact.latitude,contact.longitude),bearing,desiredRange + 20)
                 return {latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=2000}
             end
         end
     end
-    -- Check Unknown Contacts Points
     for k,v in pairs(unknownAirContacts) do
         local contact = ScenEdit_GetContact({side=side.name, guid=v})
         if contact then
         local currentRange = Tool_Range(contact.guid,unitGuid)
             if currentRange < desiredRange then
                 local bearing = Tool_Bearing(contact.guid,unitGuid)
-                local retreatLocation = ProjectLatLong(MakeLatLong(contact.latitude,contact.longitude),bearing,desiredRange + 20)
+                local retreatLocation = projectLatLong(MakeLatLong(contact.latitude,contact.longitude),bearing,desiredRange + 20)
                 return {latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=2000}
             end
         end
     end
-    -- Return nil
     return nil
 end
 
-function GetSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
-    -- Local Side And Mission
+function getSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
-    local zones = PersistentGetGUID(shortSideKey.."_sam_ex_zone")
+    local zones = persistentMemoryGetForKey(shortSideKey.."_sam_ex_zone")
     local reservedModifier = sideAttributes.reserved * 2 / (sideAttributes.determined + sideAttributes.reserved)
-    -- Zone Reference Points
-    local zoneReferencePoints = ScenEdit_GetReferencePoints({side=side.name, area=zones})
-    -- Zone Reference Points
-    for k,v in pairs(zoneReferencePoints) do
-        local currentRange = Tool_Range({latitude=v.latitude,longitude=v.longitude},unitGuid)
-        local desiredRange = tonumber(v.name) * reservedModifier
-        if currentRange < desiredRange then
-            local contactPoint = MakeLatLong(v.latitude,v.longitude)
-            local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
-            local retreatLocation = ProjectLatLong(contactPoint,bearing,desiredRange+30)
-            return {latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=600}
-        end
-    end
-    -- Return nil
-    return nil
-end
-
-function GetShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
-    -- Local Side And Mission
-    local side = VP_GetSide({guid=sideGuid})
-    local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
-    local zones = PersistentGetGUID(shortSideKey.."_ship_ex_zone")
-    local reservedModifier = sideAttributes.reserved * 2 / (sideAttributes.determined + sideAttributes.reserved)
-    -- Zone Reference Points
     local zoneReferencePoints = ScenEdit_GetReferencePoints({side=side.name, area=zones})
     for k,v in pairs(zoneReferencePoints) do
         local currentRange = Tool_Range({latitude=v.latitude,longitude=v.longitude},unitGuid)
         local desiredRange = tonumber(v.name) * reservedModifier
         if currentRange < desiredRange then
-            local contactPoint = MakeLatLong(v.latitude,v.longitude)
+            local contactPoint = makeLatLong(v.latitude,v.longitude)
             local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
-            local retreatLocation = ProjectLatLong(contactPoint,bearing,desiredRange+30)
+            local retreatLocation = projectLatLong(contactPoint,bearing,desiredRange+30)
             return {latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=600}
         end
     end
-    -- Return nil
     return nil
 end
 
-function GetEmergencyMissileNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
-    -- Local Side And Mission
+function getShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
-    local hostileMissilesContacts = GetHostileWeaponContacts(shortSideKey)
+    local zones = persistentMemoryGetForKey(shortSideKey.."_ship_ex_zone")
     local reservedModifier = sideAttributes.reserved * 2 / (sideAttributes.determined + sideAttributes.reserved)
-    -- Loop Through Contacts
+    local zoneReferencePoints = ScenEdit_GetReferencePoints({side=side.name, area=zones})
+    for k,v in pairs(zoneReferencePoints) do
+        local currentRange = Tool_Range({latitude=v.latitude,longitude=v.longitude},unitGuid)
+        local desiredRange = tonumber(v.name) * reservedModifier
+        if currentRange < desiredRange then
+            local contactPoint = makeLatLong(v.latitude,v.longitude)
+            local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
+            local retreatLocation = projectLatLong(contactPoint,bearing,desiredRange+30)
+            return {latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=600}
+        end
+    end
+    return nil
+end
+
+function getEmergencyMissileNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
+    local side = VP_GetSide({guid=sideGuid})
+    local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
+    local hostileMissilesContacts = getHostileWeaponContacts(shortSideKey)
+    local reservedModifier = sideAttributes.reserved * 2 / (sideAttributes.determined + sideAttributes.reserved)
     for k,v in pairs(hostileMissilesContacts) do
         local currentRange = Tool_Range(v,unitGuid)
         local contact = ScenEdit_GetContact({side=side.name, guid=v})
         if contact then
             local minDesiredRange = 12 * reservedModifier
             local maxDesiredRange = 70 * reservedModifier
-            -- Desire Range Check
             if currentRange > minDesiredRange and currentRange < maxDesiredRange then
-                local contactPoint = MakeLatLong(contact.latitude,contact.longitude)
+                local contactPoint = makeLatLong(contact.latitude,contact.longitude)
                 local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
-                local retreatLocation = ProjectLatLong(contactPoint,bearing,maxDesiredRange + 20)
+                local retreatLocation = projectLatLong(contactPoint,bearing,maxDesiredRange + 20)
                 return {latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=2000}
             end
         end
     end
-    -- Return nil
     return nil
 end
 
-function GetSAMAndShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
-    local contactPoint = GetEmergencyMissileNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
+function getSAMAndShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
+    local contactPoint = getEmergencyMissileNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
     if contactPoint ~= nil then
         return contactPoint
     else
-        contactPoint = GetSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
+        contactPoint = getSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
         if contactPoint ~= nil then
             return contactPoint
         else
-            return GetShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
+            return getShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
         end
     end
 end
 
-function GetAirAndShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
-    local contactPoint = GetEmergencyMissileNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
+function getAirAndShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
+    local contactPoint = getEmergencyMissileNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
     if contactPoint ~= nil then
         return contactPoint
     else
-        contactPoint = GetAirNoNavZoneThatContaintsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
+        contactPoint = getAirNoNavZoneThatContaintsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
         if contactPoint ~= nil then
             return contactPoint
         else
-            return GetShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
+            return getShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
         end
     end
 end
 
-function GetAirAndSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
-    local contactPoint = GetEmergencyMissileNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
+function getAirAndSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
+    local contactPoint = getEmergencyMissileNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
     if contactPoint ~= nil then
         return contactPoint 
     else
-        contactPoint = GetAirNoNavZoneThatContaintsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
+        contactPoint = getAirNoNavZoneThatContaintsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
         if contactPoint ~= nil then
             return contactPoint
         else
-            return GetSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
+            return getSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
         end
     end
 end
 
-function GetAllNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
-    local contactPoint = GetEmergencyMissileNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
+function getAllNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
+    local contactPoint = getEmergencyMissileNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
     if contactPoint ~= nil then
         return contactPoint
     else
-        contactPoint = GetSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
+        contactPoint = getSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
         if contactPoint ~= nil then
             return contactPoint
         else
-            contactPoint = GetAirNoNavZoneThatContaintsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
+            contactPoint = getAirNoNavZoneThatContaintsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
             if contactPoint ~= nil then
                 return contactPoint
             else
-                return GetShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
+                return getShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
             end
         end
     end
@@ -1670,57 +1628,47 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 -- Area of Operation Functions
 --------------------------------------------------------------------------------------------------------------------------------
-function UpdateAIAreaOfOperations(sideGUID,sideShortKey)
-    -- Local Values
+function updateAIAreaOfOperations(sideGUID,sideShortKey)
     local side = VP_GetSide({guid=sideGUID})
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
     local coordinates = {}
     local boundingBox = {}
     local currentTime = ScenEdit_CurrentTime()
-    local lastTime = GetTimeStampForGUID(sideShortKey.."_ao_recalc_ts")
-    
-    -- Area Of Operation Points Check And Create Area Of Operation Points
+    local lastTime = getTimeStampForGUID(sideShortKey.."_ao_recalc_ts")
     if #aoPoints < 4 or (currentTime - lastTime) > 8 * 60 then 
-        -- Set Contact Bounding Box Variables
-        local hostileContacts = GetAllHostileContacts(sideShortKey)
-        local inventory = GetAllInventory(sideShortKey)
-        -- Loop and Get Coordinates
+        local hostileContacts = getAllHostileContacts(sideShortKey)
+        local inventory = getAllInventory(sideShortKey)
         for k,v in pairs(hostileContacts) do
             local contact = ScenEdit_GetContact({side=side.name, guid=v})
             if contact then
-                coordinates[#coordinates + 1] = MakeLatLong(contact.latitude,contact.longitude)
+                coordinates[#coordinates + 1] = makeLatLong(contact.latitude,contact.longitude)
             end
         end
-
         for k,v in pairs(inventory) do
             local unit = ScenEdit_GetUnit({side=side.name, guid=v})
             if unit then
-                coordinates[#coordinates + 1] = MakeLatLong(unit.latitude,unit.longitude)
+                coordinates[#coordinates + 1] = makeLatLong(unit.latitude,unit.longitude)
             end
         end
-        -- Create Defense Bounding Box
-        boundingBox = FindBoundingBoxForGivenLocations(coordinates,3)
-        -- Create Area of Operations Zone
+        boundingBox = findBoundingBoxForGivenLocations(coordinates,3)
         for i = 1,#boundingBox do
             local referencePoint = ScenEdit_SetReferencePoint({side=side.name, name="AI-AO-"..tostring(i), lat=boundingBox[i].latitude, lon=boundingBox[i].longitude})
             if referencePoint == nil then
                 ScenEdit_AddReferencePoint({side=side.name, name="AI-AO-"..tostring(i), lat=boundingBox[i].latitude, lon=boundingBox[i].longitude})
             end
         end
-        -- Set Time Stamp To Recalculate
-        SetTimeStampForGUID(sideShortKey.."_ao_recalc_ts",ScenEdit_CurrentTime())
+        setTimeStampForGUID(sideShortKey.."_ao_recalc_ts",ScenEdit_CurrentTime())
     end
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
 -- Inventory Functions
 --------------------------------------------------------------------------------------------------------------------------------
-function UpdateAIInventories(sideGUID,sideShortKey)
+function updateAIInventories(sideGUID,sideShortKey)
     -- Local Variables
     local side = VP_GetSide({guid=sideGUID})
     local currentTime = ScenEdit_CurrentTime()
-    local savedContact = MemoryGetGUIDFromKey(sideShortKey.."_saved_contact")
-
+    local savedContact = localMemoryGetFromKey(sideShortKey.."_saved_contact")
     -- Loop Through Aircraft Inventory By Subtypes And Readiness
     local aircraftInventory = side:unitsBy("1")
     MemoryInventoryRemoveAllGUIDsFromKey(sideShortKey.."_saved_air_inventory")
@@ -1780,7 +1728,6 @@ function UpdateAIInventories(sideGUID,sideShortKey)
         end
         MemoryInventoryAddGUIDToKey(sideShortKey.."_saved_air_inventory",savedInventory)
     end
-
     -- Loop Through Surface Ship Inventory
     local shipInventory = side:unitsBy("2")
     MemoryInventoryRemoveAllGUIDsFromKey(sideShortKey.."_saved_ship_inventory")
@@ -1810,7 +1757,6 @@ function UpdateAIInventories(sideGUID,sideShortKey)
         end
         MemoryInventoryAddGUIDToKey(sideShortKey.."_saved_ship_inventory",savedInventory)
     end
-
     -- Loop Through Submarine Inventory
     local submarineInventory = side:unitsBy("3")
     MemoryInventoryRemoveAllGUIDsFromKey(sideShortKey.."_saved_sub_inventory")
@@ -1836,7 +1782,6 @@ function UpdateAIInventories(sideGUID,sideShortKey)
         end
         MemoryInventoryAddGUIDToKey(sideShortKey.."_saved_sub_inventory",savedInventory)
     end
-
     -- Loop Through Land Inventory
     local previousTime = GetTimeStampForGUID(sideShortKey.."_land_inv_ts")
     if (currentTime - previousTime) > 10 * 60 then
@@ -1884,7 +1829,6 @@ function UpdateAIInventories(sideGUID,sideShortKey)
         end
         SetTimeStampForGUID(sideShortKey.."_land_inv_ts",currentTime)
     end
-
     -- Loop Through Aircraft Contacts
     previousTime = GetTimeStampForGUID(sideShortKey.."_air_con_ts")
     if (currentTime - previousTime) > 60 or currentTime == previousTime then
@@ -1909,7 +1853,6 @@ function UpdateAIInventories(sideGUID,sideShortKey)
         end
         SetTimeStampForGUID(sideShortKey.."_air_con_ts",currentTime)
     end
-
     -- Loop Through Ship Contacts
     previousTime = GetTimeStampForGUID(sideShortKey.."_ship_con_ts")
     if (currentTime - previousTime) > 60 or currentTime == previousTime then
@@ -1934,7 +1877,6 @@ function UpdateAIInventories(sideGUID,sideShortKey)
         end
         SetTimeStampForGUID(sideShortKey.."_ship_con_ts",currentTime)
     end
-
     -- Loop Through Submarine Contacts
     previousTime = GetTimeStampForGUID(sideShortKey.."_sub_con_ts")
     if (currentTime - previousTime) > 60 or currentTime == previousTime then 
@@ -1959,7 +1901,6 @@ function UpdateAIInventories(sideGUID,sideShortKey)
         end
         SetTimeStampForGUID(sideShortKey.."_sub_con_ts",currentTime)
     end
-
     -- Loop Through Land Contacts
     previousTime = GetTimeStampForGUID(sideShortKey.."_land_con_ts")
     if (currentTime - previousTime) > 5 * 60 then 
@@ -1988,7 +1929,6 @@ function UpdateAIInventories(sideGUID,sideShortKey)
         end
         SetTimeStampForGUID(sideShortKey.."_land_con_ts",currentTime)
     end
-
     -- Loop Through Weapon Contacts
     local weaponContacts = side:contactsBy("6")
     MemoryContactRemoveAllGUIDsFromKey(sideShortKey.."_saved_weap_contact")
@@ -2025,9 +1965,9 @@ function UpdateAIInventories(sideGUID,sideShortKey)
     end
 end
 
-function ResetAllInventoriesAndContacts()
-    -- Memory Clean
-    MemoryReset()
+function resetAllInventoriesAndContacts()
+    localMemoryInventoryResetAll()
+    localMemoryContactResetAll()
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
