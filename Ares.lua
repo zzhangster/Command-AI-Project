@@ -1858,6 +1858,46 @@ function observerActionUpdateLandInventories(args)
     end
 end
 
+function observerActionUpdateHVAInventories(args)
+    -- Local Variables
+    local sideShortKey = args.shortKey
+    local side = VP_GetSide({guid=args.guid})
+    local currentTime = ScenEdit_CurrentTime()
+    local shipInventory = side:unitsBy("2")
+    local landInventory = side:unitsBy("4")
+    -- Check Ship Inventory
+    if shipInventory then
+        local savedInventory = {}
+        for k, v in pairs(shipInventory) do
+            -- Local Values
+            local unit = ScenEdit_GetUnit({side=side.name, guid=v.guid})
+            -- Save Unit As HVT (Carriers)
+            if unit.subtype == "2001" or unit.subtype == "2008" then
+                localMemoryAddToKey(sideShortKey.."_def_hva",unit.guid)
+            end
+        end
+    end
+    if landInventory then
+        local savedInventory = {}
+        local savedDefHVT = {}
+        for k, v in pairs(landInventory) do
+            -- Local Values
+            local unit = ScenEdit_GetUnit({side=side.name, guid=v.guid})
+            -- Determine And Add HVA
+            if determineHVAByUnitDatabaseId(sideShortKey,unit.guid,unit.dbid) then
+                local leadGuid = unit.guid
+                if unit.group then
+                    leadGuid = unit.group.lead
+                end
+                if not savedDefHVT[leadGuid] then
+                    localMemoryAddToKey(sideShortKey.."_def_hva",unit.guid)
+                    savedDefHVT[leadGuid] = leadGuid
+                end
+            end
+        end
+    end
+end
+
 function observerActionUpdateAirContacts(args)
     -- Local Variables
     local sideShortKey = args.shortKey
@@ -2171,34 +2211,27 @@ function deciderOffensiveAirCreateUpdateMission(args)
     local rp1,rp2,rp3,rp4 = ""
     local hostileContactBoundingBox = {}
     local createdUpdatedMission = {}
-    -- Condition Check
-    hostileContactBoundingBox = findBoundingBoxForGivenContacts(side.name,totalHostileContacts,aoPoints,3)
     -- Create Mission
     if #missions == 0 then
-        -- Add Reference Points
+        hostileContactBoundingBox = findBoundingBoxForGivenContacts(side.name,totalHostileContacts,aoPoints,3)
         rp1 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_aaw_miss_"..tostring(missionNumber).."_rp_1", lat=hostileContactBoundingBox[1].latitude, lon=hostileContactBoundingBox[1].longitude})
         rp2 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_aaw_miss_"..tostring(missionNumber).."_rp_2", lat=hostileContactBoundingBox[2].latitude, lon=hostileContactBoundingBox[2].longitude})
         rp3 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_aaw_miss_"..tostring(missionNumber).."_rp_3", lat=hostileContactBoundingBox[3].latitude, lon=hostileContactBoundingBox[3].longitude})
         rp4 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_aaw_miss_"..tostring(missionNumber).."_rp_4", lat=hostileContactBoundingBox[4].latitude, lon=hostileContactBoundingBox[4].longitude})
-        -- Created Mission
         createdUpdatedMission = ScenEdit_AddMission(side.name,args.shortKey.."_aaw_miss_"..tostring(missionNumber),"patrol",{type="aaw",zone={rp1.name,rp2.name,rp3.name,rp4.name}})
         ScenEdit_SetMission(side.name,createdUpdatedMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=true,flightSize=2,useFlightSize=true})
         ScenEdit_SetDoctrine({side=side.name,mission=createdUpdatedMission.name},{automatic_evasion="yes",maintain_standoff="yes",ignore_emcon_while_under_attack="yes",weapon_state_planned="5001",weapon_state_rtb ="1"})
-        -- Add Guid
         persistentMemoryAddToKey(args.shortKey.."_aaw_miss",createdUpdatedMission.name)
     else
-        -- Set Reference Points
+        hostileContactBoundingBox = findBoundingBoxForGivenContacts(side.name,totalHostileContacts,aoPoints,3)
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_miss_"..tostring(missionNumber).."_rp_1", lat=hostileContactBoundingBox[1].latitude, lon=hostileContactBoundingBox[1].longitude})
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_miss_"..tostring(missionNumber).."_rp_2", lat=hostileContactBoundingBox[2].latitude, lon=hostileContactBoundingBox[2].longitude})
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_miss_"..tostring(missionNumber).."_rp_3", lat=hostileContactBoundingBox[3].latitude, lon=hostileContactBoundingBox[3].longitude})
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_miss_"..tostring(missionNumber).."_rp_4", lat=hostileContactBoundingBox[4].latitude, lon=hostileContactBoundingBox[4].longitude})    
-        -- Updated Mission
         createdUpdatedMission = ScenEdit_GetMission(side.name,missions[1])
-        -- Round Up
         if totalAirUnitsToAssign % 2 == 1 then
             totalAirUnitsToAssign = totalAirUnitsToAssign + 1
         end
-        -- Add Reinforcement Request
         addReinforcementRequest(args.shortKey,args.options,side.name,createdUpdatedMission.name,totalAirUnitsToAssign)
     end
 end
@@ -2221,25 +2254,18 @@ function deciderOffensiveStealthAirCreateUpdateMission(args)
         -- Get Linked Mission
         linkedMission = ScenEdit_GetMission(side.name,linkedMissions[1])
         linkedMissionPoints = {linkedMission.name.."_rp_1",linkedMission.name.."_rp_2",linkedMission.name.."_rp_3",linkedMission.name.."_rp_4"}
-        -- Add Missions
         if #missions == 0 then
-            -- Create Mission
             createdUpdatedMission = ScenEdit_AddMission(side.name,args.shortKey.."_saaw_miss_"..tostring(missionNumber),"patrol",{type="aaw",zone=linkedMissionPoints})
             ScenEdit_SetMission(side.name,createdUpdatedMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=true,flightSize=2,useFlightSize=true})
             ScenEdit_SetDoctrine({side=side.name,mission=createdUpdatedMission.name},{automatic_evasion="yes",maintain_standoff="yes",ignore_emcon_while_under_attack="yes",weapon_state_planned="5001",weapon_state_rtb ="0"})
-            -- Add Mission
             persistentMemoryAddToKey(args.shortKey.."_saaw_miss",createdUpdatedMission.name)
         else
-            -- Updated Mission
             createdUpdatedMission = ScenEdit_GetMission(side.name,missions[1])
-            -- Total Units
             linkedMissionUnits = GetUnitsFromMission(side.name,linkedMission.guid)   
             totalAirUnitsToAssign = math.floor(#linkedMissionUnits/4)
-            -- Round Up
             if totalAirUnitsToAssign % 2 == 1 then
                 totalAirUnitsToAssign = totalAirUnitsToAssign + 1
             end
-            -- Add Reinforcement Request
             addReinforcementRequest(args.shortKey,args.options,side.name,createdUpdatedMission.name,totalAirUnitsToAssign)
         end
     end
@@ -2268,25 +2294,19 @@ function deciderOffensiveAEWCreateUpdateMission(args)
         patrolBoundingBox = findBoundingBoxForGivenLocations({MakeLatLong(linkedMissionCenterPoint.latitude,linkedMissionCenterPoint.longitude)},1.0)
         -- Add Missions
         if #missions == 0 then
-            -- Set Reference Points
             rp1 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_1", lat=patrolBoundingBox[1].latitude, lon=patrolBoundingBox[1].longitude})
             rp2 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_2", lat=patrolBoundingBox[2].latitude, lon=patrolBoundingBox[2].longitude})
             rp3 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_3", lat=patrolBoundingBox[3].latitude, lon=patrolBoundingBox[3].longitude})
             rp4 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_4", lat=patrolBoundingBox[4].latitude, lon=patrolBoundingBox[4].longitude})
-            -- Create Mission
             createdUpdatedMission = ScenEdit_AddMission(side.name,args.shortKey.."_aaew_miss_"..tostring(missionNumber),"support",{zone={rp1.name,rp2.name,rp3.name,rp4.name}})
             ScenEdit_SetEMCON("Mission",createdUpdatedMission.guid,"Radar=Active")
-            -- Add Guid And Add Time Stamp
             persistentMemoryAddToKey(args.shortKey.."_aaew_miss",createdUpdatedMission.name)
         else
-            -- Get Linked Mission
             createdUpdatedMission = ScenEdit_GetMission(side.name,missions[1])
-            -- Set Reference Points
             ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_1", lat=patrolBoundingBox[1].latitude, lon=patrolBoundingBox[1].longitude})
             ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_2", lat=patrolBoundingBox[2].latitude, lon=patrolBoundingBox[2].longitude})
             ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_3", lat=patrolBoundingBox[3].latitude, lon=patrolBoundingBox[3].longitude})
             ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_4", lat=patrolBoundingBox[4].latitude, lon=patrolBoundingBox[4].longitude})
-            -- Add Reinforcement Request
             addReinforcementRequest(args.shortKey,args.options,side.name,createdUpdatedMission.name,1)
         end
     end
@@ -2317,29 +2337,22 @@ function deciderOffensiveTankerCreateUpdateMission(args)
         patrolBoundingBox = findBoundingBoxForGivenLocations({MakeLatLong(linkedMissionCenterPoint.latitude,linkedMissionCenterPoint.longitude)},1.0)
         -- Add Missions
         if #missions == 0 then
-            -- Set Reference Points
             rp1 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_atan_miss_"..tostring(missionNumber).."_rp_1", lat=patrolBoundingBox[1].latitude, lon=patrolBoundingBox[1].longitude})
             rp2 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_atan_miss_"..tostring(missionNumber).."_rp_2", lat=patrolBoundingBox[2].latitude, lon=patrolBoundingBox[2].longitude})
             rp3 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_atan_miss_"..tostring(missionNumber).."_rp_3", lat=patrolBoundingBox[3].latitude, lon=patrolBoundingBox[3].longitude})
             rp4 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_atan_miss_"..tostring(missionNumber).."_rp_4", lat=patrolBoundingBox[4].latitude, lon=patrolBoundingBox[4].longitude})
-            -- Create Mission
             createdUpdatedMission = ScenEdit_AddMission(side.name,args.shortKey.."_atan_miss_"..tostring(missionNumber),"support",{zone={rp1.name,rp2.name,rp3.name,rp4.name}})
             ScenEdit_SetMission(side.name,createdUpdatedMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=true,flightSize=1,useFlightSize=true})
             ScenEdit_SetEMCON("Mission",createdUpdatedMission.guid,"Radar=Passive")
-            -- Add Guid And Add Time Stamp
             persistentMemoryAddToKey(args.shortKey.."_atan_miss",createdUpdatedMission.name)
         else
-            -- Get Linked Mission
             createdUpdatedMission = ScenEdit_GetMission(side.name,missions[1])
-            -- Set Reference Points
             ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_atan_miss_"..tostring(missionNumber).."_rp_1", lat=patrolBoundingBox[1].latitude, lon=patrolBoundingBox[1].longitude})
             ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_atan_miss_"..tostring(missionNumber).."_rp_2", lat=patrolBoundingBox[2].latitude, lon=patrolBoundingBox[2].longitude})
             ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_atan_miss_"..tostring(missionNumber).."_rp_3", lat=patrolBoundingBox[3].latitude, lon=patrolBoundingBox[3].longitude})
             ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_atan_miss_"..tostring(missionNumber).."_rp_4", lat=patrolBoundingBox[4].latitude, lon=patrolBoundingBox[4].longitude})
-            -- Total Units
             linkedMissionUnits = GetUnitsFromMission(side.name,linkedMission.guid)   
             totalAirUnitsToAssign = math.floor(#linkedMissionUnits/4)
-            -- Add Reinforcement Request
             addReinforcementRequest(args.shortKey,args.options,side.name,createdUpdatedMission.name,totalAirUnitsToAssign)
         end
     end
@@ -2356,31 +2369,27 @@ function deciderOffensiveAntiSurfaceShipCreateUpdateMission(args)
     local totalAirUnitsToAssign = getHostileSurfaceShipContactsStrength(args.shortKey) * 4
     local missionNumber = 1
     local rp1,rp2,rp3,rp4 = ""
-    local hostileContactBoundingBox = findBoundingBoxForGivenContacts(side.name,totalHostileContacts,aoPoints,3)
     local createdUpdatedMission = {}
+    local hostileContactBoundingBox = {}
     -- Condition Check
     if #missions == 0 then
-        -- Set Reference Points
+        hostileContactBoundingBox = findBoundingBoxForGivenContacts(side.name,totalHostileContacts,aoPoints,3)
         rp1 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_asuw_miss_"..tostring(missionNumber).."_rp_1", lat=hostileContactBoundingBox[1].latitude, lon=hostileContactBoundingBox[1].longitude})
         rp2 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_asuw_miss_"..tostring(missionNumber).."_rp_2", lat=hostileContactBoundingBox[2].latitude, lon=hostileContactBoundingBox[2].longitude})
         rp3 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_asuw_miss_"..tostring(missionNumber).."_rp_3", lat=hostileContactBoundingBox[3].latitude, lon=hostileContactBoundingBox[3].longitude})
         rp4 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_asuw_miss_"..tostring(missionNumber).."_rp_4", lat=hostileContactBoundingBox[4].latitude, lon=hostileContactBoundingBox[4].longitude})
-        -- Create Mission
         createdUpdatedMission = ScenEdit_AddMission(side.name,args.shortKey.."_asuw_miss_"..tostring(missionNumber),"patrol",{type="naval",zone={rp1.name,rp2.name,rp3.name,rp4.name}})
         ScenEdit_SetMission(side.name,createdUpdatedMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=false,flightSize=2,useFlightSize=true})
         ScenEdit_SetDoctrine({side=side.name,mission=createdUpdatedMission.name},{automatic_evasion="yes",maintain_standoff="yes",ignore_emcon_while_under_attack="yes",weapon_state_planned="5001",weapon_state_rtb="1",fuel_state_rtb="2",dive_on_threat="2"})
         ScenEdit_SetEMCON("Mission",createdUpdatedMission.guid,"Radar=Active")
-        -- Add Guid And Add Time Stamp
         persistentMemoryAddToKey(args.shortKey.."_asuw_miss",createdUpdatedMission.name)
     else
-        -- Take First One For Now
+        hostileContactBoundingBox = findBoundingBoxForGivenContacts(side.name,totalHostileContacts,aoPoints,3)
         createdUpdatedMission = ScenEdit_GetMission(side.name,missions[1])
-        -- Set Coordinates
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_asuw_miss_"..tostring(missionNumber).."_rp_1", lat=hostileContactBoundingBox[1].latitude, lon=hostileContactBoundingBox[1].longitude})
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_asuw_miss_"..tostring(missionNumber).."_rp_2", lat=hostileContactBoundingBox[2].latitude, lon=hostileContactBoundingBox[2].longitude})
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_asuw_miss_"..tostring(missionNumber).."_rp_3", lat=hostileContactBoundingBox[3].latitude, lon=hostileContactBoundingBox[3].longitude})
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_asuw_miss_"..tostring(missionNumber).."_rp_4", lat=hostileContactBoundingBox[4].latitude, lon=hostileContactBoundingBox[4].longitude})
-        -- Add Reinforcement Request
         addReinforcementRequest(args.shortKey,args.options,side.name,createdUpdatedMission.name,totalAirUnitsToAssign)
     end
 end
@@ -2400,26 +2409,20 @@ function deciderOffensiveSeadCreateUpdateMission(args)
     local createdUpdatedMission = {}
     -- Condition Check
     if #missions == 0 then
-        -- Set Reference Points
         rp1 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_sead_miss_"..tostring(missionNumber).."_rp_1", lat=hostileContactBoundingBox[1].latitude, lon=hostileContactBoundingBox[1].longitude})
         rp2 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_sead_miss_"..tostring(missionNumber).."_rp_2", lat=hostileContactBoundingBox[2].latitude, lon=hostileContactBoundingBox[2].longitude})
         rp3 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_sead_miss_"..tostring(missionNumber).."_rp_3", lat=hostileContactBoundingBox[3].latitude, lon=hostileContactBoundingBox[3].longitude})
         rp4 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_sead_miss_"..tostring(missionNumber).."_rp_4", lat=hostileContactBoundingBox[4].latitude, lon=hostileContactBoundingBox[4].longitude})
-        -- Create Mission
         createdUpdatedMission = ScenEdit_AddMission(side.name,args.shortKey.."_sead_miss_"..tostring(missionNumber),"patrol",{type="sead",zone={rp1.name,rp2.name,rp3.name,rp4.name}})
         ScenEdit_SetMission(side.name,createdUpdatedMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=false,flightSize=2,useFlightSize=true})
         ScenEdit_SetEMCON("Mission",createdUpdatedMission.guid,"Radar=Passive")
-        -- Add Guid
         persistentMemoryAddToKey(args.shortKey.."_sead_miss",createdUpdatedMission.name)
     else
-        -- Take First One For Now
         createdUpdatedMission = ScenEdit_GetMission(side.name,missions[1])
-        -- Update Every 5 Minutes Or Greater
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_sead_miss_"..tostring(missionNumber).."_rp_1", lat=hostileContactBoundingBox[1].latitude, lon=hostileContactBoundingBox[1].longitude})
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_sead_miss_"..tostring(missionNumber).."_rp_2", lat=hostileContactBoundingBox[2].latitude, lon=hostileContactBoundingBox[2].longitude})
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_sead_miss_"..tostring(missionNumber).."_rp_3", lat=hostileContactBoundingBox[3].latitude, lon=hostileContactBoundingBox[3].longitude})
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_sead_miss_"..tostring(missionNumber).."_rp_4", lat=hostileContactBoundingBox[4].latitude, lon=hostileContactBoundingBox[4].longitude})
-        -- Add Reinforcement Request
         addReinforcementRequest(args.shortKey,args.options,side.name,createdUpdatedMission.name,totalAirUnitsToAssign)
     end
 end
@@ -2439,31 +2442,27 @@ function deciderOffensiveLandAttackCreateUpdateMission(args)
     local createdUpdatedMission = {}
     -- Condition Check
     if #missions == 0 then
-        -- Set Reference Points
         rp1 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_land_miss_"..tostring(missionNumber).."_rp_1", lat=hostileContactBoundingBox[1].latitude, lon=hostileContactBoundingBox[1].longitude})
         rp2 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_land_miss_"..tostring(missionNumber).."_rp_2", lat=hostileContactBoundingBox[2].latitude, lon=hostileContactBoundingBox[2].longitude})
         rp3 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_land_miss_"..tostring(missionNumber).."_rp_3", lat=hostileContactBoundingBox[3].latitude, lon=hostileContactBoundingBox[3].longitude})
         rp4 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_land_miss_"..tostring(missionNumber).."_rp_4", lat=hostileContactBoundingBox[4].latitude, lon=hostileContactBoundingBox[4].longitude})
-        -- Create Mission
         createdUpdatedMission = ScenEdit_AddMission(side.name,args.shortKey.."_land_miss_"..tostring(missionNumber),"patrol",{type="land",zone={rp1.name,rp2.name,rp3.name,rp4.name}})
         ScenEdit_SetMission(side.name,createdUpdatedMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=false,flightSize=2,useFlightSize=true})
         ScenEdit_SetEMCON("Mission",createdUpdatedMission.guid,"Radar=Passive")
-        -- Add Guid
         persistentMemoryAddToKey(args.shortKey.."_land_miss",createdUpdatedMission.name)
     else
-        -- Take First One For Now
         createdUpdatedMission = ScenEdit_GetMission(side.name,missions[1])
-        -- Update Every 5 Minutes Or Greater
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_land_miss_"..tostring(missionNumber).."_rp_1", lat=hostileContactBoundingBox[1].latitude, lon=hostileContactBoundingBox[1].longitude})
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_land_miss_"..tostring(missionNumber).."_rp_2", lat=hostileContactBoundingBox[2].latitude, lon=hostileContactBoundingBox[2].longitude})
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_land_miss_"..tostring(missionNumber).."_rp_3", lat=hostileContactBoundingBox[3].latitude, lon=hostileContactBoundingBox[3].longitude})
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_land_miss_"..tostring(missionNumber).."_rp_4", lat=hostileContactBoundingBox[4].latitude, lon=hostileContactBoundingBox[4].longitude})
-        -- Add Reinforcement Request
         addReinforcementRequest(args.shortKey,args.options,side.name,createdUpdatedMission.name,totalAirUnitsToAssign)
     end
 end
 
 function deciderDefensiveAirCreateUpdateMission(args)
+    -- Print
+    ScenEdit_SpecialMessage("Stennis CSG","deciderDefensiveAirCreateUpdateMission")
     -- Local Side And Mission
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_aaw_d_miss")
@@ -2586,6 +2585,8 @@ end
 -- Defensive Tanker Doctrine Create Update Mission Action
 --------------------------------------------------------------------------------------------------------------------------------
 function deciderDefensiveTankerCreateUpdateMission(args)
+    -- Print
+    ScenEdit_SpecialMessage("Stennis CSG","deciderDefensiveTankerCreateUpdateMission")
     -- Local Side And Mission
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_tan_d_miss")
@@ -2652,6 +2653,8 @@ end
 -- Defend AEW Doctrine Create Update Mission Action
 --------------------------------------------------------------------------------------------------------------------------------
 function deciderDefensiveAEWCreateUpdateMission(args)
+    -- Print
+    ScenEdit_SpecialMessage("Stennis CSG","deciderDefensiveAEWCreateUpdateMission")
     -- Local Side And Mission
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_aew_d_miss")
@@ -2718,6 +2721,8 @@ end
 -- Decider Ship Doctrine Create Update Mission Action
 --------------------------------------------------------------------------------------------------------------------------------
 function deciderNeutralShipCreateUpdateMission(args)
+    -- Print
+    ScenEdit_SpecialMessage("Stennis CSG","deciderNeutralShipCreateUpdateMission")
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_ship_sc_miss")
@@ -2769,6 +2774,8 @@ end
 -- Decider Submarine Doctrine Create Update Mission Action
 --------------------------------------------------------------------------------------------------------------------------------
 function deciderNeutralSubmarineCreateUpdateMission(args)
+    -- Print
+    ScenEdit_SpecialMessage("Stennis CSG","deciderNeutralSubmarineCreateUpdateMission")
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_sub_sc_miss")
@@ -2829,16 +2836,15 @@ function deciderCreateSAMNoNavZones(args)
     local noNavZoneBoundary = {}
     local zoneNumber = #zones + 1
     -- Condition Check
-    if #zones >= 25 or #totalHostileContacts == 0 or #zones >= #totalHostileContacts then
-       return false 
-    end
-    -- Get Contact
-    local contact = ScenEdit_GetContact({side=side.name, guid=totalHostileContacts[#zones + 1]})
-    if contact then
-        local noNavZoneRange = determineThreatRangeByUnitDatabaseId(args.guid,contact.guid)
-        -- SAM Zone + Range
-        local referencePoint = ScenEdit_AddReferencePoint({side=side.name,lat=contact.latitude,lon=contact.longitude,name=tostring(noNavZoneRange),highlighted="no"})
-        persistentMemoryAddToKey(args.shortKey.."_sam_ex_zone",referencePoint.guid)
+    if #zones < 25 and #totalHostileContacts > 0 and #zones < #totalHostileContacts then
+        -- Get Contact
+        local contact = ScenEdit_GetContact({side=side.name, guid=totalHostileContacts[#zones + 1]})
+        if contact then
+            local noNavZoneRange = determineThreatRangeByUnitDatabaseId(args.guid,contact.guid)
+            -- SAM Zone + Range
+            local referencePoint = ScenEdit_AddReferencePoint({side=side.name,lat=contact.latitude,lon=contact.longitude,name=tostring(noNavZoneRange),highlighted="no"})
+            persistentMemoryAddToKey(args.shortKey.."_sam_ex_zone",referencePoint.guid)
+        end
     end
 end
 
@@ -2853,27 +2859,26 @@ function deciderUpdateSAMNoNavZones(args)
     local totalHostileContacts = getHostileSAMContacts(args.shortKey)
     local zoneCounter = 1
     -- Condition Check
-    if #zones == 0 then
-       return false 
-    end
-    -- Key Value Pairs
-    for k,v in pairs(zones) do
-        local referencePoints = ScenEdit_GetReferencePoints({side=side.name,area={v}})
-        local referencePoint = referencePoints[1]
-        -- Zone Counter Check
-        if zoneCounter > #totalHostileContacts then
-            ScenEdit_SetReferencePoint({side=side.name, guid=v, newname="0", lat=0, long=0})
-        else
-            -- Get Contact
-            local contact = ScenEdit_GetContact({side=side.name,guid=totalHostileContacts[zoneCounter]})
-            if contact then
-                local noNavZoneRange = determineThreatRangeByUnitDatabaseId(args.guid,contact.guid)
-                -- Set To New Value
-                ScenEdit_SetReferencePoint({side=side.name,guid=v,newname=tostring(noNavZoneRange),lat=contact.latitude,lon=contact.longitude})
+    if #zones > 0 then
+        -- Key Value Pairs
+        for k,v in pairs(zones) do
+            local referencePoints = ScenEdit_GetReferencePoints({side=side.name,area={v}})
+            local referencePoint = referencePoints[1]
+            -- Zone Counter Check
+            if zoneCounter > #totalHostileContacts then
+                ScenEdit_SetReferencePoint({side=side.name, guid=v, newname="0", lat=0, long=0})
+            else
+                -- Get Contact
+                local contact = ScenEdit_GetContact({side=side.name,guid=totalHostileContacts[zoneCounter]})
+                if contact then
+                    local noNavZoneRange = determineThreatRangeByUnitDatabaseId(args.guid,contact.guid)
+                    -- Set To New Value
+                    ScenEdit_SetReferencePoint({side=side.name,guid=v,newname=tostring(noNavZoneRange),lat=contact.latitude,lon=contact.longitude})
+                end
             end
+            -- Update Zone Counter
+            zoneCounter = zoneCounter + 1
         end
-        -- Update Zone Counter
-        zoneCounter = zoneCounter + 1
     end
 end
 
@@ -2890,16 +2895,15 @@ function deciderCreateShipNoNavZones(args)
     local noNavZoneBoundary = {}
     local zoneNumber = #zones + 1
     -- Condition Check
-    if #zones >= 25 or #totalHostileContacts == 0 or #zones >= #totalHostileContacts then
-       return false 
-    end
-    -- Get Contact
-    local contact = ScenEdit_GetContact({side=side.name, guid=totalHostileContacts[#zones + 1]})
-    if contact then
-        local noNavZoneRange = determineThreatRangeByUnitDatabaseId(args.guid,contact.guid)
-        -- Ship Zone + Range
-        local referencePoint = ScenEdit_AddReferencePoint({side=side.name,lat=contact.latitude,lon=contact.longitude,name=tostring(noNavZoneRange),highlighted="no"})
-        persistentMemoryAddToKey(args.shortKey.."_ship_ex_zone",referencePoint.guid)
+    if #zones < 25 and #totalHostileContacts > 0 and #zones < #totalHostileContacts then
+        -- Get Contact
+        local contact = ScenEdit_GetContact({side=side.name, guid=totalHostileContacts[#zones + 1]})
+        if contact then
+            local noNavZoneRange = determineThreatRangeByUnitDatabaseId(args.guid,contact.guid)
+            -- Ship Zone + Range
+            local referencePoint = ScenEdit_AddReferencePoint({side=side.name,lat=contact.latitude,lon=contact.longitude,name=tostring(noNavZoneRange),highlighted="no"})
+            persistentMemoryAddToKey(args.shortKey.."_ship_ex_zone",referencePoint.guid)
+        end
     end
 end
 
@@ -2914,27 +2918,26 @@ function deciderUpdateShipNoNavZones(args)
     local totalHostileContacts = getHostileSurfaceShipContacts(args.shortKey)
     local zoneCounter = 1
     -- Condition Check
-    if #zones == 0 then
-       return false 
-    end
-    -- Key Value Pairs
-    for k,v in pairs(zones) do
-        local referencePoints = ScenEdit_GetReferencePoints({side=side.name,area={v}})
-        local referencePoint = referencePoints[1]
-        -- Zone Counter Check
-        if zoneCounter > #totalHostileContacts then
-            ScenEdit_SetReferencePoint({side=side.name, guid=v, newname="0", lat=0, long=0})
-        else
-            -- Get Contact
-            local contact = ScenEdit_GetContact({side=side.name, guid=totalHostileContacts[zoneCounter]})
-            if contact then
-                local noNavZoneRange = determineThreatRangeByUnitDatabaseId(args.guid,contact.guid)
-                -- Set To New Value
-                ScenEdit_SetReferencePoint({side=side.name,guid=v,newname=tostring(noNavZoneRange),lat=contact.latitude,lon=contact.longitude})
+    if #zones > 0 then
+        -- Key Value Pairs
+        for k,v in pairs(zones) do
+            local referencePoints = ScenEdit_GetReferencePoints({side=side.name,area={v}})
+            local referencePoint = referencePoints[1]
+            -- Zone Counter Check
+            if zoneCounter > #totalHostileContacts then
+                ScenEdit_SetReferencePoint({side=side.name, guid=v, newname="0", lat=0, long=0})
+            else
+                -- Get Contact
+                local contact = ScenEdit_GetContact({side=side.name, guid=totalHostileContacts[zoneCounter]})
+                if contact then
+                    local noNavZoneRange = determineThreatRangeByUnitDatabaseId(args.guid,contact.guid)
+                    -- Set To New Value
+                    ScenEdit_SetReferencePoint({side=side.name,guid=v,newname=tostring(noNavZoneRange),lat=contact.latitude,lon=contact.longitude})
+                end
             end
+            -- Update Zone Counter
+            zoneCounter = zoneCounter + 1
         end
-        -- Update Zone Counter
-        zoneCounter = zoneCounter + 1
     end
 end
 
@@ -3671,6 +3674,7 @@ function initializeAresAI(sideName,options)
     local observerActionUpdateSurfaceInventoriesBT = BT:make(observerActionUpdateSurfaceInventories,sideGuid,shortSideKey,attributes)
     local observerActionUpdateSubmarineInventoriesBT = BT:make(observerActionUpdateSubmarineInventories,sideGuid,shortSideKey,attributes)
     local observerActionUpdateLandInventoriesBT = BT:make(observerActionUpdateLandInventories,sideGuid,shortSideKey,attributes)
+    local observerActionUpdateHVAInventoriesBT = BT:make(observerActionUpdateHVAInventories,sideGuid,shortSideKey,attributes)
     local observerActionUpdateAirContactsBT = BT:make(observerActionUpdateAirContacts,sideGuid,shortSideKey,attributes)
     local observerActionUpdateSurfaceContactsBT = BT:make(observerActionUpdateSurfaceContacts,sideGuid,shortSideKey,attributes)
     local observerActionUpdateSubmarineContactsBT = BT:make(observerActionUpdateSubmarineContacts,sideGuid,shortSideKey,attributes)
@@ -3681,6 +3685,7 @@ function initializeAresAI(sideName,options)
     aresObserverBTMain:addChild(observerActionUpdateSurfaceInventoriesBT)
     aresObserverBTMain:addChild(observerActionUpdateSubmarineInventoriesBT)
     aresObserverBTMain:addChild(observerActionUpdateLandInventoriesBT)
+    aresObserverBTMain:addChild(observerActionUpdateHVAInventoriesBT)
     aresObserverBTMain:addChild(observerActionUpdateAirContactsBT)
     aresObserverBTMain:addChild(observerActionUpdateSurfaceContactsBT)
     aresObserverBTMain:addChild(observerActionUpdateSubmarineContactsBT)
@@ -3691,6 +3696,7 @@ function initializeAresAI(sideName,options)
     -- Ares Decider
     ----------------------------------------------------------------------------------------------------------------------------
     local deciderNoNavZonesSequenceBT = BT:make(BT.sequence,sideGuid,shortSideKey,attributes)
+    local deciderDoctrineSelectorBT = BT:make(BT.select,sideGuid,shortSideKey,attributes)
     local deciderAttackDoctrineSequenceBT = BT:make(BT.sequence,sideGuid,shortSideKey,attributes)
     local deciderDefendDoctrineSequenceBT = BT:make(BT.sequence,sideGuid,shortSideKey,attributes)
     local deciderCreateSAMNoNavZonesBT = BT:make(deciderCreateSAMNoNavZones,sideGuid,shortSideKey,attributes)
@@ -3716,8 +3722,9 @@ function initializeAresAI(sideName,options)
     local deciderDefensiveTankerCreateUpdateMissionBT = BT:make(deciderDefensiveTankerCreateUpdateMission,sideGuid,shortSideKey,attributes)
     -- Add Sequences
     aresDeciderBTMain:addChild(deciderNoNavZonesSequenceBT)
-    aresDeciderBTMain:addChild(deciderAttackDoctrineSequenceBT)
-    aresDeciderBTMain:addChild(deciderDefendDoctrineSequenceBT)
+    aresDeciderBTMain:addChild(deciderDoctrineSelectorBT)
+    deciderDoctrineSelectorBT:addChild(deciderAttackDoctrineSequenceBT)
+    deciderDoctrineSelectorBT:addChild(deciderDefendDoctrineSequenceBT)
     -- Setup No Nav Sequence
     deciderNoNavZonesSequenceBT:addChild(deciderCreateSAMNoNavZonesBT)
     deciderNoNavZonesSequenceBT:addChild(deciderUpdateSAMNoNavZonesBT)
