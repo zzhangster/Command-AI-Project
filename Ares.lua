@@ -222,8 +222,11 @@ function localMemoryAddToKey(primaryKey,value)
 end
 
 function localMemoryRemoveFromKey(primaryKey)
-    local table = localMemoryGetFromKey(primaryKey)
-    table = {}
+    if aresLocalMemory["ares_generic_key"] then
+        if (aresLocalMemory["ares_generic_key"])[primaryKey] then
+            (aresLocalMemory["ares_generic_key"])[primaryKey] = {}
+        end
+    end
 end
 
 function localMemoryExistForKey(primaryKey,value)
@@ -259,8 +262,11 @@ function localMemoryInventoryAddToKey(primaryKey,value)
 end
 
 function localMemoryInventoryRemoveFromKey(primaryKey)
-    local table = localMemoryInventoryGetFromKey(primaryKey)
-    table = {}
+    if aresLocalMemory["ares_inventory_key"] then
+        if (aresLocalMemory["ares_inventory_key"])[primaryKey] then
+            (aresLocalMemory["ares_inventory_key"])[primaryKey] = {}
+        end
+    end
 end
 
 function localMemoryInventoryExistForKey(primaryKey,value)
@@ -271,6 +277,24 @@ function localMemoryInventoryExistForKey(primaryKey,value)
         end
     end
     return false
+end
+
+function localMemoryPrintAll()
+    local printMessage = ""
+    deepPrint(aresLocalMemory,printMessage)
+    --ScenEdit_SpecialMessage("Stennis CSG",printMessage)
+end
+
+function deepPrint(e,output)
+    -- if e is a table, we should iterate over its elements
+    if type(e) == "table" then
+        for k,v in pairs(e) do -- for every element in the table
+            output = output.." { "..k.." : "
+            deepPrint(v,output)       -- recursively repeat the same procedure
+        end
+    else -- if not, we can just print it
+        output = output..e.." } "
+    end
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
@@ -296,8 +320,11 @@ function localMemoryContactAddToKey(primaryKey,value)
 end
 
 function localMemoryContactRemoveFromKey(primaryKey)
-    local table = localMemoryContactGetFromKey(primaryKey)
-    table = {}
+    if aresLocalMemory["ares_contact_key"] then
+        if (aresLocalMemory["ares_contact_key"])[primaryKey] then
+            (aresLocalMemory["ares_contact_key"])[primaryKey] = {}
+        end
+    end
 end
 
 function localMemoryContactExistForKey(primaryKey,value)
@@ -1093,6 +1120,10 @@ function getAllInventory(sideShortKey)
     totalInventory = combineTables(totalInventory,getBusyAirUAVInventory(sideShortKey))
     totalInventory = combineTables(totalInventory,getFreeAirUCAVInventory(sideShortKey))
     totalInventory = combineTables(totalInventory,getBusyAirUCAVInventory(sideShortKey))
+    totalInventory = combineTables(totalInventory,getFreeSurfaceShipInventory(sideShortKey))
+    totalInventory = combineTables(totalInventory,getBusySurfaceShipInventory(sideShortKey))
+    totalInventory = combineTables(totalInventory,getFreeSubmarineInventory(sideShortKey))
+    totalInventory = combineTables(totalInventory,getBusySubmarineInventory(sideShortKey))
     return totalInventory
 end
 
@@ -1406,7 +1437,7 @@ end
 function determineEmconToUnits(sideShortKey,sideAttributes,sideName,unitGuidList)
     local busyAEWInventory = getBusyAirAEWInventory(sideShortKey)
     local emconChangeState = ScenEdit_GetKeyValue(sideShortKey.."_emcon_chg_st")
-    local emconChangeTime = getTimeStampForGUID(sideShortKey.."_emcon_chg")
+    local emconChangeTime = getTimeStampForKey(sideShortKey.."_emcon_chg")
     local currentTime = ScenEdit_CurrentTime ()
     for k,v in pairs(unitGuidList) do
         local unit = ScenEdit_GetUnit({side=sideName, guid=v})
@@ -1418,7 +1449,7 @@ function determineEmconToUnits(sideShortKey,sideAttributes,sideName,unitGuidList
                     ScenEdit_SetKeyValue(sideShortKey.."_emcon_chg_st","Active")
                 end
                 ScenEdit_SetEMCON("Unit",v,"Radar="..emconChangeState)
-                setTimeStampForGUID(sideShortKey.."_emcon_chg",tostring(currentTime + 30))
+                setTimeStampForKey(sideShortKey.."_emcon_chg",tostring(currentTime + 30))
             end
             for k1,v1 in pairs(busyAEWInventory) do
                 local aewUnit = ScenEdit_GetUnit({side=sideName, guid=v1})
@@ -1619,16 +1650,17 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 -- Update Area of Operation Function
 --------------------------------------------------------------------------------------------------------------------------------
-function observerActionUpdateAIAreaOfOperations(sideGUID,sideShortKey)
-    local side = VP_GetSide({guid=sideGUID})
+function observerActionUpdateAIAreaOfOperations(args)
+    local side = VP_GetSide({guid=args.guid})
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
     local coordinates = {}
     local boundingBox = {}
     local currentTime = ScenEdit_CurrentTime()
-    local lastTime = getTimeStampForGUID(sideShortKey.."_ao_recalc_ts")
-    if #aoPoints < 4 or (currentTime - lastTime) > 8 * 60 then 
-        local hostileContacts = getAllHostileContacts(sideShortKey)
-        local inventory = getAllInventory(sideShortKey)
+    local lastTime = getTimeStampForKey(args.shortKey.."_ao_recalc_ts")
+    -- Set Time Conditions
+    if #aoPoints < 4 or (currentTime - lastTime) > 60 then 
+        local hostileContacts = getAllHostileContacts(args.shortKey)
+        local inventory = getAllInventory(args.shortKey)
         for k,v in pairs(hostileContacts) do
             local contact = ScenEdit_GetContact({side=side.name, guid=v})
             if contact then
@@ -1648,15 +1680,21 @@ function observerActionUpdateAIAreaOfOperations(sideGUID,sideShortKey)
                 ScenEdit_AddReferencePoint({side=side.name,name="AI-AO-"..tostring(i),lat=boundingBox[i].latitude,lon=boundingBox[i].longitude})
             end
         end
-        setTimeStampForGUID(sideShortKey.."_ao_recalc_ts",ScenEdit_CurrentTime())
+        setTimeStampForKey(args.shortKey.."_ao_recalc_ts",ScenEdit_CurrentTime())
+        -- Print
+        --ScenEdit_SpecialMessage("Stennis CSG","Counter: "..#hostileContacts.." "..#inventory)
     end
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
 -- Observer Functions
 --------------------------------------------------------------------------------------------------------------------------------
-function observerActionUpdateAirInventories(sideGUID,sideShortKey)
+function observerActionUpdateAirInventories(args)
+    -- Print
+    --ScenEdit_SpecialMessage("Stennis CSG","observerActionUpdateAirInventories")
     -- Local Variables
+    local sideGUID = args.guid
+    local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=sideGUID})
     local currentTime = ScenEdit_CurrentTime()
     local aircraftInventory = side:unitsBy("1")
@@ -1720,8 +1758,10 @@ function observerActionUpdateAirInventories(sideGUID,sideShortKey)
     end
 end
 
-function observerActionUpdateSurfaceInventories(sideGUID,sideShortKey)
+function observerActionUpdateSurfaceInventories(args)
     -- Local Variables
+    local sideGUID = args.guid
+    local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=sideGUID})
     local currentTime = ScenEdit_CurrentTime()
     local shipInventory = side:unitsBy("2")
@@ -1752,8 +1792,10 @@ function observerActionUpdateSurfaceInventories(sideGUID,sideShortKey)
     end
 end
 
-function observerActionUpdateSubmarineInventories(sideGUID,sideShortKey)
+function observerActionUpdateSubmarineInventories(args)
     -- Local Variables
+    local sideGUID = args.guid
+    local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=sideGUID})
     local currentTime = ScenEdit_CurrentTime()
     local submarineInventory = side:unitsBy("3")
@@ -1784,8 +1826,10 @@ function observerActionUpdateSubmarineInventories(sideGUID,sideShortKey)
     end
 end
 
-function observerActionUpdateLandInventories(sideGUID,sideShortKey)
+function observerActionUpdateLandInventories(args)
     -- Local Variables
+    local sideGUID = args.guid
+    local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=sideGUID})
     local currentTime = ScenEdit_CurrentTime()
     local landInventory = side:unitsBy("4")
@@ -1822,9 +1866,11 @@ function observerActionUpdateLandInventories(sideGUID,sideShortKey)
     end
 end
 
-function observerActionUpdateAirContacts(sideGUID,sideShortKey)
+function observerActionUpdateAirContacts(args)
+    --ScenEdit_SpecialMessage("Stennis CSG","observerActionUpdateAirContacts")
     -- Local Variables
-    local side = VP_GetSide({guid=sideGUID})
+    local sideShortKey = args.shortKey
+    local side = VP_GetSide({guid=args.guid})
     local currentTime = ScenEdit_CurrentTime()
     local aircraftContacts = side:contactsBy("1")
     -- Clear Contact
@@ -1848,9 +1894,10 @@ function observerActionUpdateAirContacts(sideGUID,sideShortKey)
     end
 end
 
-function observerActionUpdateSurfaceContacts(sideGUID,sideShortKey)
+function observerActionUpdateSurfaceContacts(args)
     -- Local Variables
-    local side = VP_GetSide({guid=sideGUID})
+    local sideShortKey = args.shortKey
+    local side = VP_GetSide({guid=args.guid})
     local currentTime = ScenEdit_CurrentTime()
     local shipContacts = side:contactsBy("2") 
     -- Clear Contact
@@ -1874,9 +1921,36 @@ function observerActionUpdateSurfaceContacts(sideGUID,sideShortKey)
     end
 end
 
-function observerActionUpdateLandContacts(sideGUID,sideShortKey)
+function observerActionUpdateSubmarineContacts(args)
     -- Local Variables
-    local side = VP_GetSide({guid=sideGUID})
+    local sideShortKey = args.shortKey
+    local side = VP_GetSide({guid=args.guid})
+    local currentTime = ScenEdit_CurrentTime()
+    local submarineContacts = side:contactsBy("3")
+    localMemoryContactRemoveFromKey(sideShortKey.."_saved_sub_contact")
+    if submarineContacts then
+        local savedContacts = {}
+        for k, v in pairs(submarineContacts) do
+            -- Local Values
+            local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
+            local unitType = "sub_con"
+            -- Add To Memory
+            local stringKey = sideShortKey.."_"..unitType.."_"..contact.posture
+            local stringArray = savedContacts[stringKey]
+            if not stringArray then
+                stringArray = {}
+            end
+            stringArray[#stringArray + 1] = contact.guid
+            savedContacts[stringKey] = stringArray
+        end
+        localMemoryContactAddToKey(sideShortKey.."_saved_sub_contact",savedContacts)
+    end
+end
+
+function observerActionUpdateLandContacts(args)
+    -- Local Variables
+    local sideShortKey = args.shortKey
+    local side = VP_GetSide({guid=args.guid})
     local currentTime = ScenEdit_CurrentTime()
     local landContacts = side:contactsBy("4")
     -- Clear Contact
@@ -1904,9 +1978,10 @@ function observerActionUpdateLandContacts(sideGUID,sideShortKey)
     end
 end
 
-function observerActionUpdateWeaponContacts(sideGUID,sideShortKey)
+function observerActionUpdateWeaponContacts(args)
     -- Local Variables
-    local side = VP_GetSide({guid=sideGUID})
+    local sideShortKey = args.shortKey
+    local side = VP_GetSide({guid=args.guid})
     local currentTime = ScenEdit_CurrentTime()
     local weaponContacts = side:contactsBy("6")
     -- Clear Contact
@@ -3568,15 +3643,58 @@ end
 -- Initialize AI
 --------------------------------------------------------------------------------------------------------------------------------
 function initializeAresAI(sideName,options)
-    --[[-- Local Values
+    -- Local Values
     local side = ScenEdit_GetSideOptions({side=sideName})
     local sideGuid = side.guid
-    local shortSideKey = "a"..tostring(#commandMerrimackAIArray + 1)
-    local attributes = InitializeAIAttributes(options)
+    local shortSideKey = "a"..tostring(#aresObserverAIArray + 1)
+    local attributes = initializeAIAttributes(options)
+    -- Ares OODA Selectors 
+    local aresObserverBTMain = BT:make(BT.sequence,sideGuid,shortSideKey,attributes)
+    local aresOrienterBTMain = BT:make(BT.select,sideGuid,shortSideKey,attributes)
+    local aresDeciderBTMain = BT:make(BT.select,sideGuid,shortSideKey,attributes)
+    local aresActorBTMain = BT:make(BT.select,sideGuid,shortSideKey,attributes)
     ----------------------------------------------------------------------------------------------------------------------------
-    -- Merrimack Selector
+    -- Ares Observer
     ----------------------------------------------------------------------------------------------------------------------------
-    local merrimackSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
+    local observerActionUpdateAirInventoriesBT = BT:make(observerActionUpdateAirInventories,sideGuid,shortSideKey,attributes)
+    local observerActionUpdateSurfaceInventoriesBT = BT:make(observerActionUpdateSurfaceInventories,sideGuid,shortSideKey,attributes)
+    local observerActionUpdateSubmarineInventoriesBT = BT:make(observerActionUpdateSubmarineInventories,sideGuid,shortSideKey,attributes)
+    local observerActionUpdateLandInventoriesBT = BT:make(observerActionUpdateLandInventories,sideGuid,shortSideKey,attributes)
+    local observerActionUpdateAirContactsBT = BT:make(observerActionUpdateAirContacts,sideGuid,shortSideKey,attributes)
+    local observerActionUpdateSurfaceContactsBT = BT:make(observerActionUpdateSurfaceContacts,sideGuid,shortSideKey,attributes)
+    local observerActionUpdateSubmarineContactsBT = BT:make(observerActionUpdateSubmarineContacts,sideGuid,shortSideKey,attributes)
+    local observerActionUpdateLandContactsBT = BT:make(observerActionUpdateLandContacts,sideGuid,shortSideKey,attributes)
+    local observerActionUpdateWeaponContactsBT = BT:make(observerActionUpdateWeaponContacts,sideGuid,shortSideKey,attributes)
+    local observerActionUpdateAIAreaOfOperationsBT = BT:make(observerActionUpdateAIAreaOfOperations,sideGuid,shortSideKey,attributes)
+    aresObserverBTMain:addChild(observerActionUpdateAirInventoriesBT)
+    aresObserverBTMain:addChild(observerActionUpdateSurfaceInventoriesBT)
+    aresObserverBTMain:addChild(observerActionUpdateSubmarineInventoriesBT)
+    aresObserverBTMain:addChild(observerActionUpdateLandInventoriesBT)
+    aresObserverBTMain:addChild(observerActionUpdateAirContactsBT)
+    aresObserverBTMain:addChild(observerActionUpdateSurfaceContactsBT)
+    aresObserverBTMain:addChild(observerActionUpdateSubmarineContactsBT)
+    aresObserverBTMain:addChild(observerActionUpdateLandContactsBT)
+    aresObserverBTMain:addChild(observerActionUpdateWeaponContactsBT)
+    aresObserverBTMain:addChild(observerActionUpdateAIAreaOfOperationsBT)
+    ----------------------------------------------------------------------------------------------------------------------------
+    -- Ares Decider
+    ----------------------------------------------------------------------------------------------------------------------------
+    local deciderAttackDoctrineSequenceBT = BT:make(BT.sequence,sideGuid,shortSideKey,attributes)
+    local deciderDefendDoctrineSequenceBT = BT:make(BT.sequence,sideGuid,shortSideKey,attributes)
+
+
+    aresDeciderBTMain:addChild(deciderAttackDoctrineSequenceBT)
+    aresDeciderBTMain:addChild(deciderDefendDoctrineSequenceBT)
+    ----------------------------------------------------------------------------------------------------------------------------
+    -- Save
+    ----------------------------------------------------------------------------------------------------------------------------
+    aresObserverAIArray[#aresObserverAIArray + 1] = aresObserverBTMain
+    aresOrienterAIArray[#aresOrienterAIArray + 1] = aresOrienterBTMain
+    aresDeciderAIArray[#aresDeciderAIArray + 1] = aresDeciderBTMain
+    aresActorAIArray[#aresActorAIArray + 1] = aresActorBTMain
+
+
+    --[[local merrimackSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
     -- Doctrine Sequences
     local offensiveDoctrineSequence = BT:make(BT.sequence,sideGuid,shortSideKey,attributes)
     local defensiveDoctrineSequence = BT:make(BT.sequence,sideGuid,shortSideKey,attributes)
@@ -3706,7 +3824,23 @@ function initializeAresAI(sideName,options)
     commandCumberlandAIArray[#commandCumberlandAIArray + 1] = cumberlandSelector]]--
 end
 
-function updateAI()
+function updateAresAI()
+    -- Run Observer
+    for k, v in pairs(aresObserverAIArray) do
+        v:run()
+    end
+    -- Run Observer
+    for k, v in pairs(aresOrienterAIArray) do
+        v:run()
+    end
+    -- Run Observer
+    for k, v in pairs(aresDeciderAIArray) do
+        v:run()
+    end
+    -- Run Observer
+    for k, v in pairs(aresActorAIArray) do
+        v:run()
+    end
     --[[-- Reset All Inventories
     ResetAllInventoriesAndContacts()
     -- Update Inventories And Update Merrimack AI
@@ -3734,4 +3868,4 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 -- Global Call
 --------------------------------------------------------------------------------------------------------------------------------
-initializeAresAI("Saudi Arabia",{preset="Sheridan"})
+initializeAresAI("Stennis CSG",{preset="Sheridan"})
