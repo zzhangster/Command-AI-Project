@@ -1681,8 +1681,6 @@ function observerActionUpdateAIAreaOfOperations(args)
             end
         end
         setTimeStampForKey(args.shortKey.."_ao_recalc_ts",ScenEdit_CurrentTime())
-        -- Print
-        --ScenEdit_SpecialMessage("Stennis CSG","Counter: "..#hostileContacts.." "..#inventory)
     end
 end
 
@@ -1690,12 +1688,9 @@ end
 -- Observer Functions
 --------------------------------------------------------------------------------------------------------------------------------
 function observerActionUpdateAirInventories(args)
-    -- Print
-    --ScenEdit_SpecialMessage("Stennis CSG","observerActionUpdateAirInventories")
     -- Local Variables
-    local sideGUID = args.guid
     local sideShortKey = args.shortKey
-    local side = VP_GetSide({guid=sideGUID})
+    local side = VP_GetSide({guid=args.guid})
     local currentTime = ScenEdit_CurrentTime()
     local aircraftInventory = side:unitsBy("1")
     -- Clear Inventory
@@ -1760,9 +1755,8 @@ end
 
 function observerActionUpdateSurfaceInventories(args)
     -- Local Variables
-    local sideGUID = args.guid
     local sideShortKey = args.shortKey
-    local side = VP_GetSide({guid=sideGUID})
+    local side = VP_GetSide({guid=args.guid})
     local currentTime = ScenEdit_CurrentTime()
     local shipInventory = side:unitsBy("2")
     -- Clear Inventory
@@ -1794,9 +1788,8 @@ end
 
 function observerActionUpdateSubmarineInventories(args)
     -- Local Variables
-    local sideGUID = args.guid
     local sideShortKey = args.shortKey
-    local side = VP_GetSide({guid=sideGUID})
+    local side = VP_GetSide({guid=args.guid})
     local currentTime = ScenEdit_CurrentTime()
     local submarineInventory = side:unitsBy("3")
     -- Clear Inventory
@@ -1828,9 +1821,8 @@ end
 
 function observerActionUpdateLandInventories(args)
     -- Local Variables
-    local sideGUID = args.guid
     local sideShortKey = args.shortKey
-    local side = VP_GetSide({guid=sideGUID})
+    local side = VP_GetSide({guid=args.guid})
     local currentTime = ScenEdit_CurrentTime()
     local landInventory = side:unitsBy("4")
     -- Clear Inventory
@@ -1867,7 +1859,6 @@ function observerActionUpdateLandInventories(args)
 end
 
 function observerActionUpdateAirContacts(args)
-    --ScenEdit_SpecialMessage("Stennis CSG","observerActionUpdateAirContacts")
     -- Local Variables
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
@@ -2028,14 +2019,16 @@ end
 -- Decider Functions
 --------------------------------------------------------------------------------------------------------------------------------
 function deciderOffensiveCheck(args)
+    -- Print
+    ScenEdit_SpecialMessage("Stennis CSG","deciderOffensiveCheck")
     -- Local Values
     local hostileStrength = getAllHostileContactStrength(args.shortKey)
     local inventoryStrength = getAllInventoryStrength(args.shortKey)
-    local aggressiveModifier = args.options.aggressive * 2 / (args.options.aggressive + args.options.defensive)
+    --local aggressiveModifier = args.options.aggressive * 2 / (args.options.aggressive + args.options.defensive)
     -- Check
     if hostileStrength <= 0 then
         return false
-    elseif hostileStrength <= inventoryStrength * aggressiveModifier then
+    elseif hostileStrength <= inventoryStrength then--* aggressiveModifier then
         return true
     else
         return false
@@ -2043,14 +2036,16 @@ function deciderOffensiveCheck(args)
 end
 
 function deciderDefensiveCheck(args)
+    -- Print
+    ScenEdit_SpecialMessage("Stennis CSG","deciderDefensiveCheck")
     -- Local Values
     local hostileStrength = getAllHostileContactStrength(args.shortKey)
     local inventoryStrength = getAllInventoryStrength(args.shortKey)
-    local aggressiveModifier = args.options.aggressive * 2 / (args.options.aggressive + args.options.defensive)
+    --local aggressiveModifier = args.options.aggressive * 2 / (args.options.aggressive + args.options.defensive)
     -- Check
     if hostileStrength <= 0 then
         return true
-    elseif hostileStrength > inventoryStrength * aggressiveModifier then
+    elseif hostileStrength > inventoryStrength then--* aggressiveModifier then
         return true
     else
         return false
@@ -2058,6 +2053,8 @@ function deciderDefensiveCheck(args)
 end
 
 function deciderOffensiveReconCreateUpdateMission(args)
+    -- Print
+    ScenEdit_SpecialMessage("Stennis CSG","deciderOffensiveReconCreateUpdateMission")
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
@@ -2162,6 +2159,8 @@ function deciderOffensiveReconCreateUpdateMission(args)
 end
 
 function deciderOffensiveAirCreateUpdateMission(args)
+    -- Print
+    ScenEdit_SpecialMessage("Stennis CSG","deciderOffensiveAirCreateUpdateMission")
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_aaw_miss")
@@ -2205,6 +2204,8 @@ function deciderOffensiveAirCreateUpdateMission(args)
 end
 
 function deciderOffensiveStealthAirCreateUpdateMission(args)
+    -- Print
+    ScenEdit_SpecialMessage("Stennis CSG","deciderOffensiveStealthAirCreateUpdateMission")
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_saaw_miss")
@@ -2245,6 +2246,8 @@ function deciderOffensiveStealthAirCreateUpdateMission(args)
 end
 
 function deciderOffensiveAEWCreateUpdateMission(args)
+    -- Print
+    ScenEdit_SpecialMessage("Stennis CSG","deciderOffensiveAEWCreateUpdateMission")
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_aaew_miss")
@@ -2290,6 +2293,8 @@ function deciderOffensiveAEWCreateUpdateMission(args)
 end
 
 function deciderOffensiveTankerCreateUpdateMission(args)
+    -- Print
+    ScenEdit_SpecialMessage("Stennis CSG","deciderOffensiveTankerCreateUpdateMission")
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_atan_miss")
@@ -2341,6 +2346,8 @@ function deciderOffensiveTankerCreateUpdateMission(args)
 end
 
 function deciderOffensiveAntiSurfaceShipCreateUpdateMission(args)
+    -- Print
+    ScenEdit_SpecialMessage("Stennis CSG","deciderOffensiveAntiSurfaceShipCreateUpdateMission")
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_asuw_miss")
@@ -2379,6 +2386,8 @@ function deciderOffensiveAntiSurfaceShipCreateUpdateMission(args)
 end
 
 function deciderOffensiveSeadCreateUpdateMission(args)
+    -- Print
+    ScenEdit_SpecialMessage("Stennis CSG","deciderOffensiveSeadCreateUpdateMission")
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_sead_miss")
@@ -2416,6 +2425,8 @@ function deciderOffensiveSeadCreateUpdateMission(args)
 end
 
 function deciderOffensiveLandAttackCreateUpdateMission(args)
+    -- Print
+    ScenEdit_SpecialMessage("Stennis CSG","deciderOffensiveLandAttackCreateUpdateMission")
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_land_miss")
@@ -3651,7 +3662,7 @@ function initializeAresAI(sideName,options)
     -- Ares OODA Selectors 
     local aresObserverBTMain = BT:make(BT.sequence,sideGuid,shortSideKey,attributes)
     local aresOrienterBTMain = BT:make(BT.select,sideGuid,shortSideKey,attributes)
-    local aresDeciderBTMain = BT:make(BT.select,sideGuid,shortSideKey,attributes)
+    local aresDeciderBTMain = BT:make(BT.sequence,sideGuid,shortSideKey,attributes)
     local aresActorBTMain = BT:make(BT.select,sideGuid,shortSideKey,attributes)
     ----------------------------------------------------------------------------------------------------------------------------
     -- Ares Observer
@@ -3679,12 +3690,56 @@ function initializeAresAI(sideName,options)
     ----------------------------------------------------------------------------------------------------------------------------
     -- Ares Decider
     ----------------------------------------------------------------------------------------------------------------------------
+    local deciderNoNavZonesSequenceBT = BT:make(BT.sequence,sideGuid,shortSideKey,attributes)
     local deciderAttackDoctrineSequenceBT = BT:make(BT.sequence,sideGuid,shortSideKey,attributes)
     local deciderDefendDoctrineSequenceBT = BT:make(BT.sequence,sideGuid,shortSideKey,attributes)
-
-
+    local deciderCreateSAMNoNavZonesBT = BT:make(deciderCreateSAMNoNavZones,sideGuid,shortSideKey,attributes)
+    local deciderUpdateSAMNoNavZonesBT = BT:make(deciderUpdateSAMNoNavZones,sideGuid,shortSideKey,attributes)
+    local deciderCreateAirNoNavZonesBT = BT:make(deciderCreateAirNoNavZones,sideGuid,shortSideKey,attributes)
+    local deciderUpdateAirNoNavZonesBT = BT:make(deciderUpdateAirNoNavZones,sideGuid,shortSideKey,attributes)
+    local deciderCreateShipNoNavZonesBT = BT:make(deciderCreateShipNoNavZones,sideGuid,shortSideKey,attributes)
+    local deciderUpdateShipNoNavZonesBT = BT:make(deciderUpdateShipNoNavZones,sideGuid,shortSideKey,attributes)
+    -- Offensive Behavior Tree
+    local deciderOffensiveCheckBT = BT:make(deciderOffensiveCheck,sideGuid,shortSideKey,attributes)
+    local deciderOffensiveReconCreateUpdateMissionBT = BT:make(deciderOffensiveReconCreateUpdateMission,sideGuid,shortSideKey,attributes)
+    local deciderOffensiveAirCreateUpdateMissionBT = BT:make(deciderOffensiveAirCreateUpdateMission,sideGuid,shortSideKey,attributes)
+    local deciderOffensiveStealthAirCreateUpdateMissionBT = BT:make(deciderOffensiveStealthAirCreateUpdateMission,sideGuid,shortSideKey,attributes)
+    local deciderOffensiveAEWCreateUpdateMissionBT = BT:make(deciderOffensiveAEWCreateUpdateMission,sideGuid,shortSideKey,attributes)
+    local deciderOffensiveSeadCreateUpdateMissionBT = BT:make(deciderOffensiveSeadCreateUpdateMission,sideGuid,shortSideKey,attributes)
+    local deciderOffensiveTankerCreateUpdateMissionBT = BT:make(deciderOffensiveTankerCreateUpdateMission,sideGuid,shortSideKey,attributes)
+    local deciderOffensiveLandAttackCreateUpdateMissionBT = BT:make(deciderOffensiveLandAttackCreateUpdateMission,sideGuid,shortSideKey,attributes)
+    local deciderOffensiveAntiSurfaceShipCreateUpdateMissionBT = BT:make(deciderOffensiveAntiSurfaceShipCreateUpdateMission,sideGuid,shortSideKey,attributes)
+    -- Defensive Behavior Tree
+    local deciderDefensiveCheckBT = BT:make(deciderDefensiveCheck,sideGuid,shortSideKey,attributes)
+    local deciderDefensiveAirCreateUpdateMissionBT = BT:make(deciderDefensiveAirCreateUpdateMission,sideGuid,shortSideKey,attributes)
+    local deciderDefensiveAEWCreateUpdateMissionBT = BT:make(deciderDefensiveAEWCreateUpdateMission,sideGuid,shortSideKey,attributes)
+    local deciderDefensiveTankerCreateUpdateMissionBT = BT:make(deciderDefensiveTankerCreateUpdateMission,sideGuid,shortSideKey,attributes)
+    -- Add Sequences
+    aresDeciderBTMain:addChild(deciderNoNavZonesSequenceBT)
     aresDeciderBTMain:addChild(deciderAttackDoctrineSequenceBT)
     aresDeciderBTMain:addChild(deciderDefendDoctrineSequenceBT)
+    -- Setup No Nav Sequence
+    deciderNoNavZonesSequenceBT:addChild(deciderCreateSAMNoNavZonesBT)
+    deciderNoNavZonesSequenceBT:addChild(deciderUpdateSAMNoNavZonesBT)
+    deciderNoNavZonesSequenceBT:addChild(deciderCreateAirNoNavZonesBT)
+    deciderNoNavZonesSequenceBT:addChild(deciderUpdateAirNoNavZonesBT)
+    deciderNoNavZonesSequenceBT:addChild(deciderCreateShipNoNavZonesBT)
+    deciderNoNavZonesSequenceBT:addChild(deciderUpdateShipNoNavZonesBT)
+    -- Setup Attack Doctrine Sequence
+    deciderAttackDoctrineSequenceBT:addChild(deciderOffensiveCheckBT)
+    deciderAttackDoctrineSequenceBT:addChild(deciderOffensiveReconCreateUpdateMissionBT)
+    deciderAttackDoctrineSequenceBT:addChild(deciderOffensiveAirCreateUpdateMissionBT)
+    deciderAttackDoctrineSequenceBT:addChild(deciderOffensiveStealthAirCreateUpdateMissionBT)
+    deciderAttackDoctrineSequenceBT:addChild(deciderOffensiveAEWCreateUpdateMissionBT)
+    deciderAttackDoctrineSequenceBT:addChild(deciderOffensiveTankerCreateUpdateMissionBT)
+    deciderAttackDoctrineSequenceBT:addChild(deciderOffensiveSeadCreateUpdateMissionBT)
+    deciderAttackDoctrineSequenceBT:addChild(deciderOffensiveLandAttackCreateUpdateMissionBT)
+    deciderAttackDoctrineSequenceBT:addChild(deciderOffensiveAntiSurfaceShipCreateUpdateMissionBT)
+    -- Setup Defend Doctrine Sequence
+    deciderDefendDoctrineSequenceBT:addChild(deciderDefensiveCheckBT)
+    deciderDefendDoctrineSequenceBT:addChild(deciderDefensiveAirCreateUpdateMissionBT)
+    deciderDefendDoctrineSequenceBT:addChild(deciderDefensiveAEWCreateUpdateMissionBT)
+    deciderDefendDoctrineSequenceBT:addChild(deciderDefensiveTankerCreateUpdateMissionBT)
     ----------------------------------------------------------------------------------------------------------------------------
     -- Save
     ----------------------------------------------------------------------------------------------------------------------------
@@ -3692,136 +3747,6 @@ function initializeAresAI(sideName,options)
     aresOrienterAIArray[#aresOrienterAIArray + 1] = aresOrienterBTMain
     aresDeciderAIArray[#aresDeciderAIArray + 1] = aresDeciderBTMain
     aresActorAIArray[#aresActorAIArray + 1] = aresActorBTMain
-
-
-    --[[local merrimackSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
-    -- Doctrine Sequences
-    local offensiveDoctrineSequence = BT:make(BT.sequence,sideGuid,shortSideKey,attributes)
-    local defensiveDoctrineSequence = BT:make(BT.sequence,sideGuid,shortSideKey,attributes)
-    -- Doctrine Sequences Children
-    local offensiveDoctrineConditionalBT = BT:make(OffensiveConditionalCheck,sideGuid,shortSideKey,attributes)
-    local defensiveDoctrineConditionalBT = BT:make(DefensiveConditionalCheck,sideGuid,shortSideKey,attributes)
-    local offensiveDoctrineSeletor = BT:make(BT.select,sideGuid,shortSideKey,attributes)
-    local defensiveDoctrineSeletor = BT:make(BT.select,sideGuid,shortSideKey,attributes)
-    -- Sub Doctrine Sequences
-    local reconDoctrineSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
-    local attackDoctrineSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
-    local defendDoctrineSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
-    -- Recon Doctrine BT
-    local reconDoctrineCreateUpdateMissionBT = BT:make(ReconDoctrineCreateUpdateMissionAction,sideGuid,shortSideKey,attributes)
-    -- Attack Doctrine BT
-    local attackDoctrineCreateUpdateAirMissionBT = BT:make(AttackDoctrineCreateUpdateAirMissionAction,sideGuid,shortSideKey,attributes)
-    local attackDoctrineCreateUpdateStealthAirMissionBT = BT:make(AttackDoctrineCreateUpdateStealthAirMissionAction,sideGuid,shortSideKey,attributes)
-    local attackDoctrineCreateUpdateAEWMissionBT = BT:make(AttackDoctrineCreateUpdateAEWMissionAction,sideGuid,shortSideKey,attributes)
-    local attackDoctrineCreateUpdateTankerMissionBT = BT:make(AttackDoctrineCreateUpdateTankerMissionAction,sideGuid,shortSideKey,attributes)
-    local attackDoctrineCreateUpdateAntiSurfaceShipMissionBT = BT:make(AttackDoctrineCreateUpdateAntiSurfaceShipMissionAction,sideGuid,shortSideKey,attributes)
-    local attackDoctrineCreateUpdateSeadMissionBT = BT:make(AttackDoctrineCreateUpdateSeadMissionAction,sideGuid,shortSideKey,attributes)
-    local attackDoctrineCreateUpdateLandAttackMissionBT = BT:make(AttackDoctrineCreateUpdateLandAttackMissionAction,sideGuid,shortSideKey,attributes)
-    -- Defend Doctrine BT
-    local defendDoctrineCreateUpdateAirMissionBT = BT:make(DefendDoctrineCreateUpdateAirMissionAction,sideGuid,shortSideKey,attributes)
-    local defendTankerDoctrineCreateUpdateMissionBT = BT:make(DefendTankerDoctrineCreateUpdateMissionAction,sideGuid,shortSideKey,attributes)
-    local defendAEWDoctrineCreateUpdateMissionBT = BT:make(DefendAEWDoctrineCreateUpdateMissionAction,sideGuid,shortSideKey,attributes)
-    -- Neutral Doctrine BT
-    local neutralShipDoctrineCreateUpdateMissionBT = BT:make(NeutralShipDoctrineCreateUpdateMissionAction,sideGuid,shortSideKey,attributes)
-    local neutralSubmarineDoctrineCreateUpdateMissionBT = BT:make(NeutralSubmarineDoctrineCreateUpdateMissionAction,sideGuid,shortSideKey,attributes)
-
-    -- Build AI Tree
-    merrimackSelector:addChild(offensiveDoctrineSequence)
-    merrimackSelector:addChild(defensiveDoctrineSequence)
-    -- Offensive and Defensive Sequence
-    offensiveDoctrineSequence:addChild(offensiveDoctrineConditionalBT)
-    offensiveDoctrineSequence:addChild(offensiveDoctrineSeletor)
-    defensiveDoctrineSequence:addChild(defensiveDoctrineConditionalBT)
-    defensiveDoctrineSequence:addChild(defensiveDoctrineSeletor)
-    -- Offensive Selector
-    offensiveDoctrineSeletor:addChild(reconDoctrineSelector)
-    offensiveDoctrineSeletor:addChild(attackDoctrineSelector)
-    -- Defensive Selector
-    defensiveDoctrineSeletor:addChild(reconDoctrineSelector)
-    defensiveDoctrineSeletor:addChild(defendDoctrineSelector)
-    -- Recon Doctrine Sequence
-    reconDoctrineSelector:addChild(reconDoctrineCreateUpdateMissionBT)
-    -- Attack Doctrine Sequence
-    attackDoctrineSelector:addChild(attackDoctrineCreateUpdateAirMissionBT)
-    attackDoctrineSelector:addChild(attackDoctrineCreateUpdateStealthAirMissionBT)
-    attackDoctrineSelector:addChild(attackDoctrineCreateUpdateAEWMissionBT)
-    attackDoctrineSelector:addChild(attackDoctrineCreateUpdateTankerMissionBT)
-    attackDoctrineSelector:addChild(attackDoctrineCreateUpdateAntiSurfaceShipMissionBT)
-    attackDoctrineSelector:addChild(attackDoctrineCreateUpdateSeadMissionBT)
-    attackDoctrineSelector:addChild(attackDoctrineCreateUpdateLandAttackMissionBT)
-    attackDoctrineSelector:addChild(neutralShipDoctrineCreateUpdateMissionBT)
-    attackDoctrineSelector:addChild(neutralSubmarineDoctrineCreateUpdateMissionBT)
-    -- Defend Doctrine Sequence
-    defendDoctrineSelector:addChild(defendDoctrineCreateUpdateAirMissionBT)
-    defendDoctrineSelector:addChild(defendTankerDoctrineCreateUpdateMissionBT)
-    defendDoctrineSelector:addChild(defendAEWDoctrineCreateUpdateMissionBT)
-    defendDoctrineSelector:addChild(neutralShipDoctrineCreateUpdateMissionBT)
-    defendDoctrineSelector:addChild(neutralSubmarineDoctrineCreateUpdateMissionBT)
-    ----------------------------------------------------------------------------------------------------------------------------
-    -- Monitor Selector
-    ----------------------------------------------------------------------------------------------------------------------------
-    local monitorSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
-    -- Monitor No Fly Zones BT
-    local monitorSAMNoNavSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
-    local monitorUpdateSAMNoNavZonesBT = BT:make(MonitorUpdateSAMNoNavZonesAction,sideGuid,shortSideKey,attributes)
-    local monitorCreateSAMNoNavZonesBT = BT:make(MonitorCreateSAMNoNavZonesAction,sideGuid,shortSideKey,attributes)
-    local monitorShipNoNavSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
-    local monitorUpdateShipNoNavZonesBT = BT:make(MonitorUpdateShipNoNavZonesAction,sideGuid,shortSideKey,attributes)
-    local monitorCreateShipNoNavZonesBT = BT:make(MonitorCreateShipNoNavZonesAction,sideGuid,shortSideKey,attributes)
-    local monitorAirNoNavSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
-    local monitorUpdateAirNoNavZonesBT = BT:make(MonitorUpdateAirNoNavZonesAction,sideGuid,shortSideKey,attributes)
-    local monitorCreateAirNoNavZonesBT = BT:make(MonitorCreateAirNoNavZonesAction,sideGuid,shortSideKey,attributes)
-    -- Setup Monitor
-    monitorSelector:addChild(monitorSAMNoNavSelector)
-    monitorSelector:addChild(monitorShipNoNavSelector)
-    monitorSelector:addChild(monitorAirNoNavSelector)
-    monitorSAMNoNavSelector:addChild(monitorUpdateSAMNoNavZonesBT)
-    monitorSAMNoNavSelector:addChild(monitorCreateSAMNoNavZonesBT)
-    monitorShipNoNavSelector:addChild(monitorUpdateShipNoNavZonesBT)
-    monitorShipNoNavSelector:addChild(monitorCreateShipNoNavZonesBT)
-    monitorAirNoNavSelector:addChild(monitorUpdateAirNoNavZonesBT)
-    monitorAirNoNavSelector:addChild(monitorCreateAirNoNavZonesBT)
-    ----------------------------------------------------------------------------------------------------------------------------
-    -- Hampton Selector
-    ----------------------------------------------------------------------------------------------------------------------------
-    local hamptonSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
-    local hamptonUpdateReconBT = BT:make(HamptonUpdateUnitsInReconMissionAction,sideGuid,shortSideKey,attributes)
-    local hamptonUpdateOffAirBT = BT:make(HamptonUpdateUnitsInOffensiveAirMissionAction,sideGuid,shortSideKey,attributes)
-    local hamptonUpdateOffStealthAirBT = BT:make(HamptonUpdateUnitsInOffensiveStealthAirMissionAction,sideGuid,shortSideKey,attributes)
-    local hamptonUpdateOffAEWBT = BT:make(HamptonUpdateUnitsInOffensiveAEWMissionAction,sideGuid,shortSideKey,attributes)
-    local hamptonUpdateOffTankerBT = BT:make(HamptonUpdateUnitsInOffensiveTankerMissionAction,sideGuid,shortSideKey,attributes)
-    local hamptonUpdateOffAntiSurfBT = BT:make(HamptonUpdateUnitsInOffensiveAntiShipMissionAction,sideGuid,shortSideKey,attributes)
-    local hamptonUpdateOffSeadBT = BT:make(HamptonUpdateUnitsInOffensiveSeadMissionAction,sideGuid,shortSideKey,attributes)
-    local hamptonUpdateOffLandBT = BT:make(HamptonUpdateUnitsInOffensiveLandMissionAction,sideGuid,shortSideKey,attributes)
-    local hamptonUpdateDefAirBT = BT:make(HamptonUpdateUnitsInDefensiveAirMissionAction,sideGuid,shortSideKey,attributes)
-    local hamptonUpdateSupTankerBT = BT:make(HamptonUpdateUnitsInSupportTankerMissionAction,sideGuid,shortSideKey,attributes)
-    local hamptonUpdateSupAEWBT = BT:make(HamptonUpdateUnitsInSupportAEWMissionAction,sideGuid,shortSideKey,attributes)
-    -- Setup Hampton
-    hamptonSelector:addChild(hamptonUpdateReconBT)
-    hamptonSelector:addChild(hamptonUpdateOffAirBT)
-    hamptonSelector:addChild(hamptonUpdateOffStealthAirBT)
-    hamptonSelector:addChild(hamptonUpdateOffAEWBT)
-    hamptonSelector:addChild(hamptonUpdateOffTankerBT)
-    hamptonSelector:addChild(hamptonUpdateOffAntiSurfBT)
-    hamptonSelector:addChild(hamptonUpdateOffSeadBT)
-    hamptonSelector:addChild(hamptonUpdateOffLandBT)
-    hamptonSelector:addChild(hamptonUpdateDefAirBT)
-    hamptonSelector:addChild(hamptonUpdateSupTankerBT)
-    hamptonSelector:addChild(hamptonUpdateSupAEWBT)
-    ----------------------------------------------------------------------------------------------------------------------------
-    -- Cumberland Selector
-    ----------------------------------------------------------------------------------------------------------------------------
-    local cumberlandSelector = BT:make(BT.select,sideGuid,shortSideKey,attributes)
-    local cumberlandUpdateAirReinforceRequestsBT = BT:make(CumberlandUpdateAirReinforcementRequestsAction,sideGuid,shortSideKey,attributes)
-    -- Setup Hampton
-    cumberlandSelector:addChild(cumberlandUpdateAirReinforceRequestsBT)
-    ----------------------------------------------------------------------------------------------------------------------------
-    -- Add To Arrays
-    ----------------------------------------------------------------------------------------------------------------------------
-    commandMerrimackAIArray[#commandMerrimackAIArray + 1] = merrimackSelector
-    commandMonitorAIArray[#commandMonitorAIArray + 1] = monitorSelector
-    commandHamptonAIArray[#commandHamptonAIArray + 1] = hamptonSelector
-    commandCumberlandAIArray[#commandCumberlandAIArray + 1] = cumberlandSelector]]--
 end
 
 function updateAresAI()
