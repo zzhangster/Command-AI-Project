@@ -3477,7 +3477,32 @@ function actorUpdateUnitsInOffensiveTankerMission(args)
     determineUnitToRetreat(args.shortKey,args.guid,args.options,updatedMission.guid,missionUnits,0,200)
 end
 
-function actorUpdateUnitsInSupportAEWMission(args)
+function actorUpdateUnitsInDefensiveAirMission(args)
+    -- Local Side And Mission
+    local side = VP_GetSide({guid=args.guid})
+    local missions = persistentMemoryGetForKey(args.shortKey.."_aaw_d_miss")
+    local updatedMission = nil
+    -- Condition Check
+    if #missions == 0 then
+        return false
+    end
+    -- Loop Through Coverted HVAs Missions
+    for k, v in pairs(missions) do
+        -- Get Defense Mission
+        updatedMission = ScenEdit_GetMission(side.name,v)
+        -- Check Defense Mission
+        if updatedMission then
+            -- Find Area And Return Point
+            local missionUnits = getUnitsFromMission(side.name,updatedMission.guid)
+            -- Determine Retreat
+            determineUnitToRetreat(args.shortKey,args.guid,args.options,updatedMission.guid,missionUnits,1,100)
+            -- Determine EMCON
+            determineEmconToUnits(args.shortKey,args.options,side.name,missionUnits)
+        end
+    end
+end
+
+function actorUpdateUnitsInDefensiveAEWMission(args)
     -- Local Side And Mission
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_aew_d_miss")
@@ -3500,7 +3525,7 @@ function actorUpdateUnitsInSupportAEWMission(args)
     end
 end
 
-function actorUpdateUnitsInSupportTankerMission(args)
+function actorUpdateUnitsInDefensiveTankerMission(args)
     -- Local Side And Mission
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_tan_d_miss")
@@ -3519,31 +3544,6 @@ function actorUpdateUnitsInSupportTankerMission(args)
             local missionUnits = updatedMission.unitlist
             -- Determine Retreat
             determineUnitToRetreat(args.shortKey,args.guid,args.options,updatedMission.guid,missionUnits,0,200)
-        end
-    end
-end
-
-function actorUpdateUnitsInDefensiveAirMission(args)
-    -- Local Side And Mission
-    local side = VP_GetSide({guid=args.guid})
-    local missions = persistentMemoryGetForKey(args.shortKey.."_aaw_d_miss")
-    local updatedMission = nil
-    -- Condition Check
-    if #missions == 0 then
-        return false
-    end
-    -- Loop Through Coverted HVAs Missions
-    for k, v in pairs(missions) do
-        -- Get Defense Mission
-        updatedMission = ScenEdit_GetMission(side.name,v)
-        -- Check Defense Mission
-        if updatedMission then
-            -- Find Area And Return Point
-            local missionUnits = getUnitsFromMission(side.name,updatedMission.guid)
-            -- Determine Retreat
-            determineUnitToRetreat(args.shortKey,args.guid,args.options,updatedMission.guid,missionUnits,1,100)
-            -- Determine EMCON
-            determineEmconToUnits(args.shortKey,args.options,side.name,missionUnits)
         end
     end
 end
@@ -3668,7 +3668,7 @@ function initializeAresAI(sideName,options)
     local aresObserverBTMain = BT:make(BT.sequence,sideGuid,shortSideKey,attributes)
     local aresOrienterBTMain = BT:make(BT.select,sideGuid,shortSideKey,attributes)
     local aresDeciderBTMain = BT:make(BT.sequence,sideGuid,shortSideKey,attributes)
-    local aresActorBTMain = BT:make(BT.select,sideGuid,shortSideKey,attributes)
+    local aresActorBTMain = BT:make(BT.sequence,sideGuid,shortSideKey,attributes)
     ----------------------------------------------------------------------------------------------------------------------------
     -- Ares Observer
     ----------------------------------------------------------------------------------------------------------------------------
@@ -3753,7 +3753,29 @@ function initializeAresAI(sideName,options)
     -- Ares Actor
     ----------------------------------------------------------------------------------------------------------------------------
     local actorUpdateAirReinforcementRequestBT = BT:make(actorUpdateAirReinforcementRequest,sideGuid,shortSideKey,attributes)
+    local actorUpdateUnitsInReconMissionBT = BT:make(actorUpdateUnitsInReconMission,sideGuid,shortSideKey,attributes)
+    local actorUpdateUnitsInOffensiveAirMissionBT = BT:make(actorUpdateUnitsInOffensiveAirMission,sideGuid,shortSideKey,attributes)
+    local actorUpdateUnitsInOffensiveStealthAirMissionBT = BT:make(actorUpdateUnitsInOffensiveStealthAirMission,sideGuid,shortSideKey,attributes)
+    local actorUpdateUnitsInOffensiveSeadMissionBT = BT:make(actorUpdateUnitsInOffensiveSeadMission,sideGuid,shortSideKey,attributes)
+    local actorUpdateUnitsInOffensiveLandMissionBT = BT:make(actorUpdateUnitsInOffensiveLandMission,sideGuid,shortSideKey,attributes)
+    local actorUpdateUnitsInOffensiveAntiShipMissionBT = BT:make(actorUpdateUnitsInOffensiveAntiShipMission,sideGuid,shortSideKey,attributes)
+    local actorUpdateUnitsInOffensiveAEWMissionBT = BT:make(actorUpdateUnitsInOffensiveAEWMission,sideGuid,shortSideKey,attributes)
+    local actorUpdateUnitsInOffensiveTankerMissionBT = BT:make(actorUpdateUnitsInOffensiveTankerMission,sideGuid,shortSideKey,attributes)
+    local actorUpdateUnitsInDefensiveAirMissionBT = BT:make(actorUpdateUnitsInDefensiveAirMission,sideGuid,shortSideKey,attributes)
+    local actorUpdateUnitsInDefensiveAEWMissionBT = BT:make(actorUpdateUnitsInDefensiveAEWMission,sideGuid,shortSideKey,attributes)
+    local actorUpdateUnitsInDefensiveTankerMissionBT = BT:make(actorUpdateUnitsInDefensiveTankerMission,sideGuid,shortSideKey,attributes)
     aresActorBTMain:addChild(actorUpdateAirReinforcementRequestBT)
+    aresActorBTMain:addChild(actorUpdateUnitsInReconMissionBT)
+    aresActorBTMain:addChild(actorUpdateUnitsInOffensiveAirMissionBT)
+    aresActorBTMain:addChild(actorUpdateUnitsInOffensiveStealthAirMissionBT)
+    aresActorBTMain:addChild(actorUpdateUnitsInOffensiveSeadMissionBT)
+    aresActorBTMain:addChild(actorUpdateUnitsInOffensiveLandMissionBT)
+    aresActorBTMain:addChild(actorUpdateUnitsInOffensiveAntiShipMissionBT)
+    aresActorBTMain:addChild(actorUpdateUnitsInOffensiveAEWMissionBT)
+    aresActorBTMain:addChild(actorUpdateUnitsInOffensiveTankerMissionBT)
+    aresActorBTMain:addChild(actorUpdateUnitsInDefensiveAirMissionBT)
+    aresActorBTMain:addChild(actorUpdateUnitsInDefensiveAEWMissionBT)
+    aresActorBTMain:addChild(actorUpdateUnitsInDefensiveTankerMissionBT)
     ----------------------------------------------------------------------------------------------------------------------------
     -- Save
     ----------------------------------------------------------------------------------------------------------------------------
@@ -3768,15 +3790,15 @@ function updateAresAI()
     for k, v in pairs(aresObserverAIArray) do
         v:run()
     end
-    -- Run Observer
+    -- Run Orienter
     for k, v in pairs(aresOrienterAIArray) do
         v:run()
     end
-    -- Run Observer
+    -- Run Decider
     for k, v in pairs(aresDeciderAIArray) do
         v:run()
     end
-    -- Run Observer
+    -- Run Actor
     for k, v in pairs(aresActorAIArray) do
         v:run()
     end
