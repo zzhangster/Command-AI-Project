@@ -2062,7 +2062,7 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 function deciderOffensiveCheck(args)
     -- Print
-    ScenEdit_SpecialMessage("Stennis CSG","deciderOffensiveCheck")
+    --ScenEdit_SpecialMessage("Stennis CSG","deciderOffensiveCheck")
     -- Local Values
     local hostileStrength = getAllHostileContactStrength(args.shortKey)
     local inventoryStrength = getAllInventoryStrength(args.shortKey)
@@ -2079,7 +2079,7 @@ end
 
 function deciderDefensiveCheck(args)
     -- Print
-    ScenEdit_SpecialMessage("Stennis CSG","deciderDefensiveCheck")
+    --ScenEdit_SpecialMessage("Stennis CSG","deciderDefensiveCheck")
     -- Local Values
     local hostileStrength = getAllHostileContactStrength(args.shortKey)
     local inventoryStrength = getAllInventoryStrength(args.shortKey)
@@ -2096,7 +2096,7 @@ end
 
 function deciderOffensiveReconCreateUpdateMission(args)
     -- Print
-    ScenEdit_SpecialMessage("Stennis CSG","deciderOffensiveReconCreateUpdateMission")
+    --ScenEdit_SpecialMessage("Stennis CSG","deciderOffensiveReconCreateUpdateMission")
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
@@ -2202,7 +2202,7 @@ end
 
 function deciderOffensiveAirCreateUpdateMission(args)
     -- Print
-    ScenEdit_SpecialMessage("Stennis CSG","deciderOffensiveAirCreateUpdateMission")
+    --ScenEdit_SpecialMessage("Stennis CSG","deciderOffensiveAirCreateUpdateMission")
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_aaw_miss")
@@ -2240,7 +2240,7 @@ end
 
 function deciderOffensiveStealthAirCreateUpdateMission(args)
     -- Print
-    ScenEdit_SpecialMessage("Stennis CSG","deciderOffensiveStealthAirCreateUpdateMission")
+    --ScenEdit_SpecialMessage("Stennis CSG","deciderOffensiveStealthAirCreateUpdateMission")
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_saaw_miss")
@@ -2275,7 +2275,7 @@ end
 
 function deciderOffensiveAEWCreateUpdateMission(args)
     -- Print
-    ScenEdit_SpecialMessage("Stennis CSG","deciderOffensiveAEWCreateUpdateMission")
+    --ScenEdit_SpecialMessage("Stennis CSG","deciderOffensiveAEWCreateUpdateMission")
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_aaew_miss")
@@ -2316,7 +2316,7 @@ end
 
 function deciderOffensiveTankerCreateUpdateMission(args)
     -- Print
-    ScenEdit_SpecialMessage("Stennis CSG","deciderOffensiveTankerCreateUpdateMission")
+    --ScenEdit_SpecialMessage("Stennis CSG","deciderOffensiveTankerCreateUpdateMission")
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_atan_miss")
@@ -2362,7 +2362,7 @@ end
 
 function deciderOffensiveAntiSurfaceShipCreateUpdateMission(args)
     -- Print
-    ScenEdit_SpecialMessage("Stennis CSG","deciderOffensiveAntiSurfaceShipCreateUpdateMission")
+    --ScenEdit_SpecialMessage("Stennis CSG","deciderOffensiveAntiSurfaceShipCreateUpdateMission")
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_asuw_miss")
@@ -2398,7 +2398,7 @@ end
 
 function deciderOffensiveSeadCreateUpdateMission(args)
     -- Print
-    ScenEdit_SpecialMessage("Stennis CSG","deciderOffensiveSeadCreateUpdateMission")
+    --ScenEdit_SpecialMessage("Stennis CSG","deciderOffensiveSeadCreateUpdateMission")
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_sead_miss")
@@ -2431,7 +2431,7 @@ end
 
 function deciderOffensiveLandAttackCreateUpdateMission(args)
     -- Print
-    ScenEdit_SpecialMessage("Stennis CSG","deciderOffensiveLandAttackCreateUpdateMission")
+    --ScenEdit_SpecialMessage("Stennis CSG","deciderOffensiveLandAttackCreateUpdateMission")
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_land_miss")
@@ -2464,7 +2464,7 @@ end
 
 function deciderDefensiveAirCreateUpdateMission(args)
     -- Print
-    ScenEdit_SpecialMessage("Stennis CSG","deciderDefensiveAirCreateUpdateMission")
+    --ScenEdit_SpecialMessage("Stennis CSG","deciderDefensiveAirCreateUpdateMission")
     -- Local Side And Mission
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_aaw_d_miss")
@@ -2588,7 +2588,7 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 function deciderDefensiveTankerCreateUpdateMission(args)
     -- Print
-    ScenEdit_SpecialMessage("Stennis CSG","deciderDefensiveTankerCreateUpdateMission")
+    --ScenEdit_SpecialMessage("Stennis CSG","deciderDefensiveTankerCreateUpdateMission")
     -- Local Side And Mission
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_tan_d_miss")
@@ -2656,7 +2656,7 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 function deciderDefensiveAEWCreateUpdateMission(args)
     -- Print
-    ScenEdit_SpecialMessage("Stennis CSG","deciderDefensiveAEWCreateUpdateMission")
+    --ScenEdit_SpecialMessage("Stennis CSG","deciderDefensiveAEWCreateUpdateMission")
     -- Local Side And Mission
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_aew_d_miss")
@@ -2724,7 +2724,7 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 function deciderNeutralShipCreateUpdateMission(args)
     -- Print
-    ScenEdit_SpecialMessage("Stennis CSG","deciderNeutralShipCreateUpdateMission")
+    --ScenEdit_SpecialMessage("Stennis CSG","deciderNeutralShipCreateUpdateMission")
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_ship_sc_miss")
@@ -2777,7 +2777,7 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 function deciderNeutralSubmarineCreateUpdateMission(args)
     -- Print
-    ScenEdit_SpecialMessage("Stennis CSG","deciderNeutralSubmarineCreateUpdateMission")
+    --ScenEdit_SpecialMessage("Stennis CSG","deciderNeutralSubmarineCreateUpdateMission")
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_sub_sc_miss")
@@ -3722,6 +3722,9 @@ function initializeAresAI(sideName,options)
     local deciderDefensiveAirCreateUpdateMissionBT = BT:make(deciderDefensiveAirCreateUpdateMission,sideGuid,shortSideKey,attributes)
     local deciderDefensiveAEWCreateUpdateMissionBT = BT:make(deciderDefensiveAEWCreateUpdateMission,sideGuid,shortSideKey,attributes)
     local deciderDefensiveTankerCreateUpdateMissionBT = BT:make(deciderDefensiveTankerCreateUpdateMission,sideGuid,shortSideKey,attributes)
+    -- Neutral Behavior Tree
+    local deciderNeutralShipCreateUpdateMissionBT = BT:make(deciderNeutralShipCreateUpdateMission,sideGuid,shortSideKey,attributes)
+    local deciderNeutralSubmarineCreateUpdateMissionBT = BT:make(deciderNeutralSubmarineCreateUpdateMission,sideGuid,shortSideKey,attributes)
     -- Add Sequences
     aresDeciderBTMain:addChild(deciderNoNavZonesSequenceBT)
     aresDeciderBTMain:addChild(deciderDoctrineSelectorBT)
@@ -3744,11 +3747,15 @@ function initializeAresAI(sideName,options)
     deciderAttackDoctrineSequenceBT:addChild(deciderOffensiveSeadCreateUpdateMissionBT)
     deciderAttackDoctrineSequenceBT:addChild(deciderOffensiveLandAttackCreateUpdateMissionBT)
     deciderAttackDoctrineSequenceBT:addChild(deciderOffensiveAntiSurfaceShipCreateUpdateMissionBT)
+    deciderAttackDoctrineSequenceBT:addChild(deciderNeutralShipCreateUpdateMissionBT)
+    deciderAttackDoctrineSequenceBT:addChild(deciderNeutralSubmarineCreateUpdateMissionBT)
     -- Setup Defend Doctrine Sequence
     deciderDefendDoctrineSequenceBT:addChild(deciderDefensiveCheckBT)
     deciderDefendDoctrineSequenceBT:addChild(deciderDefensiveAirCreateUpdateMissionBT)
     deciderDefendDoctrineSequenceBT:addChild(deciderDefensiveAEWCreateUpdateMissionBT)
     deciderDefendDoctrineSequenceBT:addChild(deciderDefensiveTankerCreateUpdateMissionBT)
+    deciderDefendDoctrineSequenceBT:addChild(deciderNeutralShipCreateUpdateMissionBT)
+    deciderDefendDoctrineSequenceBT:addChild(deciderNeutralSubmarineCreateUpdateMissionBT)
     ----------------------------------------------------------------------------------------------------------------------------
     -- Ares Actor
     ----------------------------------------------------------------------------------------------------------------------------
