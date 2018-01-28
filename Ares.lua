@@ -3802,28 +3802,6 @@ function updateAresAI()
     for k, v in pairs(aresActorAIArray) do
         v:run()
     end
-    --[[-- Reset All Inventories
-    ResetAllInventoriesAndContacts()
-    -- Update Inventories And Update Merrimack AI
-    for k, v in pairs(commandMerrimackAIArray) do
-        -- Update AI Inventories
-        UpdateAIInventories(v.guid,v.shortKey)
-        -- Update AO
-        UpdateAIAreaOfOperations(v.guid,v.shortKey)
-        v:run()
-    end
-    -- Update Monitor AI
-    for k, v in pairs(commandMonitorAIArray) do
-        v:run()
-    end
-    -- Update Hampton AI
-    for k, v in pairs(commandHamptonAIArray) do
-        v:run()
-    end
-    -- Update Cumberland AI
-    for k, v in pairs(commandCumberlandAIArray) do
-        v:run()
-    end]]--
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
