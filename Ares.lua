@@ -1865,6 +1865,8 @@ function observerActionUpdateHVAInventories(args)
     local currentTime = ScenEdit_CurrentTime()
     local shipInventory = side:unitsBy("2")
     local landInventory = side:unitsBy("4")
+    -- Remove
+    localMemoryRemoveFromKey(sideShortKey.."_def_hva")
     -- Check Ship Inventory
     if shipInventory then
         local savedInventory = {}
@@ -2261,7 +2263,7 @@ function deciderOffensiveStealthAirCreateUpdateMission(args)
             persistentMemoryAddToKey(args.shortKey.."_saaw_miss",createdUpdatedMission.name)
         else
             createdUpdatedMission = ScenEdit_GetMission(side.name,missions[1])
-            linkedMissionUnits = GetUnitsFromMission(side.name,linkedMission.guid)   
+            linkedMissionUnits = getUnitsFromMission(side.name,linkedMission.guid)   
             totalAirUnitsToAssign = math.floor(#linkedMissionUnits/4)
             if totalAirUnitsToAssign % 2 == 1 then
                 totalAirUnitsToAssign = totalAirUnitsToAssign + 1
@@ -2291,7 +2293,7 @@ function deciderOffensiveAEWCreateUpdateMission(args)
         linkedMission = ScenEdit_GetMission(side.name,linkedMissions[1])
         linkedMissionPoints = ScenEdit_GetReferencePoints({side=side.name, area={linkedMission.name.."_rp_1",linkedMission.name.."_rp_2",linkedMission.name.."_rp_3",linkedMission.name.."_rp_4"}})
         linkedMissionCenterPoint = midPointCoordinate(linkedMissionPoints[1].latitude,linkedMissionPoints[1].longitude,linkedMissionPoints[3].latitude,linkedMissionPoints[3].longitude)
-        patrolBoundingBox = findBoundingBoxForGivenLocations({MakeLatLong(linkedMissionCenterPoint.latitude,linkedMissionCenterPoint.longitude)},1.0)
+        patrolBoundingBox = findBoundingBoxForGivenLocations({makeLatLong(linkedMissionCenterPoint.latitude,linkedMissionCenterPoint.longitude)},1.0)
         -- Add Missions
         if #missions == 0 then
             rp1 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_1", lat=patrolBoundingBox[1].latitude, lon=patrolBoundingBox[1].longitude})
@@ -2334,7 +2336,7 @@ function deciderOffensiveTankerCreateUpdateMission(args)
         linkedMission = ScenEdit_GetMission(side.name,linkedMissions[1])
         linkedMissionPoints = ScenEdit_GetReferencePoints({side=side.name, area={linkedMission.name.."_rp_1",linkedMission.name.."_rp_2",linkedMission.name.."_rp_3",linkedMission.name.."_rp_4"}})
         linkedMissionCenterPoint = midPointCoordinate(linkedMissionPoints[1].latitude,linkedMissionPoints[1].longitude,linkedMissionPoints[3].latitude,linkedMissionPoints[3].longitude)
-        patrolBoundingBox = findBoundingBoxForGivenLocations({MakeLatLong(linkedMissionCenterPoint.latitude,linkedMissionCenterPoint.longitude)},1.0)
+        patrolBoundingBox = findBoundingBoxForGivenLocations({makeLatLong(linkedMissionCenterPoint.latitude,linkedMissionCenterPoint.longitude)},1.0)
         -- Add Missions
         if #missions == 0 then
             rp1 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_atan_miss_"..tostring(missionNumber).."_rp_1", lat=patrolBoundingBox[1].latitude, lon=patrolBoundingBox[1].longitude})
@@ -2351,7 +2353,7 @@ function deciderOffensiveTankerCreateUpdateMission(args)
             ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_atan_miss_"..tostring(missionNumber).."_rp_2", lat=patrolBoundingBox[2].latitude, lon=patrolBoundingBox[2].longitude})
             ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_atan_miss_"..tostring(missionNumber).."_rp_3", lat=patrolBoundingBox[3].latitude, lon=patrolBoundingBox[3].longitude})
             ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_atan_miss_"..tostring(missionNumber).."_rp_4", lat=patrolBoundingBox[4].latitude, lon=patrolBoundingBox[4].longitude})
-            linkedMissionUnits = GetUnitsFromMission(side.name,linkedMission.guid)   
+            linkedMissionUnits = getUnitsFromMission(side.name,linkedMission.guid)   
             totalAirUnitsToAssign = math.floor(#linkedMissionUnits/4)
             addReinforcementRequest(args.shortKey,args.options,side.name,createdUpdatedMission.name,totalAirUnitsToAssign)
         end
@@ -2972,7 +2974,7 @@ function actorUpdateAirReinforcementRequest(args)
     local aewDefenseMissions = persistentMemoryGetForKey(args.shortKey.."_aew_d_miss")
     -- Local Reinforcements Requests
     local reinforcementRequests = getReinforcementRequests(args.shortKey)
-    local determinedModifier = args.options.determined * 2 / (args.options.determined + args.options.reserved)
+    -- local determinedModifier = args.options.determined * 2 / (args.options.determined + args.options.reserved)
     -- Reinforce Recon Missions
     for k,v in pairs(reconMissions) do
         local mission = ScenEdit_GetMission(side.name,v)
@@ -3035,7 +3037,7 @@ function actorUpdateAirReinforcementRequest(args)
         -- Determine If There Is An Reinforcement Request
         if reinforceNumber then
             -- Unassign Units
-            DetermineUnitsToUnAssign(args.shortKey,side.name,mission.guid)
+            determineUnitsToUnAssign(args.shortKey,side.name,mission.guid)
             -- Reinforce With Free Fighter Units
             if not missionReinforced then
                 reinforceInventory = getFreeAirFighterInventory(args.shortKey)
@@ -3747,6 +3749,11 @@ function initializeAresAI(sideName,options)
     deciderDefendDoctrineSequenceBT:addChild(deciderDefensiveAirCreateUpdateMissionBT)
     deciderDefendDoctrineSequenceBT:addChild(deciderDefensiveAEWCreateUpdateMissionBT)
     deciderDefendDoctrineSequenceBT:addChild(deciderDefensiveTankerCreateUpdateMissionBT)
+    ----------------------------------------------------------------------------------------------------------------------------
+    -- Ares Actor
+    ----------------------------------------------------------------------------------------------------------------------------
+    local actorUpdateAirReinforcementRequestBT = BT:make(actorUpdateAirReinforcementRequest,sideGuid,shortSideKey,attributes)
+    aresActorBTMain:addChild(actorUpdateAirReinforcementRequestBT)
     ----------------------------------------------------------------------------------------------------------------------------
     -- Save
     ----------------------------------------------------------------------------------------------------------------------------
