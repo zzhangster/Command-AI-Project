@@ -543,9 +543,11 @@ function getUnitsFromMission(sideName,missionGuid)
     if mission then
         for k,v in pairs(mission.unitlist) do
             local unit = ScenEdit_GetUnit({side=sideName, guid=v})
-            if unitKeyValue[unit.guid] == nil then
-                missionUnits[#missionUnits + 1] = unit.guid
-                unitKeyValue[unit.guid] = ""
+            if unit then
+                if unitKeyValue[unit.guid] == nil then
+                    missionUnits[#missionUnits + 1] = unit.guid
+                    unitKeyValue[unit.guid] = ""
+                end
             end
         end
     end
@@ -607,10 +609,12 @@ function determineThreatRangeByUnitDatabaseId(sideGuid,contactGuid)
     end
     if range == 0 and contact.side then
         local unit = ScenEdit_GetUnit({side=contact.side.name, guid=contact.actualunitid})
-        if unit.autodetectable then
-            local foundRange = ScenEdit_GetKeyValue("thr_"..tostring(unit.dbid))
-            if foundRange ~= "" then
-                range = tonumber(foundRange)
+        if unit then
+            if unit.autodetectable then
+                local foundRange = ScenEdit_GetKeyValue("thr_"..tostring(unit.dbid))
+                if foundRange ~= "" then
+                    range = tonumber(foundRange)
+                end
             end
         end
     end
@@ -1414,11 +1418,13 @@ function determineUnitsToAssign(sideShortKey,sideName,missionGuid,totalRequiredU
                 break
             end
             local unit = ScenEdit_GetUnit({side=sideName, guid=v})
-            if not getAllocatedUnitExists(sideShortKey,unit.guid) then
-                if (not determineUnitRTB(sideName,v) and unit.speed > 0) or (tostring(unit.readytime) == "0" and unit.speed == 0) then
-                    totalRequiredUnits = totalRequiredUnits - 1
-                    ScenEdit_AssignUnitToMission(v,mission.guid)
-                    addAllocatedUnit(sideShortKey,unit.guid)
+            if unit then
+                if not getAllocatedUnitExists(sideShortKey,unit.guid) then
+                    if (not determineUnitRTB(sideName,v) and unit.speed > 0) or (tostring(unit.readytime) == "0" and unit.speed == 0) then
+                        totalRequiredUnits = totalRequiredUnits - 1
+                        ScenEdit_AssignUnitToMission(v,mission.guid)
+                        addAllocatedUnit(sideShortKey,unit.guid)
+                    end
                 end
             end
         end
@@ -1441,7 +1447,7 @@ function determineEmconToUnits(sideShortKey,sideAttributes,sideName,unitGuidList
     local currentTime = ScenEdit_CurrentTime ()
     for k,v in pairs(unitGuidList) do
         local unit = ScenEdit_GetUnit({side=sideName, guid=v})
-        if not unit.firingAt then
+        if unit and not unit.firingAt then
             if (emconChangeTime - currentTime) <= 0 then
                 if emconChangeState == "" or emconChangeState == "Active" then
                     ScenEdit_SetKeyValue(sideShortKey.."_emcon_chg_st","Passive")
@@ -1453,7 +1459,7 @@ function determineEmconToUnits(sideShortKey,sideAttributes,sideName,unitGuidList
             end
             for k1,v1 in pairs(busyAEWInventory) do
                 local aewUnit = ScenEdit_GetUnit({side=sideName, guid=v1})
-                if aewUnit.speed > 0 and aewUnit.altitude > 0 then
+                if aewUnit and aewUnit.speed > 0 and aewUnit.altitude > 0 then
                     if Tool_Range(v1,v) < 180 then
                         ScenEdit_SetEMCON("Unit",v,"Radar=Passive")
                     end
@@ -1471,25 +1477,27 @@ function determineUnitToRetreat(sideShortKey,sideGuid,sideAttributes,missionGuid
     local missionUnits = getUnitsFromMission(side.name,missionGuid)
     for k,v in pairs(unitGuidList) do
         local missionUnit = ScenEdit_GetUnit({side=side.name, guid=v})
-        local unitRetreatPoint = {}
-        if zoneType == 0 then
-            unitRetreatPoint = getAllNoNavZoneThatContainsUnit(sideGuid,sideShortKey,sideAttributes,missionUnit.guid,retreatRange)
-        elseif zoneType == 1 then
-            unitRetreatPoint = getSAMAndShipNoNavZoneThatContainsUnit(sideGuid,sideShortKey,sideAttributes,missionUnit.guid)
-        elseif zoneType == 2 then
-            unitRetreatPoint = getAirAndShipNoNavZoneThatContainsUnit(sideGuid,sideShortKey,sideAttributes,missionUnit.guid,retreatRange)
-        elseif zoneType == 3 then
-            unitRetreatPoint = getAirAndSAMNoNavZoneThatContainsUnit(sideGuid,sideShortKey,sideAttributes,missionUnit.guid,retreatRange)
-        else
-            unitRetreatPoint = nil
-        end
-        if unitRetreatPoint ~= nil and not determineUnitRTB(side.name,missionUnit.guid) then
-            ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course = "no" })
-            missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
-            missionUnit.manualSpeed = unitRetreatPoint.speed
-        else
-            ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course = "yes" })
-            missionUnit.manualSpeed = "OFF"
+        if missionUnit then
+            local unitRetreatPoint = {}
+            if zoneType == 0 then
+                unitRetreatPoint = getAllNoNavZoneThatContainsUnit(sideGuid,sideShortKey,sideAttributes,missionUnit.guid,retreatRange)
+            elseif zoneType == 1 then
+                unitRetreatPoint = getSAMAndShipNoNavZoneThatContainsUnit(sideGuid,sideShortKey,sideAttributes,missionUnit.guid)
+            elseif zoneType == 2 then
+                unitRetreatPoint = getAirAndShipNoNavZoneThatContainsUnit(sideGuid,sideShortKey,sideAttributes,missionUnit.guid,retreatRange)
+            elseif zoneType == 3 then
+                unitRetreatPoint = getAirAndSAMNoNavZoneThatContainsUnit(sideGuid,sideShortKey,sideAttributes,missionUnit.guid,retreatRange)
+            else
+                unitRetreatPoint = nil
+            end
+            if unitRetreatPoint ~= nil and not determineUnitRTB(side.name,missionUnit.guid) then
+                ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course = "no" })
+                missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
+                missionUnit.manualSpeed = unitRetreatPoint.speed
+            else
+                ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course = "yes" })
+                missionUnit.manualSpeed = "OFF"
+            end
         end
     end
 end
@@ -1501,6 +1509,9 @@ function getAirNoNavZoneThatContaintsUnit(sideGuid,shortSideKey,sideAttributes,u
     local unknownAirContacts = getUnknownAirContacts(shortSideKey)
     --local reservedModifier = sideAttributes.reserved * 2 / (sideAttributes.determined + sideAttributes.reserved)
     local desiredRange = range --* reservedModifier
+    if not unit then
+        return nil
+    end
     for k,v in pairs(hostileAirContacts) do
         local contact = ScenEdit_GetContact({side=side.name, guid=v})
         if contact then
@@ -1532,6 +1543,9 @@ function getSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,un
     local zones = persistentMemoryGetForKey(shortSideKey.."_sam_ex_zone")
     --local reservedModifier = sideAttributes.reserved * 2 / (sideAttributes.determined + sideAttributes.reserved)
     local zoneReferencePoints = ScenEdit_GetReferencePoints({side=side.name, area=zones})
+    if not unit then
+        return nil
+    end
     for k,v in pairs(zoneReferencePoints) do
         local currentRange = Tool_Range({latitude=v.latitude,longitude=v.longitude},unitGuid)
         local desiredRange = tonumber(v.name) --* reservedModifier
@@ -1551,6 +1565,9 @@ function getShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,u
     local zones = persistentMemoryGetForKey(shortSideKey.."_ship_ex_zone")
     --local reservedModifier = sideAttributes.reserved * 2 / (sideAttributes.determined + sideAttributes.reserved)
     local zoneReferencePoints = ScenEdit_GetReferencePoints({side=side.name, area=zones})
+    if not unit then
+        return nil
+    end
     for k,v in pairs(zoneReferencePoints) do
         local currentRange = Tool_Range({latitude=v.latitude,longitude=v.longitude},unitGuid)
         local desiredRange = tonumber(v.name) --* reservedModifier
@@ -1569,6 +1586,9 @@ function getEmergencyMissileNoNavZoneThatContainsUnit(sideGuid,shortSideKey,side
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
     local hostileMissilesContacts = getHostileWeaponContacts(shortSideKey)
     --local reservedModifier = sideAttributes.reserved * 2 / (sideAttributes.determined + sideAttributes.reserved)
+    if not unit then
+        return nil
+    end
     for k,v in pairs(hostileMissilesContacts) do
         local currentRange = Tool_Range(v,unitGuid)
         local contact = ScenEdit_GetContact({side=side.name, guid=v})
@@ -1692,64 +1712,69 @@ function observerActionUpdateAirInventories(args)
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
     local currentTime = ScenEdit_CurrentTime()
-    local aircraftInventory = side:unitsBy("1")
-    -- Clear Inventory
-    localMemoryInventoryRemoveFromKey(sideShortKey.."_saved_air_inventory")
+    local previousTime = getTimeStampForKey(sideShortKey.."_update_air_inventory_ts")
     -- Check Inventory
-    if aircraftInventory then
-        local savedInventory = {}
-        for k, v in pairs(aircraftInventory) do
-            -- Local Values
-            local unit = ScenEdit_GetUnit({side=side.name, guid=v.guid})
-            local unitType = "atk"
-            local unitStatus = "unav"
-            -- Get Status
-            if unit.mission == nil and unit.loadoutdbid ~= nil and unit.loadoutdbid ~= 3 and unit.loadoutdbid ~= 4 and tostring(unit.readytime) == "0" then
-                unitStatus = "free"
-            elseif unit.mission ~= nil and unit.loadoutdbid ~= nil and unit.loadoutdbid ~= 3 and unit.loadoutdbid ~= 4 then
-                unitStatus = "busy"
+    if (currentTime - previousTime > 30) then
+        local aircraftInventory = side:unitsBy("1")
+        if aircraftInventory then
+            local savedInventory = {}
+            localMemoryInventoryRemoveFromKey(sideShortKey.."_saved_air_inventory")
+            for k, v in pairs(aircraftInventory) do
+                -- Local Values
+                local unit = ScenEdit_GetUnit({side=side.name, guid=v.guid})
+                local unitType = "atk"
+                local unitStatus = "unav"
+                -- Get Status
+                if unit.mission == nil and unit.loadoutdbid ~= nil and unit.loadoutdbid ~= 3 and unit.loadoutdbid ~= 4 and tostring(unit.readytime) == "0" then
+                    unitStatus = "free"
+                elseif unit.mission ~= nil and unit.loadoutdbid ~= nil and unit.loadoutdbid ~= 3 and unit.loadoutdbid ~= 4 then
+                    unitStatus = "busy"
+                end
+                -- Fighter
+                if unit.subtype == "2001" then
+                    unitType = determineRoleFromLoadOutDatabase(unit.loadoutdbid,"fig")
+                -- Multirole
+                elseif unit.subtype == "2002" then
+                    unitType = determineRoleFromLoadOutDatabase(unit.loadoutdbid,"mul")
+                -- Attacker
+                elseif unit.subtype == "3001" then
+                    unitType = determineRoleFromLoadOutDatabase(unit.loadoutdbid,"atk")
+                -- SEAD
+                elseif unit.subtype == "4001" then
+                    unitType = determineRoleFromLoadOutDatabase(unit.loadoutdbid,"sead")
+                -- AEW
+                elseif unit.subtype == "4002" then
+                    unitType = determineRoleFromLoadOutDatabase(unit.loadoutdbid,"aew")
+                -- ASW
+                elseif unit.subtype == "6002" then
+                    unitType = determineRoleFromLoadOutDatabase(unit.loadoutdbid,"asw")
+                -- Recon
+                elseif unit.subtype == "7003" then
+                    unitType = determineRoleFromLoadOutDatabase(unit.loadoutdbid,"rec")
+                -- Tanker
+                elseif unit.subtype == "8001" then
+                    unitType = determineRoleFromLoadOutDatabase(unit.loadoutdbid,"tan")
+                -- UAV
+                elseif unit.subtype == "8201" then
+                    unitType = determineRoleFromLoadOutDatabase(unit.loadoutdbid,"uav")
+                -- UCAV
+                elseif unit.subtype == "8002" then
+                    unitType = determineRoleFromLoadOutDatabase(unit.loadoutdbid,"ucav")
+                end
+                -- Add To Memory
+                local stringKey = sideShortKey.."_"..unitType.."_"..unitStatus
+                local stringArray = savedInventory[stringKey]
+                if not stringArray then
+                    stringArray = {}
+                end
+                stringArray[#stringArray + 1] = unit.guid
+                savedInventory[stringKey] = stringArray
             end
-            -- Fighter
-            if unit.subtype == "2001" then
-                unitType = determineRoleFromLoadOutDatabase(unit.loadoutdbid,"fig")
-            -- Multirole
-            elseif unit.subtype == "2002" then
-                unitType = determineRoleFromLoadOutDatabase(unit.loadoutdbid,"mul")
-            -- Attacker
-            elseif unit.subtype == "3001" then
-                unitType = determineRoleFromLoadOutDatabase(unit.loadoutdbid,"atk")
-            -- SEAD
-            elseif unit.subtype == "4001" then
-                unitType = determineRoleFromLoadOutDatabase(unit.loadoutdbid,"sead")
-            -- AEW
-            elseif unit.subtype == "4002" then
-                unitType = determineRoleFromLoadOutDatabase(unit.loadoutdbid,"aew")
-            -- ASW
-            elseif unit.subtype == "6002" then
-                unitType = determineRoleFromLoadOutDatabase(unit.loadoutdbid,"asw")
-            -- Recon
-            elseif unit.subtype == "7003" then
-                unitType = determineRoleFromLoadOutDatabase(unit.loadoutdbid,"rec")
-            -- Tanker
-            elseif unit.subtype == "8001" then
-                unitType = determineRoleFromLoadOutDatabase(unit.loadoutdbid,"tan")
-            -- UAV
-            elseif unit.subtype == "8201" then
-                unitType = determineRoleFromLoadOutDatabase(unit.loadoutdbid,"uav")
-            -- UCAV
-            elseif unit.subtype == "8002" then
-                unitType = determineRoleFromLoadOutDatabase(unit.loadoutdbid,"ucav")
-            end
-            -- Add To Memory
-            local stringKey = sideShortKey.."_"..unitType.."_"..unitStatus
-            local stringArray = savedInventory[stringKey]
-            if not stringArray then
-                stringArray = {}
-            end
-            stringArray[#stringArray + 1] = unit.guid
-            savedInventory[stringKey] = stringArray
+            -- Save Memory Inventory And Time Stamp
+            localMemoryInventoryAddToKey(sideShortKey.."_saved_air_inventory",savedInventory)
         end
-        localMemoryInventoryAddToKey(sideShortKey.."_saved_air_inventory",savedInventory)
+        -- Save Time Stamp
+        setTimeStampForKey(sideShortKey.."_update_air_inventory_ts",currentTime)
     end
 end
 
@@ -1758,31 +1783,36 @@ function observerActionUpdateSurfaceInventories(args)
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
     local currentTime = ScenEdit_CurrentTime()
-    local shipInventory = side:unitsBy("2")
-    -- Clear Inventory
-    localMemoryInventoryRemoveFromKey(sideShortKey.."_saved_ship_inventory")
-    -- Check Inventory
-    if shipInventory then
-        local savedInventory = {}
-        for k, v in pairs(shipInventory) do
-            -- Local Values
-            local unit = ScenEdit_GetUnit({side=side.name, guid=v.guid})
-            local unitType = "surf"
-            local unitStatus = "busy"
-            -- Check Status
-            if unit.mission == nil then
-                unitStatus = "free"
-            end 
-            -- Add To Memory
-            local stringKey = sideShortKey.."_"..unitType.."_"..unitStatus
-            local stringArray = savedInventory[stringKey]
-            if not stringArray then
-                stringArray = {}
+    local previousTime = getTimeStampForKey(sideShortKey.."_update_ship_inventory_ts")
+    -- Check Time
+    if ((currentTime - previousTime) > 30 or currentTime == previousTime) then
+        local shipInventory = side:unitsBy("2")
+        if shipInventory then
+            local savedInventory = {}
+            localMemoryInventoryRemoveFromKey(sideShortKey.."_saved_ship_inventory")
+            for k, v in pairs(shipInventory) do
+                -- Local Values
+                local unit = ScenEdit_GetUnit({side=side.name, guid=v.guid})
+                local unitType = "surf"
+                local unitStatus = "busy"
+                -- Check Status
+                if unit.mission == nil then
+                    unitStatus = "free"
+                end 
+                -- Add To Memory
+                local stringKey = sideShortKey.."_"..unitType.."_"..unitStatus
+                local stringArray = savedInventory[stringKey]
+                if not stringArray then
+                    stringArray = {}
+                end
+                stringArray[#stringArray + 1] = unit.guid
+                savedInventory[stringKey] = stringArray
             end
-            stringArray[#stringArray + 1] = unit.guid
-            savedInventory[stringKey] = stringArray
+            -- Save Memory Inventory And Time Stamp
+            localMemoryInventoryAddToKey(sideShortKey.."_saved_ship_inventory",savedInventory)
         end
-        localMemoryInventoryAddToKey(sideShortKey.."_saved_ship_inventory",savedInventory)
+        -- Save Time Stamp
+        setTimeStampForKey(sideShortKey.."_update_ship_inventory_ts",currentTime)
     end
 end
 
@@ -1791,31 +1821,36 @@ function observerActionUpdateSubmarineInventories(args)
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
     local currentTime = ScenEdit_CurrentTime()
-    local submarineInventory = side:unitsBy("3")
-    -- Clear Inventory
-    localMemoryInventoryRemoveFromKey(sideShortKey.."_saved_sub_inventory")
-    -- Check Inventory
-    if submarineInventory then
-        local savedInventory = {}
-        for k, v in pairs(submarineInventory) do
-            -- Local Values
-            local unit = ScenEdit_GetUnit({side=side.name, guid=v.guid})
-            local unitType = "sub"
-            local unitStatus = "busy"
-            -- Check Status
-            if unit.mission == nil then
-                unitStatus = "free"
+    local previousTime = getTimeStampForKey(sideShortKey.."_update_sub_inventory_ts")
+    -- Check Time
+    if ((currentTime - previousTime) > 60 * 2 or currentTime == previousTime) then
+        local submarineInventory = side:unitsBy("3")
+        if submarineInventory then
+            local savedInventory = {}
+            localMemoryInventoryRemoveFromKey(sideShortKey.."_saved_sub_inventory")
+            for k, v in pairs(submarineInventory) do
+                -- Local Values
+                local unit = ScenEdit_GetUnit({side=side.name, guid=v.guid})
+                local unitType = "sub"
+                local unitStatus = "busy"
+                -- Check Status
+                if unit.mission == nil then
+                    unitStatus = "free"
+                end
+                -- Add To Memory
+                local stringKey = sideShortKey.."_"..unitType.."_"..unitStatus
+                local stringArray = savedInventory[stringKey]
+                if not stringArray then
+                    stringArray = {}
+                end
+                stringArray[#stringArray + 1] = unit.guid
+                savedInventory[stringKey] = stringArray
             end
-            -- Add To Memory
-            local stringKey = sideShortKey.."_"..unitType.."_"..unitStatus
-            local stringArray = savedInventory[stringKey]
-            if not stringArray then
-                stringArray = {}
-            end
-            stringArray[#stringArray + 1] = unit.guid
-            savedInventory[stringKey] = stringArray
+            -- Save Memory Inventory And Time Stamp
+            localMemoryInventoryAddToKey(sideShortKey.."_saved_sub_inventory",savedInventory)
         end
-        localMemoryInventoryAddToKey(sideShortKey.."_saved_sub_inventory",savedInventory)
+        -- Save Time Stamp
+        setTimeStampForKey(sideShortKey.."_update_sub_inventory_ts",currentTime)
     end
 end
 
@@ -1824,37 +1859,44 @@ function observerActionUpdateLandInventories(args)
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
     local currentTime = ScenEdit_CurrentTime()
-    local landInventory = side:unitsBy("4")
-    -- Clear Inventory
-    localMemoryInventoryRemoveFromKey(sideShortKey.."_saved_land_inventory")
-    -- Check Inventory
-    if landInventory then
-        local savedInventory = {}
-        for k, v in pairs(landInventory) do
-            -- Local Values
-            local unit = ScenEdit_GetUnit({side=side.name, guid=v.guid})
-            local unitType = "land"
-            local unitStatus = "busy"
-            -- Check Status
-            if unit.mission == nil then
-                unitStatus = "free"
+    local previousTime = getTimeStampForKey(sideShortKey.."_update_land_inventory_ts")
+    -- Check Time
+    if ((currentTime - previousTime) > 60 * 5 or currentTime == previousTime) then
+        local landInventory = side:unitsBy("4")
+        -- Loop Through
+        if landInventory then
+            local savedInventory = {}
+            localMemoryInventoryRemoveFromKey(sideShortKey.."_saved_land_inventory")
+            -- Loop
+            for k, v in pairs(landInventory) do
+                -- Local Values
+                local unit = ScenEdit_GetUnit({side=side.name, guid=v.guid})
+                local unitType = "land"
+                local unitStatus = "busy"
+                -- Check Status
+                if unit.mission == nil then
+                    unitStatus = "free"
+                end
+                -- Save Unit As HVA (Airport)
+                if unit.subtype == "9001" then
+                    unitType = "base"
+                elseif unit.subtype == "5001" then
+                    unitType = "sam"
+                end
+                -- Add To Memory
+                local stringKey = sideShortKey.."_"..unitType.."_"..unitStatus
+                local stringArray = savedInventory[stringKey]
+                if not stringArray then
+                    stringArray = {}
+                end
+                stringArray[#stringArray + 1] = unit.guid
+                savedInventory[stringKey] = stringArray
             end
-            -- Save Unit As HVA (Airport)
-            if unit.subtype == "9001" then
-                unitType = "base"
-            elseif unit.subtype == "5001" then
-                unitType = "sam"
-            end
-            -- Add To Memory
-            local stringKey = sideShortKey.."_"..unitType.."_"..unitStatus
-            local stringArray = savedInventory[stringKey]
-            if not stringArray then
-                stringArray = {}
-            end
-            stringArray[#stringArray + 1] = unit.guid
-            savedInventory[stringKey] = stringArray
+            -- Save Memory Inventory And Time Stamp
+            localMemoryInventoryAddToKey(sideShortKey.."_saved_land_inventory",savedInventory)
         end
-        localMemoryInventoryAddToKey(sideShortKey.."_saved_land_inventory",savedInventory)
+        -- Reset Time
+        setTimeStampForKey(sideShortKey.."_update_land_inventory_ts",currentTime)
     end
 end
 
@@ -1862,41 +1904,46 @@ function observerActionUpdateHVAInventories(args)
     -- Local Variables
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
-    local currentTime = ScenEdit_CurrentTime()
     local shipInventory = side:unitsBy("2")
     local landInventory = side:unitsBy("4")
-    -- Remove
-    localMemoryRemoveFromKey(sideShortKey.."_def_hva")
-    -- Check Ship Inventory
-    if shipInventory then
-        local savedInventory = {}
-        for k, v in pairs(shipInventory) do
-            -- Local Values
-            local unit = ScenEdit_GetUnit({side=side.name, guid=v.guid})
-            -- Save Unit As HVT (Carriers)
-            if unit.subtype == "2001" or unit.subtype == "2008" then
-                localMemoryAddToKey(sideShortKey.."_def_hva",unit.guid)
-            end
-        end
-    end
-    if landInventory then
-        local savedInventory = {}
-        local savedDefHVT = {}
-        for k, v in pairs(landInventory) do
-            -- Local Values
-            local unit = ScenEdit_GetUnit({side=side.name, guid=v.guid})
-            -- Determine And Add HVA
-            if determineHVAByUnitDatabaseId(sideShortKey,unit.guid,unit.dbid) then
-                local leadGuid = unit.guid
-                if unit.group then
-                    leadGuid = unit.group.lead
-                end
-                if not savedDefHVT[leadGuid] then
+    local currentTime = ScenEdit_CurrentTime()
+    local previousTime = getTimeStampForKey(sideShortKey.."_update_hva_inventory_ts")
+    if ((currentTime - previousTime) > 60 * 5 or currentTime == previousTime) then
+        -- Remove
+        localMemoryRemoveFromKey(sideShortKey.."_def_hva")
+        -- Check Ship Inventory
+        if shipInventory then
+            local savedInventory = {}
+            for k, v in pairs(shipInventory) do
+                -- Local Values
+                local unit = ScenEdit_GetUnit({side=side.name, guid=v.guid})
+                -- Save Unit As HVT (Carriers)
+                if unit.subtype == "2001" or unit.subtype == "2008" then
                     localMemoryAddToKey(sideShortKey.."_def_hva",unit.guid)
-                    savedDefHVT[leadGuid] = leadGuid
                 end
             end
         end
+        if landInventory then
+            local savedInventory = {}
+            local savedDefHVT = {}
+            for k, v in pairs(landInventory) do
+                -- Local Values
+                local unit = ScenEdit_GetUnit({side=side.name, guid=v.guid})
+                -- Determine And Add HVA
+                if determineHVAByUnitDatabaseId(sideShortKey,unit.guid,unit.dbid) then
+                    local leadGuid = unit.guid
+                    if unit.group then
+                        leadGuid = unit.group.lead
+                    end
+                    if not savedDefHVT[leadGuid] then
+                        localMemoryAddToKey(sideShortKey.."_def_hva",unit.guid)
+                        savedDefHVT[leadGuid] = leadGuid
+                    end
+                end
+            end
+        end
+        -- Save Memory Inventory And Time Stamp
+        setTimeStampForKey(sideShortKey.."_update_hva_inventory_ts",currentTime)
     end
 end
 
@@ -2743,30 +2790,32 @@ function deciderNeutralShipCreateUpdateMission(args)
             local unit = ScenEdit_GetUnit({side=side.name, guid=v})
             local assignedGuid = v
             local boundingBox = {}
-            -- Assigned Guid
-            if unit.group then
-                assignedGuid = unit.group.guid
-            end
-            -- Not Found Create Mission
-            if not allocatedUnits[assignedGuid] then
-                -- Allocated Unit
-                allocatedUnits[assignedGuid] = assignedGuid
-                -- Create Defense Bounding Box
-                boundingBox = findBoundingBoxForGivenLocations({makeLatLong(unit.latitude,unit.longitude)},1)
-                -- Add Reference Points
-                rp1 = ScenEdit_AddReferencePoint({side=side.name,name=args.shortKey.."_ship_sc_miss_"..tostring(missionNumber).."_rp_1",lat=boundingBox[1].latitude,lon=boundingBox[1].longitude,relativeto=unit.guid})
-                rp2 = ScenEdit_AddReferencePoint({side=side.name,name=args.shortKey.."_ship_sc_miss_"..tostring(missionNumber).."_rp_2",lat=boundingBox[2].latitude,lon=boundingBox[2].longitude,relativeto=unit.guid})
-                rp3 = ScenEdit_AddReferencePoint({side=side.name,name=args.shortKey.."_ship_sc_miss_"..tostring(missionNumber).."_rp_3",lat=boundingBox[3].latitude,lon=boundingBox[3].longitude,relativeto=unit.guid})
-                rp4 = ScenEdit_AddReferencePoint({side=side.name,name=args.shortKey.."_ship_sc_miss_"..tostring(missionNumber).."_rp_4",lat=boundingBox[4].latitude,lon=boundingBox[4].longitude,relativeto=unit.guid})
-                -- Created Mission
-                createdUpdatedMission = ScenEdit_AddMission(side.name,args.shortKey.."_ship_sc_miss_"..tostring(missionNumber),"patrol",{type="mixed",zone={rp1.name,rp2.name,rp3.name,rp4.name}})
-                ScenEdit_SetMission(side.name,createdUpdatedMission.name,{checkOPA=false,checkWWR=true})
-                -- Assign Units
-                ScenEdit_AssignUnitToMission(assignedGuid,createdUpdatedMission.guid)
-                -- Increment
-                missionNumber = missionNumber + 1
-                -- Add Guid
-                persistentMemoryAddToKey(args.shortKey.."_ship_sc_miss",createdUpdatedMission.name)
+            if unit then
+                -- Assigned Guid
+                if unit.group then
+                    assignedGuid = unit.group.guid
+                end
+                -- Not Found Create Mission
+                if not allocatedUnits[assignedGuid] then
+                    -- Allocated Unit
+                    allocatedUnits[assignedGuid] = assignedGuid
+                    -- Create Defense Bounding Box
+                    boundingBox = findBoundingBoxForGivenLocations({makeLatLong(unit.latitude,unit.longitude)},1)
+                    -- Add Reference Points
+                    rp1 = ScenEdit_AddReferencePoint({side=side.name,name=args.shortKey.."_ship_sc_miss_"..tostring(missionNumber).."_rp_1",lat=boundingBox[1].latitude,lon=boundingBox[1].longitude,relativeto=unit.guid})
+                    rp2 = ScenEdit_AddReferencePoint({side=side.name,name=args.shortKey.."_ship_sc_miss_"..tostring(missionNumber).."_rp_2",lat=boundingBox[2].latitude,lon=boundingBox[2].longitude,relativeto=unit.guid})
+                    rp3 = ScenEdit_AddReferencePoint({side=side.name,name=args.shortKey.."_ship_sc_miss_"..tostring(missionNumber).."_rp_3",lat=boundingBox[3].latitude,lon=boundingBox[3].longitude,relativeto=unit.guid})
+                    rp4 = ScenEdit_AddReferencePoint({side=side.name,name=args.shortKey.."_ship_sc_miss_"..tostring(missionNumber).."_rp_4",lat=boundingBox[4].latitude,lon=boundingBox[4].longitude,relativeto=unit.guid})
+                    -- Created Mission
+                    createdUpdatedMission = ScenEdit_AddMission(side.name,args.shortKey.."_ship_sc_miss_"..tostring(missionNumber),"patrol",{type="mixed",zone={rp1.name,rp2.name,rp3.name,rp4.name}})
+                    ScenEdit_SetMission(side.name,createdUpdatedMission.name,{checkOPA=false,checkWWR=true})
+                    -- Assign Units
+                    ScenEdit_AssignUnitToMission(assignedGuid,createdUpdatedMission.guid)
+                    -- Increment
+                    missionNumber = missionNumber + 1
+                    -- Add Guid
+                    persistentMemoryAddToKey(args.shortKey.."_ship_sc_miss",createdUpdatedMission.name)
+                end
             end
         end
     end
@@ -2797,29 +2846,31 @@ function deciderNeutralSubmarineCreateUpdateMission(args)
             local assignedGuid = v
             local boundingBox = {}
             -- Assigned Guid
-            if unit.group then
-                assignedGuid = unit.group.guid
-            end
-            -- Not Found Create Mission
-            if not allocatedUnits[assignedGuid] then
-                -- Allocated Unit
-                allocatedUnits[assignedGuid] = assignedGuid
-                -- Create Defense Bounding Box
-                boundingBox = findBoundingBoxForGivenLocations({makeLatLong(unit.latitude,unit.longitude)},1)
-                -- Add Reference Points
-                rp1 = ScenEdit_AddReferencePoint({side=side.name,name=args.shortKey.."_sub_sc_miss_"..tostring(missionNumber).."_rp_1",lat=boundingBox[1].latitude,lon=boundingBox[1].longitude,relativeto=unit.guid})
-                rp2 = ScenEdit_AddReferencePoint({side=side.name,name=args.shortKey.."_sub_sc_miss_"..tostring(missionNumber).."_rp_2",lat=boundingBox[2].latitude,lon=boundingBox[2].longitude,relativeto=unit.guid})
-                rp3 = ScenEdit_AddReferencePoint({side=side.name,name=args.shortKey.."_sub_sc_miss_"..tostring(missionNumber).."_rp_3",lat=boundingBox[3].latitude,lon=boundingBox[3].longitude,relativeto=unit.guid})
-                rp4 = ScenEdit_AddReferencePoint({side=side.name,name=args.shortKey.."_sub_sc_miss_"..tostring(missionNumber).."_rp_4",lat=boundingBox[4].latitude,lon=boundingBox[4].longitude,relativeto=unit.guid})
-                -- Created Mission
-                createdUpdatedMission = ScenEdit_AddMission(side.name,args.shortKey.."_sub_sc_miss_"..tostring(missionNumber),"patrol",{type="mixed",zone={rp1.name,rp2.name,rp3.name,rp4.name}})
-                ScenEdit_SetMission(side.name,createdUpdatedMission.name,{checkOPA=false,checkWWR=true})
-                -- Assign Units
-                ScenEdit_AssignUnitToMission(assignedGuid,createdUpdatedMission.guid)
-                -- Increment
-                missionNumber = missionNumber + 1
-                -- Add Guid
-                persistentMemoryAddToKey(args.shortKey.."_sub_sc_miss",createdUpdatedMission.name)
+            if unit then
+                if unit.group then
+                    assignedGuid = unit.group.guid
+                end
+                -- Not Found Create Mission
+                if not allocatedUnits[assignedGuid] then
+                    -- Allocated Unit
+                    allocatedUnits[assignedGuid] = assignedGuid
+                    -- Create Defense Bounding Box
+                    boundingBox = findBoundingBoxForGivenLocations({makeLatLong(unit.latitude,unit.longitude)},1)
+                    -- Add Reference Points
+                    rp1 = ScenEdit_AddReferencePoint({side=side.name,name=args.shortKey.."_sub_sc_miss_"..tostring(missionNumber).."_rp_1",lat=boundingBox[1].latitude,lon=boundingBox[1].longitude,relativeto=unit.guid})
+                    rp2 = ScenEdit_AddReferencePoint({side=side.name,name=args.shortKey.."_sub_sc_miss_"..tostring(missionNumber).."_rp_2",lat=boundingBox[2].latitude,lon=boundingBox[2].longitude,relativeto=unit.guid})
+                    rp3 = ScenEdit_AddReferencePoint({side=side.name,name=args.shortKey.."_sub_sc_miss_"..tostring(missionNumber).."_rp_3",lat=boundingBox[3].latitude,lon=boundingBox[3].longitude,relativeto=unit.guid})
+                    rp4 = ScenEdit_AddReferencePoint({side=side.name,name=args.shortKey.."_sub_sc_miss_"..tostring(missionNumber).."_rp_4",lat=boundingBox[4].latitude,lon=boundingBox[4].longitude,relativeto=unit.guid})
+                    -- Created Mission
+                    createdUpdatedMission = ScenEdit_AddMission(side.name,args.shortKey.."_sub_sc_miss_"..tostring(missionNumber),"patrol",{type="mixed",zone={rp1.name,rp2.name,rp3.name,rp4.name}})
+                    ScenEdit_SetMission(side.name,createdUpdatedMission.name,{checkOPA=false,checkWWR=true})
+                    -- Assign Units
+                    ScenEdit_AssignUnitToMission(assignedGuid,createdUpdatedMission.guid)
+                    -- Increment
+                    missionNumber = missionNumber + 1
+                    -- Add Guid
+                    persistentMemoryAddToKey(args.shortKey.."_sub_sc_miss",createdUpdatedMission.name)
+                end
             end
         end
     end
@@ -3814,4 +3865,4 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 -- Global Call
 --------------------------------------------------------------------------------------------------------------------------------
-initializeAresAI("Stennis CSG",{preset="Sheridan"})
+initializeAresAI("Blue Force",{preset="Sheridan"})
