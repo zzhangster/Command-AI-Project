@@ -217,7 +217,7 @@ function localMemoryGetFromKey(primaryKey)
 end
 
 function localMemoryAddToKey(primaryKey,value)
-    ScenEdit_SpecialMessage("Blue Force","localMemoryAddToKey - "..primaryKey)
+    --ScenEdit_SpecialMessage("Blue Force","localMemoryAddToKey - "..primaryKey)
     local table = localMemoryGetFromKey(primaryKey)
     table[#table + 1] = value
 end
@@ -258,7 +258,7 @@ function localMemoryInventoryGetFromKey(primaryKey)
 end
 
 function localMemoryInventoryAddToKey(primaryKey,value)
-    ScenEdit_SpecialMessage("Blue Force","localMemoryInventoryAddToKey - "..primaryKey)
+    --ScenEdit_SpecialMessage("Blue Force","localMemoryInventoryAddToKey - "..primaryKey)
     local table = localMemoryInventoryGetFromKey(primaryKey)
     table[#table + 1] = value
 end
@@ -317,7 +317,7 @@ function localMemoryContactGetFromKey(primaryKey)
 end
 
 function localMemoryContactAddToKey(primaryKey,value)
-    ScenEdit_SpecialMessage("Blue Force","localMemoryContactAddToKey - "..primaryKey)
+    --ScenEdit_SpecialMessage("Blue Force","localMemoryContactAddToKey - "..primaryKey)
     local table = localMemoryContactGetFromKey(primaryKey)
     table[#table + 1] = value
 end
@@ -352,7 +352,7 @@ function persistentMemoryGetForKey(primaryKey)
 end
 
 function persistentMemoryAddToKey(primaryKey,value)
-    ScenEdit_SpecialMessage("Blue Force","persistentMemoryAddToKey - "..primaryKey)
+    --ScenEdit_SpecialMessage("Blue Force","persistentMemoryAddToKey - "..primaryKey)
     local valueString = ScenEdit_GetKeyValue(primaryKey)
     if valueString == nil then
         valueString = value
@@ -609,6 +609,12 @@ function determineThreatRangeByUnitDatabaseId(sideGuid,contactGuid)
         if foundRange ~= "" then
             range = tonumber(foundRange)
             break
+        end
+    end
+    if range == 0 and contact.actualunitdbid then
+        local foundRange = ScenEdit_GetKeyValue("thr_"..tostring(contact.actualunitdbid))
+        if foundRange ~= "" then
+            range = tonumber(foundRange)
         end
     end
     if range == 0 and contact.side then
