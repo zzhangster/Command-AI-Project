@@ -217,6 +217,7 @@ function localMemoryGetFromKey(primaryKey)
 end
 
 function localMemoryAddToKey(primaryKey,value)
+    ScenEdit_SpecialMessage("Blue Force","localMemoryAddToKey - "..primaryKey)
     local table = localMemoryGetFromKey(primaryKey)
     table[#table + 1] = value
 end
@@ -257,6 +258,7 @@ function localMemoryInventoryGetFromKey(primaryKey)
 end
 
 function localMemoryInventoryAddToKey(primaryKey,value)
+    ScenEdit_SpecialMessage("Blue Force","localMemoryInventoryAddToKey - "..primaryKey)
     local table = localMemoryInventoryGetFromKey(primaryKey)
     table[#table + 1] = value
 end
@@ -315,6 +317,7 @@ function localMemoryContactGetFromKey(primaryKey)
 end
 
 function localMemoryContactAddToKey(primaryKey,value)
+    ScenEdit_SpecialMessage("Blue Force","localMemoryContactAddToKey - "..primaryKey)
     local table = localMemoryContactGetFromKey(primaryKey)
     table[#table + 1] = value
 end
@@ -349,6 +352,7 @@ function persistentMemoryGetForKey(primaryKey)
 end
 
 function persistentMemoryAddToKey(primaryKey,value)
+    ScenEdit_SpecialMessage("Blue Force","persistentMemoryAddToKey - "..primaryKey)
     local valueString = ScenEdit_GetKeyValue(primaryKey)
     if valueString == nil then
         valueString = value
@@ -611,7 +615,7 @@ function determineThreatRangeByUnitDatabaseId(sideGuid,contactGuid)
         local unit = ScenEdit_GetUnit({side=contact.side.name, guid=contact.actualunitid})
         if unit then
             if unit.autodetectable then
-                local foundRange = ScenEdit_GetKeyValue("thr_"..tostring(unit.dbid))
+                local foundRange = ScenEdit_GetKeyValue("thr_"..tostring(unit.DBID))
                 if foundRange ~= "" then
                     range = tonumber(foundRange)
                 end
@@ -1354,6 +1358,10 @@ function getReinforcementRequests(sideShortKey)
     return returnRequests
 end
 
+function clearReinforcementRequests(sideShortKey)
+    localMemoryRemoveFromKey(sideShortKey.."_reinforce_request")
+end
+
 --------------------------------------------------------------------------------------------------------------------------------
 -- Allocate Unit Functions
 --------------------------------------------------------------------------------------------------------------------------------
@@ -1381,6 +1389,10 @@ function getAllocatedUnitExists(sideShortKey,unitGuid)
     else
         return false
     end
+end
+
+function removeAllocatedUnit(sideShortKey)
+    localMemoryRemoveFromKey(sideShortKey.."_alloc_units")
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
@@ -1447,7 +1459,7 @@ function determineEmconToUnits(sideShortKey,sideAttributes,sideName,unitGuidList
     local currentTime = ScenEdit_CurrentTime ()
     for k,v in pairs(unitGuidList) do
         local unit = ScenEdit_GetUnit({side=sideName, guid=v})
-        if unit and not unit.firingAt then
+        if unit and not unit.firingAt and unit.speed > 0 then
             if (emconChangeTime - currentTime) <= 0 then
                 if emconChangeState == "" or emconChangeState == "Active" then
                     ScenEdit_SetKeyValue(sideShortKey.."_emcon_chg_st","Passive")
@@ -1476,8 +1488,8 @@ function determineUnitToRetreat(sideShortKey,sideGuid,sideAttributes,missionGuid
     local side = VP_GetSide({guid=sideGuid})
     local missionUnits = getUnitsFromMission(side.name,missionGuid)
     for k,v in pairs(unitGuidList) do
-        local missionUnit = ScenEdit_GetUnit({side=side.name, guid=v})
-        if missionUnit then
+        local missionUnit = ScenEdit_GetUnit({side=side.name,guid=v})
+        if missionUnit and missionUnit.speed > 0  then
             local unitRetreatPoint = {}
             if zoneType == 0 then
                 unitRetreatPoint = getAllNoNavZoneThatContainsUnit(sideGuid,sideShortKey,sideAttributes,missionUnit.guid,retreatRange)
@@ -1593,8 +1605,8 @@ function getEmergencyMissileNoNavZoneThatContainsUnit(sideGuid,shortSideKey,side
         local currentRange = Tool_Range(v,unitGuid)
         local contact = ScenEdit_GetContact({side=side.name, guid=v})
         if contact then
-            local minDesiredRange = 12 --* reservedModifier
-            local maxDesiredRange = 70 --* reservedModifier
+            local minDesiredRange = 8 --* reservedModifier
+            local maxDesiredRange = 60 --* reservedModifier
             if currentRange > minDesiredRange and currentRange < maxDesiredRange then
                 local contactPoint = makeLatLong(contact.latitude,contact.longitude)
                 local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
@@ -1952,139 +1964,16 @@ function observerActionUpdateAirContacts(args)
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
     local currentTime = ScenEdit_CurrentTime()
-    local aircraftContacts = side:contactsBy("1")
-    -- Clear Contact
-    localMemoryContactRemoveFromKey(sideShortKey.."_saved_air_contact")
-    if aircraftContacts then
-        local savedContacts = {}
-        for k, v in pairs(aircraftContacts) do
-            -- Local Values
-            local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
-            local unitType = "air_con"
-            -- Add To Memory
-            local stringKey = sideShortKey.."_"..unitType.."_"..contact.posture
-            local stringArray = savedContacts[stringKey]
-            if not stringArray then
-                stringArray = {}
-            end
-            stringArray[#stringArray + 1] = contact.guid
-            savedContacts[stringKey] = stringArray
-        end
-        localMemoryContactAddToKey(sideShortKey.."_saved_air_contact",savedContacts)
-    end
-end
-
-function observerActionUpdateSurfaceContacts(args)
-    -- Local Variables
-    local sideShortKey = args.shortKey
-    local side = VP_GetSide({guid=args.guid})
-    local currentTime = ScenEdit_CurrentTime()
-    local shipContacts = side:contactsBy("2") 
-    -- Clear Contact
-    localMemoryContactRemoveFromKey(sideShortKey.."_saved_ship_contact")
-    if shipContacts then
-        local savedContacts = {}
-        for k, v in pairs(shipContacts) do
-            -- Local Values
-            local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
-            local unitType = "surf_con"
-            -- Add To Memory
-            local stringKey = sideShortKey.."_"..unitType.."_"..contact.posture
-            local stringArray = savedContacts[stringKey]
-            if not stringArray then
-                stringArray = {}
-            end
-            stringArray[#stringArray + 1] = contact.guid
-            savedContacts[stringKey] = stringArray
-        end
-        localMemoryContactAddToKey(sideShortKey.."_saved_ship_contact",savedContacts)
-    end
-end
-
-function observerActionUpdateSubmarineContacts(args)
-    -- Local Variables
-    local sideShortKey = args.shortKey
-    local side = VP_GetSide({guid=args.guid})
-    local currentTime = ScenEdit_CurrentTime()
-    local submarineContacts = side:contactsBy("3")
-    localMemoryContactRemoveFromKey(sideShortKey.."_saved_sub_contact")
-    if submarineContacts then
-        local savedContacts = {}
-        for k, v in pairs(submarineContacts) do
-            -- Local Values
-            local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
-            local unitType = "sub_con"
-            -- Add To Memory
-            local stringKey = sideShortKey.."_"..unitType.."_"..contact.posture
-            local stringArray = savedContacts[stringKey]
-            if not stringArray then
-                stringArray = {}
-            end
-            stringArray[#stringArray + 1] = contact.guid
-            savedContacts[stringKey] = stringArray
-        end
-        localMemoryContactAddToKey(sideShortKey.."_saved_sub_contact",savedContacts)
-    end
-end
-
-function observerActionUpdateLandContacts(args)
-    -- Local Variables
-    local sideShortKey = args.shortKey
-    local side = VP_GetSide({guid=args.guid})
-    local currentTime = ScenEdit_CurrentTime()
-    local landContacts = side:contactsBy("4")
-    -- Clear Contact
-    localMemoryContactRemoveFromKey(sideShortKey.."_saved_land_contact")
-    if landContacts then
-        local savedContacts = {}
-        for k, v in pairs(landContacts) do
-            -- Local Values
-            local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
-            local unitType = "land_con"
-            -- Check
-            if string.find(contact.type_description,"SAM") then
-                unitType = "sam_con"
-            end
-            -- Add To Memory
-            local stringKey = sideShortKey.."_"..unitType.."_"..contact.posture
-            local stringArray = savedContacts[stringKey]
-            if not stringArray then
-                stringArray = {}
-            end
-            stringArray[#stringArray + 1] = contact.guid
-            savedContacts[stringKey] = stringArray
-        end
-        localMemoryContactAddToKey(sideShortKey.."_saved_land_contact",savedContacts)
-    end
-end
-
-function observerActionUpdateWeaponContacts(args)
-    -- Local Variables
-    local sideShortKey = args.shortKey
-    local side = VP_GetSide({guid=args.guid})
-    local currentTime = ScenEdit_CurrentTime()
-    local weaponContacts = side:contactsBy("6")
-    -- Clear Contact
-    localMemoryContactRemoveFromKey(sideShortKey.."_saved_weap_contact")
-    if weaponContacts then
-        local savedContacts = {}
-        for k, v in pairs(weaponContacts) do
-            -- Local Values
-            local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
-            local unitType = "weap_con"
-            -- Filter Out By Weapon Speed
-            if contact.speed then
-                if  contact.speed > 2000 then
-                    -- Add To Memory
-                    local stringKey = sideShortKey.."_"..unitType.."_"..contact.posture
-                    local stringArray = savedContacts[stringKey]
-                    if not stringArray then
-                        stringArray = {}
-                    end
-                    stringArray[#stringArray + 1] = contact.guid
-                    savedContacts[stringKey] = stringArray
-                end
-            else 
+    local previousTime = getTimeStampForKey(sideShortKey.."_update_air_contacts_ts")
+    if ((currentTime - previousTime) > 15 or currentTime == previousTime) then
+        local aircraftContacts = side:contactsBy("1")
+        localMemoryContactRemoveFromKey(sideShortKey.."_saved_air_contact")
+        if aircraftContacts then
+            local savedContacts = {}
+            for k, v in pairs(aircraftContacts) do
+                -- Local Values
+                local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
+                local unitType = "air_con"
                 -- Add To Memory
                 local stringKey = sideShortKey.."_"..unitType.."_"..contact.posture
                 local stringArray = savedContacts[stringKey]
@@ -2094,8 +1983,152 @@ function observerActionUpdateWeaponContacts(args)
                 stringArray[#stringArray + 1] = contact.guid
                 savedContacts[stringKey] = stringArray
             end
+            localMemoryContactAddToKey(sideShortKey.."_saved_air_contact",savedContacts)
         end
-        localMemoryContactAddToKey(sideShortKey.."_saved_weap_contact",savedContacts)
+        -- Save Memory Inventory And Time Stamp
+        setTimeStampForKey(sideShortKey.."_update_air_contacts_ts",currentTime)
+    end
+end
+
+function observerActionUpdateSurfaceContacts(args)
+    -- Local Variables
+    local sideShortKey = args.shortKey
+    local side = VP_GetSide({guid=args.guid})
+    local currentTime = ScenEdit_CurrentTime()
+    local previousTime = getTimeStampForKey(sideShortKey.."_update_ship_contacts_ts")
+    if ((currentTime - previousTime) > 30 or currentTime == previousTime) then
+        local shipContacts = side:contactsBy("2") 
+        localMemoryContactRemoveFromKey(sideShortKey.."_saved_ship_contact")
+        if shipContacts then
+            local savedContacts = {}
+            for k, v in pairs(shipContacts) do
+                -- Local Values
+                local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
+                local unitType = "surf_con"
+                -- Add To Memory
+                local stringKey = sideShortKey.."_"..unitType.."_"..contact.posture
+                local stringArray = savedContacts[stringKey]
+                if not stringArray then
+                    stringArray = {}
+                end
+                stringArray[#stringArray + 1] = contact.guid
+                savedContacts[stringKey] = stringArray
+            end
+            localMemoryContactAddToKey(sideShortKey.."_saved_ship_contact",savedContacts)
+        end
+        -- Save Memory Inventory And Time Stamp
+        setTimeStampForKey(sideShortKey.."_update_ship_contacts_ts",currentTime)
+    end
+end
+
+function observerActionUpdateSubmarineContacts(args)
+    -- Local Variables
+    local sideShortKey = args.shortKey
+    local side = VP_GetSide({guid=args.guid})
+    local currentTime = ScenEdit_CurrentTime()
+    local previousTime = getTimeStampForKey(sideShortKey.."_update_sub_contacts_ts")
+    if ((currentTime - previousTime) > 30 or currentTime == previousTime) then
+        local submarineContacts = side:contactsBy("3")
+        localMemoryContactRemoveFromKey(sideShortKey.."_saved_sub_contact")
+        if submarineContacts then
+            local savedContacts = {}
+            for k, v in pairs(submarineContacts) do
+                -- Local Values
+                local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
+                local unitType = "sub_con"
+                -- Add To Memory
+                local stringKey = sideShortKey.."_"..unitType.."_"..contact.posture
+                local stringArray = savedContacts[stringKey]
+                if not stringArray then
+                    stringArray = {}
+                end
+                stringArray[#stringArray + 1] = contact.guid
+                savedContacts[stringKey] = stringArray
+            end
+            localMemoryContactAddToKey(sideShortKey.."_saved_sub_contact",savedContacts)
+        end
+        -- Save Memory Inventory And Time Stamp
+        setTimeStampForKey(sideShortKey.."_update_sub_contacts_ts",currentTime)
+    end
+end
+
+function observerActionUpdateLandContacts(args)
+    -- Local Variables
+    local sideShortKey = args.shortKey
+    local side = VP_GetSide({guid=args.guid})
+    local currentTime = ScenEdit_CurrentTime()
+    local previousTime = getTimeStampForKey(sideShortKey.."_update_land_contacts_ts")
+    if ((currentTime - previousTime) > 5 * 60 or currentTime == previousTime) then
+        local landContacts = side:contactsBy("4")
+        localMemoryContactRemoveFromKey(sideShortKey.."_saved_land_contact")
+        if landContacts then
+            local savedContacts = {}
+            for k, v in pairs(landContacts) do
+                -- Local Values
+                local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
+                local unitType = "land_con"
+                -- Check
+                if string.find(contact.type_description,"SAM") then
+                    unitType = "sam_con"
+                end
+                -- Add To Memory
+                local stringKey = sideShortKey.."_"..unitType.."_"..contact.posture
+                local stringArray = savedContacts[stringKey]
+                if not stringArray then
+                    stringArray = {}
+                end
+                stringArray[#stringArray + 1] = contact.guid
+                savedContacts[stringKey] = stringArray
+            end
+            localMemoryContactAddToKey(sideShortKey.."_saved_land_contact",savedContacts)
+        end
+        -- Save Memory Inventory And Time Stamp
+        setTimeStampForKey(sideShortKey.."_update_land_contacts_ts",currentTime)
+    end
+end
+
+function observerActionUpdateWeaponContacts(args)
+    -- Local Variables
+    local sideShortKey = args.shortKey
+    local side = VP_GetSide({guid=args.guid})
+    local currentTime = ScenEdit_CurrentTime()
+    local previousTime = getTimeStampForKey(sideShortKey.."_update_weapon_contacts_ts")
+    if ((currentTime - previousTime) > 5 or currentTime == previousTime) then
+        local weaponContacts = side:contactsBy("6")
+        localMemoryContactRemoveFromKey(sideShortKey.."_saved_weap_contact")
+        if weaponContacts then
+            local savedContacts = {}
+            for k, v in pairs(weaponContacts) do
+                -- Local Values
+                local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
+                local unitType = "weap_con"
+                -- Filter Out By Weapon Speed
+                if contact.speed then
+                    if  contact.speed > 2000 then
+                        -- Add To Memory
+                        local stringKey = sideShortKey.."_"..unitType.."_"..contact.posture
+                        local stringArray = savedContacts[stringKey]
+                        if not stringArray then
+                            stringArray = {}
+                        end
+                        stringArray[#stringArray + 1] = contact.guid
+                        savedContacts[stringKey] = stringArray
+                    end
+                else 
+                    -- Add To Memory
+                    local stringKey = sideShortKey.."_"..unitType.."_"..contact.posture
+                    local stringArray = savedContacts[stringKey]
+                    if not stringArray then
+                        stringArray = {}
+                    end
+                    stringArray[#stringArray + 1] = contact.guid
+                    savedContacts[stringKey] = stringArray
+                end
+            end
+            localMemoryContactAddToKey(sideShortKey.."_saved_weap_contact",savedContacts)
+        end
+        -- Save Memory Inventory And Time Stamp
+        setTimeStampForKey(sideShortKey.."_update_weapon_contacts_ts",currentTime)
     end
 end
 
@@ -3378,6 +3411,10 @@ function actorUpdateAirReinforcementRequest(args)
             end
         end
     end
+
+    -- Clear Reinforcements And Saved Alloc
+    removeAllocatedUnit(args.shortKey)
+    clearReinforcementRequests(args.shortKey)
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
