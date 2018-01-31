@@ -621,7 +621,7 @@ function determineThreatRangeByUnitDatabaseId(sideGuid,contactGuid)
         local unit = ScenEdit_GetUnit({side=contact.side.name, guid=contact.actualunitid})
         if unit then
             if unit.autodetectable then
-                local foundRange = ScenEdit_GetKeyValue("thr_"..tostring(unit.DBID))
+                local foundRange = ScenEdit_GetKeyValue("thr_"..tostring(unit.dbid))
                 if foundRange ~= "" then
                     range = tonumber(foundRange)
                 end
@@ -1493,7 +1493,7 @@ end
 function determineUnitToRetreat(sideShortKey,sideGuid,sideAttributes,missionGuid,unitGuidList,zoneType,retreatRange)
     local side = VP_GetSide({guid=sideGuid})
     local missionUnits = getUnitsFromMission(side.name,missionGuid)
-    for k,v in pairs(unitGuidList) do
+    for k,v in pairs(missionUnits) do
         local missionUnit = ScenEdit_GetUnit({side=side.name,guid=v})
         if missionUnit and missionUnit.speed > 0  then
             local unitRetreatPoint = {}
@@ -1557,8 +1557,8 @@ end
 
 function getSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
     local side = VP_GetSide({guid=sideGuid})
-    local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
     local hostileSAMContacts = getHostileSAMContacts(shortSideKey)
+    local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
     if not unit then
         return nil
     end
@@ -1627,62 +1627,73 @@ end
 
 function getSAMAndShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
     local contactPoint = getEmergencyMissileNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
-    if contactPoint ~= nil then
+    if contactPoint then
         return contactPoint
     else
-        contactPoint = getSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
-        if contactPoint ~= nil then
+        return nil
+        --[[contactPoint = getSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
+        if contactPoint then
             return contactPoint
         else
             return getShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
-        end
+        end]]--
     end
 end
 
 function getAirAndShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
     local contactPoint = getEmergencyMissileNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
-    if contactPoint ~= nil then
+    if contactPoint then
         return contactPoint
     else
-        contactPoint = getAirNoNavZoneThatContaintsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
-        if contactPoint ~= nil then
+        return nil
+        --[[contactPoint = getAirNoNavZoneThatContaintsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
+        if contactPoint then
             return contactPoint
         else
             return getShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
-        end
+        end]]--
     end
 end
 
 function getAirAndSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
     local contactPoint = getEmergencyMissileNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
-    if contactPoint ~= nil then
+    if contactPoint then
         return contactPoint 
     else
+        return nil
+        --[[
         contactPoint = getAirNoNavZoneThatContaintsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
-        if contactPoint ~= nil then
+        if contactPoint then
             return contactPoint
         else
             return getSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
-        end
+        end]]--
     end
 end
 
 function getAllNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
     local contactPoint = getEmergencyMissileNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
-    if contactPoint ~= nil then
+    if contactPoint then
         return contactPoint
     else
+        contactPoint = getAirNoNavZoneThatContaintsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
+        if contactPoint then
+            return contactPoint
+        else
+            return nil
+        end
+        --[[
         contactPoint = getSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
-        if contactPoint ~= nil then
+        if contactPoint then
             return contactPoint
         else
             contactPoint = getAirNoNavZoneThatContaintsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
-            if contactPoint ~= nil then
+            if contactPoint then
                 return contactPoint
             else
                 return getShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
             end
-        end
+        end]]--
     end
 end
 
@@ -3764,4 +3775,4 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 -- Global Call
 --------------------------------------------------------------------------------------------------------------------------------
-initializeAresAI("Blue Force",{preset="Sheridan"})
+initializeAresAI("South Korea",{preset="Sheridan"})
