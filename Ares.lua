@@ -1544,7 +1544,7 @@ function getAirNoNavZoneThatContaintsUnit(sideGuid,shortSideKey,sideAttributes,u
     for k,v in pairs(unknownAirContacts) do
         local contact = ScenEdit_GetContact({side=side.name, guid=v})
         if contact then
-        local currentRange = Tool_Range(contact.guid,unitGuid)
+            local currentRange = Tool_Range(contact.guid,unitGuid)
             if currentRange < desiredRange then
                 local bearing = Tool_Bearing(contact.guid,unitGuid)
                 local retreatLocation = projectLatLong(makeLatLong(contact.latitude,contact.longitude),bearing,desiredRange + 20)
@@ -1558,20 +1558,20 @@ end
 function getSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
-    local zones = persistentMemoryGetForKey(shortSideKey.."_sam_ex_zone")
-    --local reservedModifier = sideAttributes.reserved * 2 / (sideAttributes.determined + sideAttributes.reserved)
-    local zoneReferencePoints = ScenEdit_GetReferencePoints({side=side.name, area=zones})
+    local hostileSAMContacts = getHostileSAMContacts(shortSideKey)
     if not unit then
         return nil
     end
-    for k,v in pairs(zoneReferencePoints) do
-        local currentRange = Tool_Range({latitude=v.latitude,longitude=v.longitude},unitGuid)
-        local desiredRange = tonumber(v.name) --* reservedModifier
-        if currentRange < desiredRange then
-            local contactPoint = makeLatLong(v.latitude,v.longitude)
-            local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
-            local retreatLocation = projectLatLong(contactPoint,bearing,desiredRange+30)
-            return {latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=600}
+    for k,v in pairs(hostileSAMContacts) do
+        local contact = ScenEdit_GetContact({side=side.name, guid=v})
+        if contact then
+            local currentRange = Tool_Range(contact.guid,unitGuid)
+            local desiredRange = determineThreatRangeByUnitDatabaseId(side.guid,contact.guid)
+            if currentRange < desiredRange then
+                local bearing = Tool_Bearing(contact.guid,unitGuid)
+                local retreatLocation = projectLatLong(makeLatLong(contact.latitude,contact.longitude),bearing,desiredRange + 20)
+                return {latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=2000}
+            end
         end
     end
     return nil
@@ -1580,20 +1580,21 @@ end
 function getShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
-    local zones = persistentMemoryGetForKey(shortSideKey.."_ship_ex_zone")
-    --local reservedModifier = sideAttributes.reserved * 2 / (sideAttributes.determined + sideAttributes.reserved)
-    local zoneReferencePoints = ScenEdit_GetReferencePoints({side=side.name, area=zones})
+    local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
+    local getHostileSurfaceShipContacts = getHostileSurfaceShipContacts(shortSideKey)
     if not unit then
         return nil
     end
-    for k,v in pairs(zoneReferencePoints) do
-        local currentRange = Tool_Range({latitude=v.latitude,longitude=v.longitude},unitGuid)
-        local desiredRange = tonumber(v.name) --* reservedModifier
-        if currentRange < desiredRange then
-            local contactPoint = makeLatLong(v.latitude,v.longitude)
-            local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
-            local retreatLocation = projectLatLong(contactPoint,bearing,desiredRange+30)
-            return {latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=600}
+    for k,v in pairs(getHostileSurfaceShipContacts) do
+        local contact = ScenEdit_GetContact({side=side.name, guid=v})
+        if contact then
+            local currentRange = Tool_Range(contact.guid,unitGuid)
+            local desiredRange = determineThreatRangeByUnitDatabaseId(side.guid,contact.guid)
+            if currentRange < desiredRange then
+                local bearing = Tool_Bearing(contact.guid,unitGuid)
+                local retreatLocation = projectLatLong(makeLatLong(contact.latitude,contact.longitude),bearing,desiredRange + 20)
+                return {latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=2000}
+            end
         end
     end
     return nil
@@ -1732,7 +1733,7 @@ function observerActionUpdateAirInventories(args)
     local currentTime = ScenEdit_CurrentTime()
     local previousTime = getTimeStampForKey(sideShortKey.."_update_air_inventory_ts")
     -- Check Inventory
-    if (currentTime - previousTime > 30) then
+    if (currentTime - previousTime > 60) then
         local aircraftInventory = side:unitsBy("1")
         if aircraftInventory then
             local savedInventory = {}
@@ -1803,7 +1804,7 @@ function observerActionUpdateSurfaceInventories(args)
     local currentTime = ScenEdit_CurrentTime()
     local previousTime = getTimeStampForKey(sideShortKey.."_update_ship_inventory_ts")
     -- Check Time
-    if ((currentTime - previousTime) > 30 or currentTime == previousTime) then
+    if ((currentTime - previousTime) > 120 or currentTime == previousTime) then
         local shipInventory = side:unitsBy("2")
         if shipInventory then
             local savedInventory = {}
@@ -1841,7 +1842,7 @@ function observerActionUpdateSubmarineInventories(args)
     local currentTime = ScenEdit_CurrentTime()
     local previousTime = getTimeStampForKey(sideShortKey.."_update_sub_inventory_ts")
     -- Check Time
-    if ((currentTime - previousTime) > 60 * 2 or currentTime == previousTime) then
+    if ((currentTime - previousTime) > 120 or currentTime == previousTime) then
         local submarineInventory = side:unitsBy("3")
         if submarineInventory then
             local savedInventory = {}
@@ -1879,7 +1880,7 @@ function observerActionUpdateLandInventories(args)
     local currentTime = ScenEdit_CurrentTime()
     local previousTime = getTimeStampForKey(sideShortKey.."_update_land_inventory_ts")
     -- Check Time
-    if ((currentTime - previousTime) > 60 * 5 or currentTime == previousTime) then
+    if ((currentTime - previousTime) > 700 or currentTime == previousTime) then
         local landInventory = side:unitsBy("4")
         -- Loop Through
         if landInventory then
@@ -1926,7 +1927,7 @@ function observerActionUpdateHVAInventories(args)
     local landInventory = side:unitsBy("4")
     local currentTime = ScenEdit_CurrentTime()
     local previousTime = getTimeStampForKey(sideShortKey.."_update_hva_inventory_ts")
-    if ((currentTime - previousTime) > 60 * 5 or currentTime == previousTime) then
+    if ((currentTime - previousTime) > 600 or currentTime == previousTime) then
         -- Remove
         localMemoryRemoveFromKey(sideShortKey.."_def_hva")
         -- Check Ship Inventory
@@ -1971,7 +1972,7 @@ function observerActionUpdateAirContacts(args)
     local side = VP_GetSide({guid=args.guid})
     local currentTime = ScenEdit_CurrentTime()
     local previousTime = getTimeStampForKey(sideShortKey.."_update_air_contacts_ts")
-    if ((currentTime - previousTime) > 15 or currentTime == previousTime) then
+    if ((currentTime - previousTime) > 60 or currentTime == previousTime) then
         local aircraftContacts = side:contactsBy("1")
         localMemoryContactRemoveFromKey(sideShortKey.."_saved_air_contact")
         if aircraftContacts then
@@ -2002,7 +2003,7 @@ function observerActionUpdateSurfaceContacts(args)
     local side = VP_GetSide({guid=args.guid})
     local currentTime = ScenEdit_CurrentTime()
     local previousTime = getTimeStampForKey(sideShortKey.."_update_ship_contacts_ts")
-    if ((currentTime - previousTime) > 30 or currentTime == previousTime) then
+    if ((currentTime - previousTime) > 120 or currentTime == previousTime) then
         local shipContacts = side:contactsBy("2") 
         localMemoryContactRemoveFromKey(sideShortKey.."_saved_ship_contact")
         if shipContacts then
@@ -2033,7 +2034,7 @@ function observerActionUpdateSubmarineContacts(args)
     local side = VP_GetSide({guid=args.guid})
     local currentTime = ScenEdit_CurrentTime()
     local previousTime = getTimeStampForKey(sideShortKey.."_update_sub_contacts_ts")
-    if ((currentTime - previousTime) > 30 or currentTime == previousTime) then
+    if ((currentTime - previousTime) > 120 or currentTime == previousTime) then
         local submarineContacts = side:contactsBy("3")
         localMemoryContactRemoveFromKey(sideShortKey.."_saved_sub_contact")
         if submarineContacts then
@@ -2064,7 +2065,7 @@ function observerActionUpdateLandContacts(args)
     local side = VP_GetSide({guid=args.guid})
     local currentTime = ScenEdit_CurrentTime()
     local previousTime = getTimeStampForKey(sideShortKey.."_update_land_contacts_ts")
-    if ((currentTime - previousTime) > 5 * 60 or currentTime == previousTime) then
+    if ((currentTime - previousTime) > 700 or currentTime == previousTime) then
         local landContacts = side:contactsBy("4")
         localMemoryContactRemoveFromKey(sideShortKey.."_saved_land_contact")
         if landContacts then
@@ -2099,7 +2100,7 @@ function observerActionUpdateWeaponContacts(args)
     local side = VP_GetSide({guid=args.guid})
     local currentTime = ScenEdit_CurrentTime()
     local previousTime = getTimeStampForKey(sideShortKey.."_update_weapon_contacts_ts")
-    if ((currentTime - previousTime) > 5 or currentTime == previousTime) then
+    if ((currentTime - previousTime) > 10 or currentTime == previousTime) then
         local weaponContacts = side:contactsBy("6")
         localMemoryContactRemoveFromKey(sideShortKey.."_saved_weap_contact")
         if weaponContacts then
@@ -2916,136 +2917,6 @@ function deciderNeutralSubmarineCreateUpdateMission(args)
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
--- Decider Create SAM No Nav Zones Action
---------------------------------------------------------------------------------------------------------------------------------
-function deciderCreateSAMNoNavZones(args)
-    -- Local Side And Mission
-    local side = VP_GetSide({guid=args.guid})
-    local zones = persistentMemoryGetForKey(args.shortKey.."_sam_ex_zone")
-    -- Inventory And HVA And Contacts
-    local totalHostileContacts = getHostileSAMContacts(args.shortKey)
-    -- Zones
-    local noNavZoneBoundary = {}
-    local zoneNumber = #zones + 1
-    -- Condition Check
-    if #zones < 25 and #totalHostileContacts > 0 and #zones < #totalHostileContacts then
-        -- Get Contact
-        local contact = ScenEdit_GetContact({side=side.name, guid=totalHostileContacts[#zones + 1]})
-        if contact then
-            local noNavZoneRange = determineThreatRangeByUnitDatabaseId(args.guid,contact.guid)
-            -- SAM Zone + Range
-            local referencePoint = ScenEdit_AddReferencePoint({side=side.name,lat=contact.latitude,lon=contact.longitude,name=tostring(noNavZoneRange),highlighted="no"})
-            persistentMemoryAddToKey(args.shortKey.."_sam_ex_zone",referencePoint.guid)
-        end
-    end
-end
-
---------------------------------------------------------------------------------------------------------------------------------
--- Decider Update SAM No Nav Zones Action
---------------------------------------------------------------------------------------------------------------------------------
-function deciderUpdateSAMNoNavZones(args)
-    -- Local Side And Mission
-    local side = VP_GetSide({guid=args.guid})
-    local zones = persistentMemoryGetForKey(args.shortKey.."_sam_ex_zone")
-    -- Inventory And HVA And Contacts
-    local totalHostileContacts = getHostileSAMContacts(args.shortKey)
-    local zoneCounter = 1
-    -- Condition Check
-    if #zones > 0 then
-        -- Key Value Pairs
-        for k,v in pairs(zones) do
-            local referencePoints = ScenEdit_GetReferencePoints({side=side.name,area={v}})
-            local referencePoint = referencePoints[1]
-            -- Zone Counter Check
-            if zoneCounter > #totalHostileContacts then
-                ScenEdit_SetReferencePoint({side=side.name, guid=v, newname="0", lat=0, long=0})
-            else
-                -- Get Contact
-                local contact = ScenEdit_GetContact({side=side.name,guid=totalHostileContacts[zoneCounter]})
-                if contact then
-                    local noNavZoneRange = determineThreatRangeByUnitDatabaseId(args.guid,contact.guid)
-                    -- Set To New Value
-                    ScenEdit_SetReferencePoint({side=side.name,guid=v,newname=tostring(noNavZoneRange),lat=contact.latitude,lon=contact.longitude})
-                end
-            end
-            -- Update Zone Counter
-            zoneCounter = zoneCounter + 1
-        end
-    end
-end
-
---------------------------------------------------------------------------------------------------------------------------------
--- Decider Create Ship No Nav Zones Action
---------------------------------------------------------------------------------------------------------------------------------
-function deciderCreateShipNoNavZones(args)
-    -- Local Side And Mission
-    local side = VP_GetSide({guid=args.guid})
-    local zones = persistentMemoryGetForKey(args.shortKey.."_ship_ex_zone")
-    -- Inventory And HVA And Contacts
-    local totalHostileContacts = getHostileSurfaceShipContacts(args.shortKey)
-    -- Zones
-    local noNavZoneBoundary = {}
-    local zoneNumber = #zones + 1
-    -- Condition Check
-    if #zones < 25 and #totalHostileContacts > 0 and #zones < #totalHostileContacts then
-        -- Get Contact
-        local contact = ScenEdit_GetContact({side=side.name, guid=totalHostileContacts[#zones + 1]})
-        if contact then
-            local noNavZoneRange = determineThreatRangeByUnitDatabaseId(args.guid,contact.guid)
-            -- Ship Zone + Range
-            local referencePoint = ScenEdit_AddReferencePoint({side=side.name,lat=contact.latitude,lon=contact.longitude,name=tostring(noNavZoneRange),highlighted="no"})
-            persistentMemoryAddToKey(args.shortKey.."_ship_ex_zone",referencePoint.guid)
-        end
-    end
-end
-
---------------------------------------------------------------------------------------------------------------------------------
--- Decider Update Ship No Nav Zones Action
---------------------------------------------------------------------------------------------------------------------------------
-function deciderUpdateShipNoNavZones(args)
-    -- Local Side And Mission
-    local side = VP_GetSide({guid=args.guid})
-    local zones = persistentMemoryGetForKey(args.shortKey.."_ship_ex_zone")
-    -- Inventory And HVA And Contacts
-    local totalHostileContacts = getHostileSurfaceShipContacts(args.shortKey)
-    local zoneCounter = 1
-    -- Condition Check
-    if #zones > 0 then
-        -- Key Value Pairs
-        for k,v in pairs(zones) do
-            local referencePoints = ScenEdit_GetReferencePoints({side=side.name,area={v}})
-            local referencePoint = referencePoints[1]
-            -- Zone Counter Check
-            if zoneCounter > #totalHostileContacts then
-                ScenEdit_SetReferencePoint({side=side.name, guid=v, newname="0", lat=0, long=0})
-            else
-                -- Get Contact
-                local contact = ScenEdit_GetContact({side=side.name, guid=totalHostileContacts[zoneCounter]})
-                if contact then
-                    local noNavZoneRange = determineThreatRangeByUnitDatabaseId(args.guid,contact.guid)
-                    -- Set To New Value
-                    ScenEdit_SetReferencePoint({side=side.name,guid=v,newname=tostring(noNavZoneRange),lat=contact.latitude,lon=contact.longitude})
-                end
-            end
-            -- Update Zone Counter
-            zoneCounter = zoneCounter + 1
-        end
-    end
-end
-
---------------------------------------------------------------------------------------------------------------------------------
--- Decider Create Air No Nav Zones Action
---------------------------------------------------------------------------------------------------------------------------------
-function deciderCreateAirNoNavZones(args)
-end
-
---------------------------------------------------------------------------------------------------------------------------------
--- Decider Update Air No Nav Zones Action
---------------------------------------------------------------------------------------------------------------------------------
-function deciderUpdateAirNoNavZones(args)
-end
-
---------------------------------------------------------------------------------------------------------------------------------
 -- Actor Update Air Reinforcement Request
 --------------------------------------------------------------------------------------------------------------------------------
 function actorUpdateAirReinforcementRequest(args)
@@ -3791,16 +3662,9 @@ function initializeAresAI(sideName,options)
     ----------------------------------------------------------------------------------------------------------------------------
     -- Ares Decider
     ----------------------------------------------------------------------------------------------------------------------------
-    local deciderNoNavZonesSequenceBT = BT:make(BT.sequence,sideGuid,shortSideKey,attributes)
     local deciderDoctrineSelectorBT = BT:make(BT.select,sideGuid,shortSideKey,attributes)
     local deciderAttackDoctrineSequenceBT = BT:make(BT.sequence,sideGuid,shortSideKey,attributes)
     local deciderDefendDoctrineSequenceBT = BT:make(BT.sequence,sideGuid,shortSideKey,attributes)
-    local deciderCreateSAMNoNavZonesBT = BT:make(deciderCreateSAMNoNavZones,sideGuid,shortSideKey,attributes)
-    local deciderUpdateSAMNoNavZonesBT = BT:make(deciderUpdateSAMNoNavZones,sideGuid,shortSideKey,attributes)
-    local deciderCreateAirNoNavZonesBT = BT:make(deciderCreateAirNoNavZones,sideGuid,shortSideKey,attributes)
-    local deciderUpdateAirNoNavZonesBT = BT:make(deciderUpdateAirNoNavZones,sideGuid,shortSideKey,attributes)
-    local deciderCreateShipNoNavZonesBT = BT:make(deciderCreateShipNoNavZones,sideGuid,shortSideKey,attributes)
-    local deciderUpdateShipNoNavZonesBT = BT:make(deciderUpdateShipNoNavZones,sideGuid,shortSideKey,attributes)
     -- Offensive Behavior Tree
     local deciderOffensiveCheckBT = BT:make(deciderOffensiveCheck,sideGuid,shortSideKey,attributes)
     local deciderOffensiveReconCreateUpdateMissionBT = BT:make(deciderOffensiveReconCreateUpdateMission,sideGuid,shortSideKey,attributes)
@@ -3820,17 +3684,9 @@ function initializeAresAI(sideName,options)
     local deciderNeutralShipCreateUpdateMissionBT = BT:make(deciderNeutralShipCreateUpdateMission,sideGuid,shortSideKey,attributes)
     local deciderNeutralSubmarineCreateUpdateMissionBT = BT:make(deciderNeutralSubmarineCreateUpdateMission,sideGuid,shortSideKey,attributes)
     -- Add Sequences
-    aresDeciderBTMain:addChild(deciderNoNavZonesSequenceBT)
     aresDeciderBTMain:addChild(deciderDoctrineSelectorBT)
     deciderDoctrineSelectorBT:addChild(deciderAttackDoctrineSequenceBT)
     deciderDoctrineSelectorBT:addChild(deciderDefendDoctrineSequenceBT)
-    -- Setup No Nav Sequence
-    deciderNoNavZonesSequenceBT:addChild(deciderCreateSAMNoNavZonesBT)
-    deciderNoNavZonesSequenceBT:addChild(deciderUpdateSAMNoNavZonesBT)
-    deciderNoNavZonesSequenceBT:addChild(deciderCreateAirNoNavZonesBT)
-    deciderNoNavZonesSequenceBT:addChild(deciderUpdateAirNoNavZonesBT)
-    deciderNoNavZonesSequenceBT:addChild(deciderCreateShipNoNavZonesBT)
-    deciderNoNavZonesSequenceBT:addChild(deciderUpdateShipNoNavZonesBT)
     -- Setup Attack Doctrine Sequence
     deciderAttackDoctrineSequenceBT:addChild(deciderOffensiveCheckBT)
     deciderAttackDoctrineSequenceBT:addChild(deciderOffensiveReconCreateUpdateMissionBT)
