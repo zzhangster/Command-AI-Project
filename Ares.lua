@@ -199,6 +199,128 @@ function BT:limit(args)
     end
 end
 
+--[[
+  Quad tree for optimized checking - https://github.com/samuel/lua-quadtree/blob/master/quadtree.lua
+]]--
+QuadTree = {}
+QuadTree_mt = {}
+
+function QuadTree.new(_latitude,_longitude,_radius)
+    return setmetatable(
+    {
+        latitude = _latitude,
+        longitude = _longitude,
+        radius  = _radius,
+        children = nil,
+        objects = {}
+    }, QuadTree_mt)
+end
+
+function QuadTree:subdivide()
+    if self.children then
+        for i,child in pairs(self.children) do
+            child:subdivide()
+        end
+    else
+        local lat = self.latitude
+        local long = self.longitude
+        local radius = self.radius
+        local p1 = projectLatLong(makeLatLong(lat,long),225,self.radius/2)
+        local p2 = projectLatLong(makeLatLong(lat,long),315,self.radius/2)
+        local p3 = projectLatLong(makeLatLong(lat,long),135,self.radius/2)
+        local p4 = projectLatLong(makeLatLong(lat,long),45,self.radius/2)
+        -- Note: This only works for even width/height
+        --   for odd the size of the far quadrant needs to be
+        --    (self.width - w, wself.height - h)
+        self.children = {
+            QuadTree.new(p1.latitude,p1.longitude,self.radius/2),
+            QuadTree.new(p2.latitude,p2.longitude,self.radius/2),
+            QuadTree.new(p3.latitude,p3.longitude,self.radius/2),
+            QuadTree.new(p4.latitude,p4.longitude,self.radius/2)
+        }
+    end
+end
+
+function QuadTree:check(object, func, latitude, longitude)
+    local olatitude = latitude or object.latitude
+    local olongitude = longitude or object.longitude
+    local oradius = object.radius
+    for i,child in pairs(self.children) do
+        local childlatitude = child.latitude
+        local childlongitude = child.longitude
+        local childradius = child.radius
+        local distance = Tool_Range({latitude=olatitude,longitude=olongitude},{latitude=childlatitude,longitude=childlongitude})
+        if distance > (childradius + oradius) then
+            -- Object doesn't intersect quadrant
+        else
+            func(child)
+        end
+    end
+end
+
+function QuadTree:addObject(object)
+    assert(not self.objects[object], "You cannot add the same object twice to a QuadTree")
+    if not self.children then
+        self.objects[object] = object
+    else
+        self:check(object, function(child) child:addObject(object) end)
+    end
+end
+
+function QuadTree:removeObject(object, usePrevious)
+    if not self.children then
+        self.objects[object] = nil
+    else
+        -- if 'usePrevious' is true then use prev_x/y else use x/y
+        local latitude = (usePrevious and object.prev_latitude) or object:getLatitude()
+        local longitude = (usePrevious and object.prev_longitude) or object:getLongitude()
+        self:check(object,
+            function(child)
+                child:removeObject(object, usePrevious)
+            end, latitude, longitude)
+    end
+end
+
+function QuadTree:updateObject(object)
+    self:removeObject(object, true)
+    self:addObject(object)
+end
+
+function QuadTree:removeAllObjects()
+    if not self.children then
+        self.objects = {}
+    else
+        for i,child in pairs(self.children) do
+            child:removeAllObjects()
+        end
+    end
+end
+
+function QuadTree:getCollidableObjects(object, moving)
+    if not self.children then
+        return self.objects
+    else
+        local quads = {}
+        self:check(object, function (child) quads[child] = child end)
+        if moving then
+            self:check(object, function (child) quads[child] = child end,
+                object.prev_x, object.prev_y)
+        end
+        local near = {}
+        for q in pairs(quads) do
+            for i,o in pairs(q:getCollidableObjects(object, moving)) do
+                -- Make sure we don't return the object itself
+                if i ~= object then
+                    table.insert(near, o)
+                end
+            end
+        end
+        return near
+    end
+end
+
+QuadTree_mt.__index = QuadTree
+
 --------------------------------------------------------------------------------------------------------------------------------
 -- Local Generic Memory
 --------------------------------------------------------------------------------------------------------------------------------
@@ -258,7 +380,6 @@ function localMemoryInventoryGetFromKey(primaryKey)
 end
 
 function localMemoryInventoryAddToKey(primaryKey,value)
-    --ScenEdit_SpecialMessage("Blue Force","localMemoryInventoryAddToKey - "..primaryKey)
     local table = localMemoryInventoryGetFromKey(primaryKey)
     table[#table + 1] = value
 end
@@ -551,6 +672,25 @@ function getUnitsFromMission(sideName,missionGuid)
                 if unitKeyValue[unit.guid] == nil then
                     missionUnits[#missionUnits + 1] = unit.guid
                     unitKeyValue[unit.guid] = ""
+                end
+            end
+        end
+    end
+    return missionUnits
+end
+
+function getGroupLeadsFromMission(sideName,missionGuid)
+    local mission = ScenEdit_GetMission(sideName,missionGuid)
+    local unitKeyValue = {}
+    local missionUnits = {}
+    if mission then
+        for k,v in pairs(mission.unitlist) do
+            local unit = ScenEdit_GetUnit({side=sideName, guid=v})
+            if unit then
+                if unit.group then
+                    missionUnits[unit.group.lead] = unit.group.lead
+                else
+                    missionUnits[unit.guid] = unit.guid
                 end
             end
         end
@@ -1492,7 +1632,7 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 function determineUnitToRetreat(sideShortKey,sideGuid,sideAttributes,missionGuid,unitGuidList,zoneType,retreatRange)
     local side = VP_GetSide({guid=sideGuid})
-    local missionUnits = getUnitsFromMission(side.name,missionGuid)
+    local missionUnits = getGroupLeadsFromMission(side.name,missionGuid)
     for k,v in pairs(missionUnits) do
         local missionUnit = ScenEdit_GetUnit({side=side.name,guid=v})
         if missionUnit and missionUnit.speed > 0  then
@@ -1509,9 +1649,18 @@ function determineUnitToRetreat(sideShortKey,sideGuid,sideAttributes,missionGuid
                 unitRetreatPoint = nil
             end
             if unitRetreatPoint ~= nil and not determineUnitRTB(side.name,missionUnit.guid) then
-                ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course = "no" })
-                missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
-                missionUnit.manualSpeed = unitRetreatPoint.speed
+                if missionUnit.group and missionUnit.group.unitlist  then
+                    for k1,v1 in pairs(missionUnit.group.unitlist) do
+                        local subUnit = ScenEdit_GetUnit({side=side.name,guid=v1})
+                        ScenEdit_SetDoctrine({side=side.name,guid=subUnit.guid},{ignore_plotted_course = "no" })
+                        subUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
+                        subUnit.manualSpeed = unitRetreatPoint.speed
+                    end
+                else 
+                    ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course = "no" })
+                    missionUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
+                    missionUnit.manualSpeed = unitRetreatPoint.speed
+                end
             else
                 ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course = "yes" })
                 missionUnit.manualSpeed = "OFF"
@@ -1520,7 +1669,7 @@ function determineUnitToRetreat(sideShortKey,sideGuid,sideAttributes,missionGuid
     end
 end
 
-function getAirNoNavZoneThatContaintsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,range)
+function getAirNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,range)
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
     local hostileAirContacts = getHostileAirContacts(shortSideKey)
@@ -1646,7 +1795,7 @@ function getAirAndShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttrib
         return contactPoint
     else
         return nil
-        --[[contactPoint = getAirNoNavZoneThatContaintsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
+        --[[contactPoint = getAirNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
         if contactPoint then
             return contactPoint
         else
@@ -1662,7 +1811,7 @@ function getAirAndSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttribu
     else
         return nil
         --[[
-        contactPoint = getAirNoNavZoneThatContaintsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
+        contactPoint = getAirNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
         if contactPoint then
             return contactPoint
         else
@@ -1676,7 +1825,7 @@ function getAllNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,un
     if contactPoint then
         return contactPoint
     else
-        contactPoint = getAirNoNavZoneThatContaintsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
+        contactPoint = getAirNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
         if contactPoint then
             return contactPoint
         else
