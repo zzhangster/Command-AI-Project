@@ -205,18 +205,21 @@ end
 QuadTree = {}
 QuadTree_mt = {}
 
-function QuadTree.new(_latitude,_longitude,_radius)
+function QuadTree.new(_lowerLeft,_lowerRight,_upperLeft,_upperRight)
+    ScenEdit_SpecialMessage("Blue Force","QuadTree - New ".._lowerLeft..", ".._lowerRight..", ".._upperLeft..", ".._upperRight)
     return setmetatable(
     {
-        latitude = _latitude,
-        longitude = _longitude,
-        radius  = _radius,
+        lowerLeft = _lowerLeft,
+        lowerRight = _lowerRight,
+        upperLeft  = _upperLeft,
+        upperRight  = _upperRight,
         children = nil,
         objects = {}
     }, QuadTree_mt)
 end
 
 function QuadTree:subdivide()
+    ScenEdit_SpecialMessage("Blue Force","QuadTree - subdivide")
     if self.children then
         for i,child in pairs(self.children) do
             child:subdivide()
@@ -226,12 +229,9 @@ function QuadTree:subdivide()
         local long = self.longitude
         local radius = self.radius
         local p1 = projectLatLong(makeLatLong(lat,long),225,self.radius/2)
-        local p2 = projectLatLong(makeLatLong(lat,long),315,self.radius/2)
-        local p3 = projectLatLong(makeLatLong(lat,long),135,self.radius/2)
+        local p2 = projectLatLong(makeLatLong(lat,long),135,self.radius/2)
+        local p3 = projectLatLong(makeLatLong(lat,long),315,self.radius/2)
         local p4 = projectLatLong(makeLatLong(lat,long),45,self.radius/2)
-        -- Note: This only works for even width/height
-        --   for odd the size of the far quadrant needs to be
-        --    (self.width - w, wself.height - h)
         self.children = {
             QuadTree.new(p1.latitude,p1.longitude,self.radius/2),
             QuadTree.new(p2.latitude,p2.longitude,self.radius/2),
@@ -241,24 +241,26 @@ function QuadTree:subdivide()
     end
 end
 
-function QuadTree:check(object, func, latitude, longitude)
-    local olatitude = latitude or object.latitude
-    local olongitude = longitude or object.longitude
+function QuadTree:check(object, func)
+    ScenEdit_SpecialMessage("Blue Force","QuadTree - check")
+    local olatitude = object.latitude
+    local olongitude = object.longitude
     local oradius = object.radius
     for i,child in pairs(self.children) do
         local childlatitude = child.latitude
         local childlongitude = child.longitude
         local childradius = child.radius
         local distance = Tool_Range({latitude=olatitude,longitude=olongitude},{latitude=childlatitude,longitude=childlongitude})
-        if distance > (childradius + oradius) then
-            -- Object doesn't intersect quadrant
-        else
+        if distance < (childradius + oradius) then
+            ScenEdit_SpecialMessage("Blue Force","QuadTree - distance check")
             func(child)
+            break
         end
     end
 end
 
 function QuadTree:addObject(object)
+    ScenEdit_SpecialMessage("Blue Force","addObject - "..object.name)
     assert(not self.objects[object], "You cannot add the same object twice to a QuadTree")
     if not self.children then
         self.objects[object] = object
@@ -297,6 +299,7 @@ function QuadTree:removeAllObjects()
 end
 
 function QuadTree:getCollidableObjects(object, moving)
+    ScenEdit_SpecialMessage("Blue Force","QuadTree - getCollidableObjects")
     if not self.children then
         return self.objects
     else
@@ -1630,6 +1633,53 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 -- Determine Unit Retreat Functions
 --------------------------------------------------------------------------------------------------------------------------------
+function determineReconUnitToRetreat(sideShortKey,sideGuid,sideAttributes,missionGuid,retreatRange)
+    local side = VP_GetSide({guid=sideGuid})
+    local missionUnits = getGroupLeadsFromMission(side.name,missionGuid)
+    for k,v in pairs(missionUnits) do
+        local missionUnit = ScenEdit_GetUnit({side=side.name,guid=v})
+        if missionUnit and missionUnit.speed > 0 and not determineUnitRTB(side.name,missionUnit.guid) then
+            local unitRetreatPoint = determineAirNoNavZonesToRetreat(sideShortKey,sideGuid,missionUnit,retreatRange)
+            if unitRetreatPoint then
+                if missionUnit.group and missionUnit.group.unitlist then
+                    for k1,v1 in pairs(missionUnit.group.unitlist) do
+                        local subUnit = ScenEdit_GetUnit({side=side.name,guid=v1})
+                        ScenEdit_SetDoctrine({side=side.name,guid=subUnit.guid},{ignore_plotted_course="no"})
+                        subUnit.course = {{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
+                        subUnit.manualSpeed = unitRetreatPoint.speed
+                    end
+                else 
+                    ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course="no"})
+                    missionUnit.course = {{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
+                    missionUnit.manualSpeed = unitRetreatPoint.speed
+                end
+            else
+                ScenEdit_SetDoctrine({side=side.name,guid=missionUnit.guid},{ignore_plotted_course ="yes"})
+                missionUnit.manualSpeed = "OFF"
+            end
+        end
+    end
+end
+
+function determineAirNoNavZonesToRetreat(sideShortKey,sideGuid,missionUnit,retreatRange)
+    local side = VP_GetSide({guid=sideGuid})
+    local quadTree = localMemoryGetFromKey(sideShortKey.."_air_contacts_quad")[1]
+    local unitObj = {name=missionUnit.guid,latitude=missionUnit.latitude,longitude=missionUnit.longitude,prev_latitude=missionUnit.latitude,prev_longitude=missionUnit.longitude,radius=retreatRange}
+    local collidedContacts = quadTree:getCollidableObjects(unitObj, false)
+    ScenEdit_SpecialMessage("Blue Force","determineAirNoNavZonesToRetreat "..#collidedContacts)
+    for k,v in pairs(collidedContacts) do
+        local contact = ScenEdit_GetContact({side=side.name,guid=v})
+        if contact then
+            if Tool_Range(contact.guid,missionUnit.guid) <= retreatRange then
+                local bearing = Tool_Bearing(contact.guid,missionUnit.guid)
+                local retreatLocation = projectLatLong(makeLatLong(contact.latitude,contact.longitude),bearing,retreatRange + 20)
+                return {latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=1000}
+            end
+        end
+    end
+    return nil
+end
+
 function determineUnitToRetreat(sideShortKey,sideGuid,sideAttributes,missionGuid,unitGuidList,zoneType,retreatRange)
     local side = VP_GetSide({guid=sideGuid})
     local missionUnits = getGroupLeadsFromMission(side.name,missionGuid)
@@ -1779,13 +1829,12 @@ function getSAMAndShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttrib
     if contactPoint then
         return contactPoint
     else
-        return nil
-        --[[contactPoint = getSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
+        contactPoint = getSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
         if contactPoint then
             return contactPoint
         else
             return getShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
-        end]]--
+        end
     end
 end
 
@@ -1794,13 +1843,12 @@ function getAirAndShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttrib
     if contactPoint then
         return contactPoint
     else
-        return nil
-        --[[contactPoint = getAirNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
+        contactPoint = getAirNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
         if contactPoint then
             return contactPoint
         else
             return getShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
-        end]]--
+        end
     end
 end
 
@@ -1809,14 +1857,12 @@ function getAirAndSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttribu
     if contactPoint then
         return contactPoint 
     else
-        return nil
-        --[[
         contactPoint = getAirNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
         if contactPoint then
             return contactPoint
         else
             return getSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
-        end]]--
+        end
     end
 end
 
@@ -1829,20 +1875,13 @@ function getAllNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,un
         if contactPoint then
             return contactPoint
         else
-            return nil
-        end
-        --[[
-        contactPoint = getSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
-        if contactPoint then
-            return contactPoint
-        else
-            contactPoint = getAirNoNavZoneThatContaintsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
+            contactPoint = getSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
             if contactPoint then
                 return contactPoint
             else
                 return getShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
             end
-        end]]--
+        end
     end
 end
 
@@ -1855,9 +1894,9 @@ function observerActionUpdateAIAreaOfOperations(args)
     local coordinates = {}
     local boundingBox = {}
     local currentTime = ScenEdit_CurrentTime()
-    local lastTime = getTimeStampForKey(args.shortKey.."_ao_recalc_ts")
+    local nextTime = getTimeStampForKey(args.shortKey.."_ao_recalc_ts")
     -- Set Time Conditions
-    if #aoPoints < 4 or (currentTime - lastTime) > 60 then 
+    if #aoPoints < 4 or (nextTime - currentTime) <= 0 then 
         local hostileContacts = getAllHostileContacts(args.shortKey)
         local inventory = getAllInventory(args.shortKey)
         for k,v in pairs(hostileContacts) do
@@ -1879,7 +1918,7 @@ function observerActionUpdateAIAreaOfOperations(args)
                 ScenEdit_AddReferencePoint({side=side.name,name="AI-AO-"..tostring(i),lat=boundingBox[i].latitude,lon=boundingBox[i].longitude})
             end
         end
-        setTimeStampForKey(args.shortKey.."_ao_recalc_ts",ScenEdit_CurrentTime())
+        setTimeStampForKey(args.shortKey.."_ao_recalc_ts",tostring(currentTime + 60))
     end
 end
 
@@ -1891,9 +1930,9 @@ function observerActionUpdateAirInventories(args)
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
     local currentTime = ScenEdit_CurrentTime()
-    local previousTime = getTimeStampForKey(sideShortKey.."_update_air_inventory_ts")
+    local nextTime = getTimeStampForKey(sideShortKey.."_update_air_inventory_ts")
     -- Check Inventory
-    if (currentTime - previousTime > 60) then
+    if (nextTime - currentTime) <= 0 then
         local aircraftInventory = side:unitsBy("1")
         if aircraftInventory then
             local savedInventory = {}
@@ -1953,7 +1992,7 @@ function observerActionUpdateAirInventories(args)
             localMemoryInventoryAddToKey(sideShortKey.."_saved_air_inventory",savedInventory)
         end
         -- Save Time Stamp
-        setTimeStampForKey(sideShortKey.."_update_air_inventory_ts",currentTime)
+        setTimeStampForKey(sideShortKey.."_update_air_inventory_ts",tostring(currentTime + 60))
     end
 end
 
@@ -1962,9 +2001,9 @@ function observerActionUpdateSurfaceInventories(args)
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
     local currentTime = ScenEdit_CurrentTime()
-    local previousTime = getTimeStampForKey(sideShortKey.."_update_ship_inventory_ts")
+    local nextTime = getTimeStampForKey(sideShortKey.."_update_ship_inventory_ts")
     -- Check Time
-    if ((currentTime - previousTime) > 120 or currentTime == previousTime) then
+    if (nextTime - currentTime) <= 0  then
         local shipInventory = side:unitsBy("2")
         if shipInventory then
             local savedInventory = {}
@@ -1991,7 +2030,7 @@ function observerActionUpdateSurfaceInventories(args)
             localMemoryInventoryAddToKey(sideShortKey.."_saved_ship_inventory",savedInventory)
         end
         -- Save Time Stamp
-        setTimeStampForKey(sideShortKey.."_update_ship_inventory_ts",currentTime)
+        setTimeStampForKey(sideShortKey.."_update_ship_inventory_ts",tostring(currentTime + 180))
     end
 end
 
@@ -2000,9 +2039,9 @@ function observerActionUpdateSubmarineInventories(args)
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
     local currentTime = ScenEdit_CurrentTime()
-    local previousTime = getTimeStampForKey(sideShortKey.."_update_sub_inventory_ts")
+    local nextTime = getTimeStampForKey(sideShortKey.."_update_sub_inventory_ts")
     -- Check Time
-    if ((currentTime - previousTime) > 120 or currentTime == previousTime) then
+    if (nextTime - currentTime) <= 0 then
         local submarineInventory = side:unitsBy("3")
         if submarineInventory then
             local savedInventory = {}
@@ -2029,7 +2068,7 @@ function observerActionUpdateSubmarineInventories(args)
             localMemoryInventoryAddToKey(sideShortKey.."_saved_sub_inventory",savedInventory)
         end
         -- Save Time Stamp
-        setTimeStampForKey(sideShortKey.."_update_sub_inventory_ts",currentTime)
+        setTimeStampForKey(sideShortKey.."_update_sub_inventory_ts",tostring(currentTime + 180))
     end
 end
 
@@ -2038,9 +2077,9 @@ function observerActionUpdateLandInventories(args)
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
     local currentTime = ScenEdit_CurrentTime()
-    local previousTime = getTimeStampForKey(sideShortKey.."_update_land_inventory_ts")
+    local nextTime = getTimeStampForKey(sideShortKey.."_update_land_inventory_ts")
     -- Check Time
-    if ((currentTime - previousTime) > 700 or currentTime == previousTime) then
+    if (nextTime - currentTime) <= 0 then
         local landInventory = side:unitsBy("4")
         -- Loop Through
         if landInventory then
@@ -2075,7 +2114,7 @@ function observerActionUpdateLandInventories(args)
             localMemoryInventoryAddToKey(sideShortKey.."_saved_land_inventory",savedInventory)
         end
         -- Reset Time
-        setTimeStampForKey(sideShortKey.."_update_land_inventory_ts",currentTime)
+        setTimeStampForKey(sideShortKey.."_update_land_inventory_ts",tostring(currentTime + 700))
     end
 end
 
@@ -2086,8 +2125,9 @@ function observerActionUpdateHVAInventories(args)
     local shipInventory = side:unitsBy("2")
     local landInventory = side:unitsBy("4")
     local currentTime = ScenEdit_CurrentTime()
-    local previousTime = getTimeStampForKey(sideShortKey.."_update_hva_inventory_ts")
-    if ((currentTime - previousTime) > 600 or currentTime == previousTime) then
+    local nextTime = getTimeStampForKey(sideShortKey.."_update_hva_inventory_ts")
+    -- Check Time
+    if (nextTime - currentTime) <= 0 then
         -- Remove
         localMemoryRemoveFromKey(sideShortKey.."_def_hva")
         -- Check Ship Inventory
@@ -2122,7 +2162,7 @@ function observerActionUpdateHVAInventories(args)
             end
         end
         -- Save Memory Inventory And Time Stamp
-        setTimeStampForKey(sideShortKey.."_update_hva_inventory_ts",currentTime)
+        setTimeStampForKey(sideShortKey.."_update_hva_inventory_ts",tostring(currentTime + 600))
     end
 end
 
@@ -2131,8 +2171,9 @@ function observerActionUpdateAirContacts(args)
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
     local currentTime = ScenEdit_CurrentTime()
-    local previousTime = getTimeStampForKey(sideShortKey.."_update_air_contacts_ts")
-    if ((currentTime - previousTime) > 60 or currentTime == previousTime) then
+    local nextTime = getTimeStampForKey(sideShortKey.."_update_air_contacts_ts")
+    -- Check Time
+    if (nextTime - currentTime) <= 0 then
         local aircraftContacts = side:contactsBy("1")
         localMemoryContactRemoveFromKey(sideShortKey.."_saved_air_contact")
         if aircraftContacts then
@@ -2153,7 +2194,41 @@ function observerActionUpdateAirContacts(args)
             localMemoryContactAddToKey(sideShortKey.."_saved_air_contact",savedContacts)
         end
         -- Save Memory Inventory And Time Stamp
-        setTimeStampForKey(sideShortKey.."_update_air_contacts_ts",currentTime)
+        setTimeStampForKey(sideShortKey.."_update_air_contacts_ts",tostring(currentTime + 60))
+    end
+end
+
+function observerActionUpdateAirContactsQuadTree(args)
+    -- Local Variables
+    local sideShortKey = args.shortKey
+    local side = VP_GetSide({guid=args.guid})
+    local currentTime = ScenEdit_CurrentTime()
+    local nextTime = getTimeStampForKey(sideShortKey.."_update_air_contacts_quad_ts")
+    local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
+    local hostileContacts = getHostileAirContacts(sideShortKey)
+    local unknownContacts = getUnknownAirContacts(sideShortKey)
+    if (nextTime - currentTime) <= 0 then
+        local centerPoint = midPointCoordinate(aoPoints[1].latitude,aoPoints[1].longitude,aoPoints[3].latitude,aoPoints[3].longitude)
+        local airContactQuadTree = QuadTree.new(centerPoint.latitude,centerPoint.longitude,1000)
+        airContactQuadTree:subdivide()
+        localMemoryRemoveFromKey(sideShortKey.."_air_contacts_quad")
+        for k,v in pairs(hostileContacts) do
+            local contact = ScenEdit_GetContact({side=side.name,guid=v})
+            if contact then
+                local contactObj = {name=contact.guid,latitude=contact.latitude,longitude=contact.longitude,prev_latitude=contact.latitude,prev_longitude=contact.longitude,radius=1}
+                airContactQuadTree:addObject(contactObj)
+            end
+        end
+        for k,v in pairs(unknownContacts) do
+            local contact = ScenEdit_GetContact({side=side.name,guid=v})
+            if contact then
+                local contactObj = {name=contact.guid,latitude=contact.latitude,longitude=contact.longitude,prev_latitude=contact.latitude,prev_longitude=contact.longitude,radius=1}
+                airContactQuadTree:addObject(contactObj)
+            end
+        end
+        localMemoryAddToKey(sideShortKey.."_air_contacts_quad",airContactQuadTree)
+        -- Save Memory Inventory And Time Stamp
+        setTimeStampForKey(sideShortKey.."_update_air_contacts_quad_ts",tostring(currentTime + 60))
     end
 end
 
@@ -2162,9 +2237,9 @@ function observerActionUpdateSurfaceContacts(args)
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
     local currentTime = ScenEdit_CurrentTime()
-    local previousTime = getTimeStampForKey(sideShortKey.."_update_ship_contacts_ts")
-    if ((currentTime - previousTime) > 120 or currentTime == previousTime) then
-        local shipContacts = side:contactsBy("2") 
+    local nextTime = getTimeStampForKey(sideShortKey.."_update_ship_contacts_ts")
+    if (nextTime - currentTime) <= 0 then
+        local shipContacts = side:contactsBy("2")
         localMemoryContactRemoveFromKey(sideShortKey.."_saved_ship_contact")
         if shipContacts then
             local savedContacts = {}
@@ -2184,7 +2259,7 @@ function observerActionUpdateSurfaceContacts(args)
             localMemoryContactAddToKey(sideShortKey.."_saved_ship_contact",savedContacts)
         end
         -- Save Memory Inventory And Time Stamp
-        setTimeStampForKey(sideShortKey.."_update_ship_contacts_ts",currentTime)
+        setTimeStampForKey(sideShortKey.."_update_ship_contacts_ts",tostring(currentTime + 120))
     end
 end
 
@@ -2193,8 +2268,8 @@ function observerActionUpdateSubmarineContacts(args)
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
     local currentTime = ScenEdit_CurrentTime()
-    local previousTime = getTimeStampForKey(sideShortKey.."_update_sub_contacts_ts")
-    if ((currentTime - previousTime) > 120 or currentTime == previousTime) then
+    local nextTime = getTimeStampForKey(sideShortKey.."_update_sub_contacts_ts")
+    if (nextTime - currentTime) <= 0 then
         local submarineContacts = side:contactsBy("3")
         localMemoryContactRemoveFromKey(sideShortKey.."_saved_sub_contact")
         if submarineContacts then
@@ -2215,7 +2290,7 @@ function observerActionUpdateSubmarineContacts(args)
             localMemoryContactAddToKey(sideShortKey.."_saved_sub_contact",savedContacts)
         end
         -- Save Memory Inventory And Time Stamp
-        setTimeStampForKey(sideShortKey.."_update_sub_contacts_ts",currentTime)
+        setTimeStampForKey(sideShortKey.."_update_sub_contacts_ts",tostring(currentTime + 120))
     end
 end
 
@@ -2224,8 +2299,8 @@ function observerActionUpdateLandContacts(args)
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
     local currentTime = ScenEdit_CurrentTime()
-    local previousTime = getTimeStampForKey(sideShortKey.."_update_land_contacts_ts")
-    if ((currentTime - previousTime) > 700 or currentTime == previousTime) then
+    local nextTime = getTimeStampForKey(sideShortKey.."_update_land_contacts_ts")
+    if (nextTime - currentTime) <= 0 then
         local landContacts = side:contactsBy("4")
         localMemoryContactRemoveFromKey(sideShortKey.."_saved_land_contact")
         if landContacts then
@@ -2250,7 +2325,7 @@ function observerActionUpdateLandContacts(args)
             localMemoryContactAddToKey(sideShortKey.."_saved_land_contact",savedContacts)
         end
         -- Save Memory Inventory And Time Stamp
-        setTimeStampForKey(sideShortKey.."_update_land_contacts_ts",currentTime)
+        setTimeStampForKey(sideShortKey.."_update_land_contacts_ts",tostring(currentTime + 700))
     end
 end
 
@@ -2259,8 +2334,8 @@ function observerActionUpdateWeaponContacts(args)
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
     local currentTime = ScenEdit_CurrentTime()
-    local previousTime = getTimeStampForKey(sideShortKey.."_update_weapon_contacts_ts")
-    if ((currentTime - previousTime) > 10 or currentTime == previousTime) then
+    local nextTime = getTimeStampForKey(sideShortKey.."_update_weapon_contacts_ts")
+    if (nextTime - currentTime) <= 0 then
         local weaponContacts = side:contactsBy("6")
         localMemoryContactRemoveFromKey(sideShortKey.."_saved_weap_contact")
         if weaponContacts then
@@ -2295,7 +2370,7 @@ function observerActionUpdateWeaponContacts(args)
             localMemoryContactAddToKey(sideShortKey.."_saved_weap_contact",savedContacts)
         end
         -- Save Memory Inventory And Time Stamp
-        setTimeStampForKey(sideShortKey.."_update_weapon_contacts_ts",currentTime)
+        setTimeStampForKey(sideShortKey.."_update_weapon_contacts_ts",tostring(currentTime + 10))
     end
 end
 
@@ -2308,8 +2383,6 @@ end
 -- Decider Functions
 --------------------------------------------------------------------------------------------------------------------------------
 function deciderOffensiveCheck(args)
-    -- Print
-    --ScenEdit_SpecialMessage("Stennis CSG","deciderOffensiveCheck")
     -- Local Values
     local hostileStrength = getAllHostileContactStrength(args.shortKey)
     local inventoryStrength = getAllInventoryStrength(args.shortKey)
@@ -2325,8 +2398,6 @@ function deciderOffensiveCheck(args)
 end
 
 function deciderDefensiveCheck(args)
-    -- Print
-    --ScenEdit_SpecialMessage("Stennis CSG","deciderDefensiveCheck")
     -- Local Values
     local hostileStrength = getAllHostileContactStrength(args.shortKey)
     local inventoryStrength = getAllInventoryStrength(args.shortKey)
@@ -2341,9 +2412,7 @@ function deciderDefensiveCheck(args)
     end
 end
 
-function deciderOffensiveReconCreateUpdateMission(args)
-    -- Print
-    --ScenEdit_SpecialMessage("Stennis CSG","deciderOffensiveReconCreateUpdateMission")
+function deciderNeutralReconCreateUpdateMission(args)
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
@@ -2448,8 +2517,6 @@ function deciderOffensiveReconCreateUpdateMission(args)
 end
 
 function deciderOffensiveAirCreateUpdateMission(args)
-    -- Print
-    --ScenEdit_SpecialMessage("Stennis CSG","deciderOffensiveAirCreateUpdateMission")
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_aaw_miss")
@@ -2486,8 +2553,6 @@ function deciderOffensiveAirCreateUpdateMission(args)
 end
 
 function deciderOffensiveStealthAirCreateUpdateMission(args)
-    -- Print
-    --ScenEdit_SpecialMessage("Stennis CSG","deciderOffensiveStealthAirCreateUpdateMission")
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_saaw_miss")
@@ -2677,8 +2742,6 @@ function deciderOffensiveSeadCreateUpdateMission(args)
 end
 
 function deciderOffensiveLandAttackCreateUpdateMission(args)
-    -- Print
-    --ScenEdit_SpecialMessage("Stennis CSG","deciderOffensiveLandAttackCreateUpdateMission")
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_land_miss")
@@ -2710,8 +2773,6 @@ function deciderOffensiveLandAttackCreateUpdateMission(args)
 end
 
 function deciderDefensiveAirCreateUpdateMission(args)
-    -- Print
-    --ScenEdit_SpecialMessage("Stennis CSG","deciderDefensiveAirCreateUpdateMission")
     -- Local Side And Mission
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_aaw_d_miss")
@@ -2834,8 +2895,6 @@ end
 -- Defensive Tanker Doctrine Create Update Mission Action
 --------------------------------------------------------------------------------------------------------------------------------
 function deciderDefensiveTankerCreateUpdateMission(args)
-    -- Print
-    --ScenEdit_SpecialMessage("Stennis CSG","deciderDefensiveTankerCreateUpdateMission")
     -- Local Side And Mission
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_tan_d_miss")
@@ -2902,8 +2961,6 @@ end
 -- Defend AEW Doctrine Create Update Mission Action
 --------------------------------------------------------------------------------------------------------------------------------
 function deciderDefensiveAEWCreateUpdateMission(args)
-    -- Print
-    --ScenEdit_SpecialMessage("Stennis CSG","deciderDefensiveAEWCreateUpdateMission")
     -- Local Side And Mission
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_aew_d_miss")
@@ -2970,8 +3027,6 @@ end
 -- Decider Ship Doctrine Create Update Mission Action
 --------------------------------------------------------------------------------------------------------------------------------
 function deciderNeutralShipCreateUpdateMission(args)
-    -- Print
-    --ScenEdit_SpecialMessage("Stennis CSG","deciderNeutralShipCreateUpdateMission")
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_ship_sc_miss")
@@ -3025,8 +3080,6 @@ end
 -- Decider Submarine Doctrine Create Update Mission Action
 --------------------------------------------------------------------------------------------------------------------------------
 function deciderNeutralSubmarineCreateUpdateMission(args)
-    -- Print
-    --ScenEdit_SpecialMessage("Stennis CSG","deciderNeutralSubmarineCreateUpdateMission")
     -- Local Values
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_sub_sc_miss")
@@ -3455,7 +3508,7 @@ function actorUpdateAirReinforcementRequest(args)
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
--- Hampton - Retreat Positions And EMCON
+-- Actor - Control EMCON And Movement
 --------------------------------------------------------------------------------------------------------------------------------
 function actorUpdateUnitsInReconMission(args)
     -- Locals
@@ -3469,6 +3522,7 @@ function actorUpdateUnitsInReconMission(args)
     for k,v in pairs(missions) do
         -- Local Values
         local updatedMission = ScenEdit_GetMission(side.name,v)
+        -- Find Area And Retreat Point
         local missionUnits = getUnitsFromMission(side.name,updatedMission.guid)
         -- Determine Retreat
         determineUnitToRetreat(args.shortKey,args.guid,args.options,updatedMission.guid,missionUnits,0,100)
@@ -3583,6 +3637,8 @@ function actorUpdateUnitsInOffensiveAEWMission(args)
     local missionUnits = getUnitsFromMission(side.name,updatedMission.guid)
     -- Determine Retreat
     determineUnitToRetreat(args.shortKey,args.guid,args.options,updatedMission.guid,missionUnits,0,200)
+    -- Determine Retreat
+    --determineReconUnitToRetreat(args.shortKey,args.guid,args.options,updatedMission.guid,200)
 end
 
 function actorUpdateUnitsInOffensiveTankerMission(args)
@@ -3808,6 +3864,7 @@ function initializeAresAI(sideName,options)
     local observerActionUpdateLandContactsBT = BT:make(observerActionUpdateLandContacts,sideGuid,shortSideKey,attributes)
     local observerActionUpdateWeaponContactsBT = BT:make(observerActionUpdateWeaponContacts,sideGuid,shortSideKey,attributes)
     local observerActionUpdateAIAreaOfOperationsBT = BT:make(observerActionUpdateAIAreaOfOperations,sideGuid,shortSideKey,attributes)
+    local observerActionUpdateAirContactsQuadTreeBT = BT:make(observerActionUpdateAirContactsQuadTree,sideGuid,shortSideKey,attributes)
     aresObserverBTMain:addChild(observerActionUpdateAirInventoriesBT)
     aresObserverBTMain:addChild(observerActionUpdateSurfaceInventoriesBT)
     aresObserverBTMain:addChild(observerActionUpdateSubmarineInventoriesBT)
@@ -3819,6 +3876,7 @@ function initializeAresAI(sideName,options)
     aresObserverBTMain:addChild(observerActionUpdateLandContactsBT)
     aresObserverBTMain:addChild(observerActionUpdateWeaponContactsBT)
     aresObserverBTMain:addChild(observerActionUpdateAIAreaOfOperationsBT)
+    --aresObserverBTMain:addChild(observerActionUpdateAirContactsQuadTreeBT)
     ----------------------------------------------------------------------------------------------------------------------------
     -- Ares Decider
     ----------------------------------------------------------------------------------------------------------------------------
@@ -3827,7 +3885,7 @@ function initializeAresAI(sideName,options)
     local deciderDefendDoctrineSequenceBT = BT:make(BT.sequence,sideGuid,shortSideKey,attributes)
     -- Offensive Behavior Tree
     local deciderOffensiveCheckBT = BT:make(deciderOffensiveCheck,sideGuid,shortSideKey,attributes)
-    local deciderOffensiveReconCreateUpdateMissionBT = BT:make(deciderOffensiveReconCreateUpdateMission,sideGuid,shortSideKey,attributes)
+    local deciderNeutralReconCreateUpdateMissionBT = BT:make(deciderNeutralReconCreateUpdateMission,sideGuid,shortSideKey,attributes)
     local deciderOffensiveAirCreateUpdateMissionBT = BT:make(deciderOffensiveAirCreateUpdateMission,sideGuid,shortSideKey,attributes)
     local deciderOffensiveStealthAirCreateUpdateMissionBT = BT:make(deciderOffensiveStealthAirCreateUpdateMission,sideGuid,shortSideKey,attributes)
     local deciderOffensiveAEWCreateUpdateMissionBT = BT:make(deciderOffensiveAEWCreateUpdateMission,sideGuid,shortSideKey,attributes)
@@ -3849,7 +3907,7 @@ function initializeAresAI(sideName,options)
     deciderDoctrineSelectorBT:addChild(deciderDefendDoctrineSequenceBT)
     -- Setup Attack Doctrine Sequence
     deciderAttackDoctrineSequenceBT:addChild(deciderOffensiveCheckBT)
-    deciderAttackDoctrineSequenceBT:addChild(deciderOffensiveReconCreateUpdateMissionBT)
+    deciderAttackDoctrineSequenceBT:addChild(deciderNeutralReconCreateUpdateMissionBT)
     deciderAttackDoctrineSequenceBT:addChild(deciderOffensiveAirCreateUpdateMissionBT)
     deciderAttackDoctrineSequenceBT:addChild(deciderOffensiveStealthAirCreateUpdateMissionBT)
     deciderAttackDoctrineSequenceBT:addChild(deciderOffensiveAEWCreateUpdateMissionBT)
@@ -3861,6 +3919,7 @@ function initializeAresAI(sideName,options)
     deciderAttackDoctrineSequenceBT:addChild(deciderNeutralSubmarineCreateUpdateMissionBT)
     -- Setup Defend Doctrine Sequence
     deciderDefendDoctrineSequenceBT:addChild(deciderDefensiveCheckBT)
+    deciderAttackDoctrineSequenceBT:addChild(deciderNeutralReconCreateUpdateMissionBT)
     deciderDefendDoctrineSequenceBT:addChild(deciderDefensiveAirCreateUpdateMissionBT)
     deciderDefendDoctrineSequenceBT:addChild(deciderDefensiveAEWCreateUpdateMissionBT)
     deciderDefendDoctrineSequenceBT:addChild(deciderDefensiveTankerCreateUpdateMissionBT)
@@ -3924,4 +3983,4 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 -- Global Call
 --------------------------------------------------------------------------------------------------------------------------------
-initializeAresAI("South Korea",{preset="Sheridan"})
+initializeAresAI("Blue Force",{preset="Sheridan"})
