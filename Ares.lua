@@ -3501,7 +3501,6 @@ function actorUpdateAirReinforcementRequest(args)
             end
         end
     end
-
     -- Clear Reinforcements And Saved Alloc
     removeAllocatedUnit(args.shortKey)
     clearReinforcementRequests(args.shortKey)
@@ -3525,7 +3524,7 @@ function actorUpdateUnitsInReconMission(args)
         -- Find Area And Retreat Point
         local missionUnits = getUnitsFromMission(side.name,updatedMission.guid)
         -- Determine Retreat
-        determineUnitToRetreat(args.shortKey,args.guid,args.options,updatedMission.guid,missionUnits,0,100)
+        determineUnitToRetreat(args.shortKey,args.guid,args.options,updatedMission.guid,missionUnits,0,80)
         -- Determine EMCON
         determineEmconToUnits(args.shortKey,args.options,side.name,missionUnits)
     end
@@ -3864,7 +3863,7 @@ function initializeAresAI(sideName,options)
     local observerActionUpdateLandContactsBT = BT:make(observerActionUpdateLandContacts,sideGuid,shortSideKey,attributes)
     local observerActionUpdateWeaponContactsBT = BT:make(observerActionUpdateWeaponContacts,sideGuid,shortSideKey,attributes)
     local observerActionUpdateAIAreaOfOperationsBT = BT:make(observerActionUpdateAIAreaOfOperations,sideGuid,shortSideKey,attributes)
-    local observerActionUpdateAirContactsQuadTreeBT = BT:make(observerActionUpdateAirContactsQuadTree,sideGuid,shortSideKey,attributes)
+    --local observerActionUpdateAirContactsQuadTreeBT = BT:make(observerActionUpdateAirContactsQuadTree,sideGuid,shortSideKey,attributes)
     aresObserverBTMain:addChild(observerActionUpdateAirInventoriesBT)
     aresObserverBTMain:addChild(observerActionUpdateSurfaceInventoriesBT)
     aresObserverBTMain:addChild(observerActionUpdateSubmarineInventoriesBT)
@@ -3919,7 +3918,7 @@ function initializeAresAI(sideName,options)
     deciderAttackDoctrineSequenceBT:addChild(deciderNeutralSubmarineCreateUpdateMissionBT)
     -- Setup Defend Doctrine Sequence
     deciderDefendDoctrineSequenceBT:addChild(deciderDefensiveCheckBT)
-    deciderAttackDoctrineSequenceBT:addChild(deciderNeutralReconCreateUpdateMissionBT)
+    deciderDefendDoctrineSequenceBT:addChild(deciderNeutralReconCreateUpdateMissionBT)
     deciderDefendDoctrineSequenceBT:addChild(deciderDefensiveAirCreateUpdateMissionBT)
     deciderDefendDoctrineSequenceBT:addChild(deciderDefensiveAEWCreateUpdateMissionBT)
     deciderDefendDoctrineSequenceBT:addChild(deciderDefensiveTankerCreateUpdateMissionBT)
