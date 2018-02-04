@@ -691,9 +691,13 @@ function getGroupLeadsFromMission(sideName,missionGuid)
             local unit = ScenEdit_GetUnit({side=sideName, guid=v})
             if unit then
                 if unit.group then
-                    missionUnits[unit.group.lead] = unit.group.lead
+                    if (unit.guid == unit.group.lead) then
+                        ScenEdit_SpecialMessage("Blue Force","getGroupLeadsFromMission - Lead")
+                        missionUnits[#missionUnits + 1] = unit.guid
+                    end
                 else
-                    missionUnits[unit.guid] = unit.guid
+                    ScenEdit_SpecialMessage("Blue Force","getGroupLeadsFromMission - No Lead")
+                    missionUnits[#missionUnits + 1] = unit.guid
                 end
             end
         end
@@ -717,6 +721,17 @@ function determineUnitRTB(sideName,unitGuid)
     local unit = ScenEdit_GetUnit({side=sideName, guid=unitGuid})
     if unit then
         if string.match(unit.unitstate, "RTB") then
+            return true
+        else
+            return false
+        end
+    end
+end
+
+function determineUnitBingo(sideName,unitGuid)
+    local unit = ScenEdit_GetUnit({side=sideName, guid=unitGuid})
+    if unit then
+        if string.match(unit.unitstate, "Bingo") then
             return true
         else
             return false
@@ -1683,9 +1698,11 @@ end
 function determineUnitToRetreat(sideShortKey,sideGuid,sideAttributes,missionGuid,unitGuidList,zoneType,retreatRange)
     local side = VP_GetSide({guid=sideGuid})
     local missionUnits = getGroupLeadsFromMission(side.name,missionGuid)
+    ScenEdit_SpecialMessage("Blue Force","determineUnitToRetreat"..#missionUnits)
     for k,v in pairs(missionUnits) do
         local missionUnit = ScenEdit_GetUnit({side=side.name,guid=v})
         if missionUnit and missionUnit.speed > 0  then
+            ScenEdit_SpecialMessage("Blue Force","determineUnitToRetreat"..missionUnit.name)
             local unitRetreatPoint = {}
             if zoneType == 0 then
                 unitRetreatPoint = getAllNoNavZoneThatContainsUnit(sideGuid,sideShortKey,sideAttributes,missionUnit.guid,retreatRange)
@@ -3544,7 +3561,7 @@ function actorUpdateUnitsInOffensiveAirMission(args)
     -- Find Area And Retreat Point
     local missionUnits = getUnitsFromMission(side.name,updatedMission.guid)
     -- Determine Retreat
-    determineUnitToRetreat(args.shortKey,args.guid,args.options,updatedMission.guid,missionUnits,1,100)
+    determineUnitToRetreat(args.shortKey,args.guid,args.options,updatedMission.guid,missionUnits,1,70)
     -- Determine EMCON
     determineEmconToUnits(args.shortKey,args.options,side.name,missionUnits)
 end
@@ -3563,7 +3580,7 @@ function actorUpdateUnitsInOffensiveStealthAirMission(args)
     -- Find Area And Retreat Point
     local missionUnits = getUnitsFromMission(side.name,updatedMission.guid)
     -- Determine Unit To Retreat
-    determineUnitToRetreat(args.shortKey,args.guid,args.options,updatedMission.guid,missionUnits,0,70)
+    determineUnitToRetreat(args.shortKey,args.guid,args.options,updatedMission.guid,missionUnits,0,60)
     -- Determine EMCON
     determineEmconToUnits(args.shortKey,args.options,side.name,missionUnits)
 end
