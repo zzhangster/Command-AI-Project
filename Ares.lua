@@ -545,7 +545,7 @@ function getTimeStampForKey(primaryKey)
 end
 
 function setTimeStampForKey(primaryKey,time)
-    ScenEdit_SetKeyValue(primaryKey,tostring(time))
+    ScenEdit_SetKeyValue(primaryKey,time)
 end
 
 function updateAITimes()
@@ -553,25 +553,29 @@ function updateAITimes()
     local timeStampEveryTwenty = getTimeStampForKey("GlobalTimeEveryTwenty")
     local timeStampEveryThirty = getTimeStampForKey("GlobalTimeEveryThirty")
     local timeStampEverySixty = getTimeStampForKey("GlobalTimeEverySixty")
+    local timeStampEveryFiveMinutes = getTimeStampForKey("GlobalTimeEveryFiveMinutes")
     local currentTime = ScenEdit_CurrentTime()
-    if timeStampEveryTen - currentTime <= 0 then
-        setTimeStampForKey("GlobalTimeEveryTen",tostring(currentTime + 10))
+    if timeStampEveryTen < currentTime then
+        setTimeStampForKey("GlobalTimeEveryTen",currentTime + 10)
     end
-    if timeStampEveryTwenty - currentTime <= 0 then
-        setTimeStampForKey("GlobalTimeEveryTwenty",tostring(currentTime + 20))
+    if timeStampEveryTwenty < currentTime then
+        setTimeStampForKey("GlobalTimeEveryTwenty",currentTime + 20)
     end
-    if timeStampEveryThirty - currentTime <= 0 then
-        setTimeStampForKey("GlobalTimeEveryThirty",tostring(currentTime + 30))
+    if timeStampEveryThirty < currentTime then
+        setTimeStampForKey("GlobalTimeEveryThirty",currentTime + 30)
     end
-    if timeStampEverySixty - currentTime <= 0 then
-        setTimeStampForKey("GlobalTimeEveryThirty",tostring(currentTime + 30))
+    if timeStampEverySixty < currentTime then
+        setTimeStampForKey("GlobalTimeEverySixty",currentTime + 60)
+    end
+    if timeStampEveryFiveMinutes < currentTime then
+        setTimeStampForKey("GlobalTimeEveryFiveMinutes",currentTime + 300)
     end
 end
 
 function canUpdateEveryTenSeconds()
     local nextTime = getTimeStampForKey("GlobalTimeEveryTen")
     local currentTime = ScenEdit_CurrentTime()
-    if nextTime - currentTime <= 0 then
+    if nextTime < currentTime then
         return true
     else
         return false
@@ -581,7 +585,7 @@ end
 function canUpdateEveryTwentySeconds()
     local nextTime = getTimeStampForKey("GlobalTimeEveryTwenty")
     local currentTime = ScenEdit_CurrentTime()
-    if nextTime - currentTime <= 0 then
+    if nextTime < currentTime then
         return true
     else
         return false
@@ -591,7 +595,7 @@ end
 function canUpdateEveryThirtySeconds()
     local nextTime = getTimeStampForKey("GlobalTimeEveryThirty")
     local currentTime = ScenEdit_CurrentTime()
-    if nextTime - currentTime <= 0 then
+    if nextTime < currentTime then
         return true
     else
         return false
@@ -601,7 +605,17 @@ end
 function canUpdateEverySixtySeconds()
     local nextTime = getTimeStampForKey("GlobalTimeEverySixty")
     local currentTime = ScenEdit_CurrentTime()
-    if nextTime - currentTime <= 0 then
+    if nextTime < currentTime then
+        return true
+    else
+        return false
+    end
+end
+
+function canUpdateEveryFiveMinutes()
+    local nextTime = getTimeStampForKey("GlobalTimeEveryFiveMinutes")
+    local currentTime = ScenEdit_CurrentTime()
+    if nextTime < currentTime then
         return true
     else
         return false
@@ -1672,26 +1686,26 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 function determineEmconToUnits(sideShortKey,sideAttributes,sideName,unitGuidList)
     local busyAEWInventory = getBusyAirAEWInventory(sideShortKey)
-    local emconChangeState = ScenEdit_GetKeyValue(sideShortKey.."_emcon_chg_st")
-    local emconChangeTime = getTimeStampForKey(sideShortKey.."_emcon_chg")
-    local currentTime = ScenEdit_CurrentTime ()
+    local emconChangeState = ScenEdit_GetKeyValue(sideShortKey.."_emcon_chg_state")
     for k,v in pairs(unitGuidList) do
         local unit = ScenEdit_GetUnit({side=sideName, guid=v})
-        if unit and not unit.firingAt and unit.speed > 0 then
-            if (emconChangeTime - currentTime) <= 0 then
-                if emconChangeState == "" or emconChangeState == "Active" then
-                    ScenEdit_SetKeyValue(sideShortKey.."_emcon_chg_st","Passive")
+        if unit and unit.speed > 0 then --and not unit.firingAt
+            if canUpdateEveryThirtySeconds() then
+                if emconChangeState == "Active" then
+                    emconChangeState = "Passive"
                 else 
-                    ScenEdit_SetKeyValue(sideShortKey.."_emcon_chg_st","Active")
+                    emconChangeState = "Active"
                 end
-                ScenEdit_SetEMCON("Unit",v,"Radar="..emconChangeState)
-                setTimeStampForKey(sideShortKey.."_emcon_chg",tostring(currentTime + 30))
+                ScenEdit_SetKeyValue(sideShortKey.."_emcon_chg_state",emconChangeState)
+                ScenEdit_SetEMCON("Unit",unit.guid,"Radar="..emconChangeState)
+                --ScenEdit_SpecialMessage("Blue Force","determineEmconToUnits "..unit.name.." "..emconChangeState)
             end
             for k1,v1 in pairs(busyAEWInventory) do
                 local aewUnit = ScenEdit_GetUnit({side=sideName, guid=v1})
                 if aewUnit and aewUnit.speed > 0 and aewUnit.altitude > 0 then
                     if Tool_Range(v1,v) < 120 then
-                        ScenEdit_SetEMCON("Unit",v,"Radar=Passive")
+                        --ScenEdit_SpecialMessage("Blue Force","determineEmconToUnits - close "..unit.name.." "..aewUnit.name)
+                        ScenEdit_SetEMCON("Unit",unit.guid,"Radar=Passive")
                     end
                 end
             end
@@ -1702,9 +1716,8 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 -- Determine Unit Retreat Functions
 --------------------------------------------------------------------------------------------------------------------------------
-function determineUnitToRetreat(sideShortKey,sideGuid,sideAttributes,missionGuid,unitGuidList,zoneType,retreatRange)
+function determineUnitToRetreat(sideShortKey,sideGuid,sideAttributes,missionGuid,missionUnits,zoneType,retreatRange)
     local side = VP_GetSide({guid=sideGuid})
-    local missionUnits = getGroupLeadsFromMission(side.name,missionGuid)
     for k,v in pairs(missionUnits) do
         local missionUnit = ScenEdit_GetUnit({side=side.name,guid=v})
         if missionUnit and missionUnit.speed > 0  then
@@ -1747,7 +1760,7 @@ function getAirNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,un
     local hostileAirContacts = getHostileAirContacts(shortSideKey)
     local unknownAirContacts = getUnknownAirContacts(shortSideKey)
     local desiredRange = range
-    if not unit and not canUpdateEveryTenSeconds() then
+    if not unit and not canUpdateEveryThirtySeconds() then
         return nil
     end
     for k,v in pairs(hostileAirContacts) do
@@ -1913,10 +1926,7 @@ function observerActionUpdateAIAreaOfOperations(args)
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
     local coordinates = {}
     local boundingBox = {}
-    local currentTime = ScenEdit_CurrentTime()
-    local nextTime = getTimeStampForKey(args.shortKey.."_ao_recalc_ts")
-    -- Set Time Conditions
-    if #aoPoints < 4 or (nextTime - currentTime) <= 0 then 
+    if #aoPoints < 4 or canUpdateEverySixtySeconds() then 
         local hostileContacts = getAllHostileContacts(args.shortKey)
         local inventory = getAllInventory(args.shortKey)
         for k,v in pairs(hostileContacts) do
@@ -1938,7 +1948,6 @@ function observerActionUpdateAIAreaOfOperations(args)
                 ScenEdit_AddReferencePoint({side=side.name,name="AI-AO-"..tostring(i),lat=boundingBox[i].latitude,lon=boundingBox[i].longitude})
             end
         end
-        setTimeStampForKey(args.shortKey.."_ao_recalc_ts",tostring(currentTime + 60))
     end
 end
 
@@ -1949,10 +1958,8 @@ function observerActionUpdateAirInventories(args)
     -- Local Variables
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
-    local currentTime = ScenEdit_CurrentTime()
-    local nextTime = getTimeStampForKey(sideShortKey.."_update_air_inventory_ts")
     -- Check Inventory
-    if (nextTime - currentTime) <= 0 then
+    if canUpdateEverySixtySeconds() then
         local aircraftInventory = side:unitsBy("1")
         if aircraftInventory then
             local savedInventory = {}
@@ -2011,8 +2018,6 @@ function observerActionUpdateAirInventories(args)
             -- Save Memory Inventory And Time Stamp
             localMemoryInventoryAddToKey(sideShortKey.."_saved_air_inventory",savedInventory)
         end
-        -- Save Time Stamp
-        setTimeStampForKey(sideShortKey.."_update_air_inventory_ts",tostring(currentTime + 60))
     end
 end
 
@@ -2020,10 +2025,8 @@ function observerActionUpdateSurfaceInventories(args)
     -- Local Variables
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
-    local currentTime = ScenEdit_CurrentTime()
-    local nextTime = getTimeStampForKey(sideShortKey.."_update_ship_inventory_ts")
     -- Check Time
-    if (nextTime - currentTime) <= 0  then
+    if canUpdateEverySixtySeconds() then
         local shipInventory = side:unitsBy("2")
         if shipInventory then
             local savedInventory = {}
@@ -2049,8 +2052,6 @@ function observerActionUpdateSurfaceInventories(args)
             -- Save Memory Inventory And Time Stamp
             localMemoryInventoryAddToKey(sideShortKey.."_saved_ship_inventory",savedInventory)
         end
-        -- Save Time Stamp
-        setTimeStampForKey(sideShortKey.."_update_ship_inventory_ts",tostring(currentTime + 180))
     end
 end
 
@@ -2058,10 +2059,8 @@ function observerActionUpdateSubmarineInventories(args)
     -- Local Variables
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
-    local currentTime = ScenEdit_CurrentTime()
-    local nextTime = getTimeStampForKey(sideShortKey.."_update_sub_inventory_ts")
     -- Check Time
-    if (nextTime - currentTime) <= 0 then
+    if canUpdateEverySixtySeconds() then
         local submarineInventory = side:unitsBy("3")
         if submarineInventory then
             local savedInventory = {}
@@ -2087,8 +2086,6 @@ function observerActionUpdateSubmarineInventories(args)
             -- Save Memory Inventory And Time Stamp
             localMemoryInventoryAddToKey(sideShortKey.."_saved_sub_inventory",savedInventory)
         end
-        -- Save Time Stamp
-        setTimeStampForKey(sideShortKey.."_update_sub_inventory_ts",tostring(currentTime + 180))
     end
 end
 
@@ -2096,10 +2093,8 @@ function observerActionUpdateLandInventories(args)
     -- Local Variables
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
-    local currentTime = ScenEdit_CurrentTime()
-    local nextTime = getTimeStampForKey(sideShortKey.."_update_land_inventory_ts")
     -- Check Time
-    if (nextTime - currentTime) <= 0 then
+    if canUpdateEveryFiveMinutes() then
         local landInventory = side:unitsBy("4")
         -- Loop Through
         if landInventory then
@@ -2133,8 +2128,6 @@ function observerActionUpdateLandInventories(args)
             -- Save Memory Inventory And Time Stamp
             localMemoryInventoryAddToKey(sideShortKey.."_saved_land_inventory",savedInventory)
         end
-        -- Reset Time
-        setTimeStampForKey(sideShortKey.."_update_land_inventory_ts",tostring(currentTime + 700))
     end
 end
 
@@ -2144,10 +2137,8 @@ function observerActionUpdateHVAInventories(args)
     local side = VP_GetSide({guid=args.guid})
     local shipInventory = side:unitsBy("2")
     local landInventory = side:unitsBy("4")
-    local currentTime = ScenEdit_CurrentTime()
-    local nextTime = getTimeStampForKey(sideShortKey.."_update_hva_inventory_ts")
     -- Check Time
-    if (nextTime - currentTime) <= 0 then
+    if canUpdateEveryFiveMinutes() then
         -- Remove
         localMemoryRemoveFromKey(sideShortKey.."_def_hva")
         -- Check Ship Inventory
@@ -2181,8 +2172,6 @@ function observerActionUpdateHVAInventories(args)
                 end
             end
         end
-        -- Save Memory Inventory And Time Stamp
-        setTimeStampForKey(sideShortKey.."_update_hva_inventory_ts",tostring(currentTime + 600))
     end
 end
 
@@ -2190,10 +2179,8 @@ function observerActionUpdateAirContacts(args)
     -- Local Variables
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
-    local currentTime = ScenEdit_CurrentTime()
-    local nextTime = getTimeStampForKey(sideShortKey.."_update_air_contacts_ts")
     -- Check Time
-    if (nextTime - currentTime) <= 0 then
+    if canUpdateEverySixtySeconds() then
         local aircraftContacts = side:contactsBy("1")
         localMemoryContactRemoveFromKey(sideShortKey.."_saved_air_contact")
         if aircraftContacts then
@@ -2213,42 +2200,6 @@ function observerActionUpdateAirContacts(args)
             end
             localMemoryContactAddToKey(sideShortKey.."_saved_air_contact",savedContacts)
         end
-        -- Save Memory Inventory And Time Stamp
-        setTimeStampForKey(sideShortKey.."_update_air_contacts_ts",tostring(currentTime + 60))
-    end
-end
-
-function observerActionUpdateAirContactsQuadTree(args)
-    -- Local Variables
-    local sideShortKey = args.shortKey
-    local side = VP_GetSide({guid=args.guid})
-    local currentTime = ScenEdit_CurrentTime()
-    local nextTime = getTimeStampForKey(sideShortKey.."_update_air_contacts_quad_ts")
-    local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
-    local hostileContacts = getHostileAirContacts(sideShortKey)
-    local unknownContacts = getUnknownAirContacts(sideShortKey)
-    if (nextTime - currentTime) <= 0 then
-        local centerPoint = midPointCoordinate(aoPoints[1].latitude,aoPoints[1].longitude,aoPoints[3].latitude,aoPoints[3].longitude)
-        local airContactQuadTree = QuadTree.new(centerPoint.latitude,centerPoint.longitude,1000)
-        airContactQuadTree:subdivide()
-        localMemoryRemoveFromKey(sideShortKey.."_air_contacts_quad")
-        for k,v in pairs(hostileContacts) do
-            local contact = ScenEdit_GetContact({side=side.name,guid=v})
-            if contact then
-                local contactObj = {name=contact.guid,latitude=contact.latitude,longitude=contact.longitude,prev_latitude=contact.latitude,prev_longitude=contact.longitude,radius=1}
-                airContactQuadTree:addObject(contactObj)
-            end
-        end
-        for k,v in pairs(unknownContacts) do
-            local contact = ScenEdit_GetContact({side=side.name,guid=v})
-            if contact then
-                local contactObj = {name=contact.guid,latitude=contact.latitude,longitude=contact.longitude,prev_latitude=contact.latitude,prev_longitude=contact.longitude,radius=1}
-                airContactQuadTree:addObject(contactObj)
-            end
-        end
-        localMemoryAddToKey(sideShortKey.."_air_contacts_quad",airContactQuadTree)
-        -- Save Memory Inventory And Time Stamp
-        setTimeStampForKey(sideShortKey.."_update_air_contacts_quad_ts",tostring(currentTime + 60))
     end
 end
 
@@ -2256,9 +2207,7 @@ function observerActionUpdateSurfaceContacts(args)
     -- Local Variables
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
-    local currentTime = ScenEdit_CurrentTime()
-    local nextTime = getTimeStampForKey(sideShortKey.."_update_ship_contacts_ts")
-    if (nextTime - currentTime) <= 0 then
+    if canUpdateEverySixtySeconds() then
         local shipContacts = side:contactsBy("2")
         localMemoryContactRemoveFromKey(sideShortKey.."_saved_ship_contact")
         if shipContacts then
@@ -2278,8 +2227,6 @@ function observerActionUpdateSurfaceContacts(args)
             end
             localMemoryContactAddToKey(sideShortKey.."_saved_ship_contact",savedContacts)
         end
-        -- Save Memory Inventory And Time Stamp
-        setTimeStampForKey(sideShortKey.."_update_ship_contacts_ts",tostring(currentTime + 120))
     end
 end
 
@@ -2287,9 +2234,7 @@ function observerActionUpdateSubmarineContacts(args)
     -- Local Variables
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
-    local currentTime = ScenEdit_CurrentTime()
-    local nextTime = getTimeStampForKey(sideShortKey.."_update_sub_contacts_ts")
-    if (nextTime - currentTime) <= 0 then
+    if canUpdateEverySixtySeconds() then
         local submarineContacts = side:contactsBy("3")
         localMemoryContactRemoveFromKey(sideShortKey.."_saved_sub_contact")
         if submarineContacts then
@@ -2309,8 +2254,6 @@ function observerActionUpdateSubmarineContacts(args)
             end
             localMemoryContactAddToKey(sideShortKey.."_saved_sub_contact",savedContacts)
         end
-        -- Save Memory Inventory And Time Stamp
-        setTimeStampForKey(sideShortKey.."_update_sub_contacts_ts",tostring(currentTime + 120))
     end
 end
 
@@ -2318,9 +2261,7 @@ function observerActionUpdateLandContacts(args)
     -- Local Variables
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
-    local currentTime = ScenEdit_CurrentTime()
-    local nextTime = getTimeStampForKey(sideShortKey.."_update_land_contacts_ts")
-    if (nextTime - currentTime) <= 0 then
+    if canUpdateEveryFiveMinutes() then
         local landContacts = side:contactsBy("4")
         localMemoryContactRemoveFromKey(sideShortKey.."_saved_land_contact")
         if landContacts then
@@ -2344,8 +2285,6 @@ function observerActionUpdateLandContacts(args)
             end
             localMemoryContactAddToKey(sideShortKey.."_saved_land_contact",savedContacts)
         end
-        -- Save Memory Inventory And Time Stamp
-        setTimeStampForKey(sideShortKey.."_update_land_contacts_ts",tostring(currentTime + 700))
     end
 end
 
@@ -2353,9 +2292,7 @@ function observerActionUpdateWeaponContacts(args)
     -- Local Variables
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
-    local currentTime = ScenEdit_CurrentTime()
-    local nextTime = getTimeStampForKey(sideShortKey.."_update_weapon_contacts_ts")
-    if (nextTime - currentTime) <= 0 then
+    if canUpdateEveryTenSeconds() then
         local weaponContacts = side:contactsBy("6")
         localMemoryContactRemoveFromKey(sideShortKey.."_saved_weap_contact")
         if weaponContacts then
@@ -2389,8 +2326,6 @@ function observerActionUpdateWeaponContacts(args)
             end
             localMemoryContactAddToKey(sideShortKey.."_saved_weap_contact",savedContacts)
         end
-        -- Save Memory Inventory And Time Stamp
-        setTimeStampForKey(sideShortKey.."_update_weapon_contacts_ts",tostring(currentTime + 10))
     end
 end
 
@@ -3351,14 +3286,14 @@ function actorUpdateUnitsInReconMission(args)
     local missions = persistentMemoryGetForKey(args.shortKey.."_rec_miss")
     -- Check Total Is Zero
     if #missions == 0 then
-        return false
+        return
     end
     -- Loop Through Existing Missions
     for k,v in pairs(missions) do
         -- Local Values
         local updatedMission = ScenEdit_GetMission(side.name,v)
         -- Find Area And Retreat Point
-        local missionUnits = getUnitsFromMission(side.name,updatedMission.guid)
+        local missionUnits = getGroupLeadsFromMission(side.name,updatedMission.guid)
         -- Determine Retreat
         determineUnitToRetreat(args.shortKey,args.guid,args.options,updatedMission.guid,missionUnits,0,80)
         -- Determine EMCON
@@ -3373,12 +3308,12 @@ function actorUpdateUnitsInOffensiveAirMission(args)
     local updatedMission = {}
     -- Condition Check
     if #missions == 0 then
-        return false
+        return
     end
     -- Take First One For Now
     updatedMission = ScenEdit_GetMission(side.name,missions[1])
     -- Find Area And Retreat Point
-    local missionUnits = getUnitsFromMission(side.name,updatedMission.guid)
+    local missionUnits = getGroupLeadsFromMission(side.name,updatedMission.guid)
     -- Determine Retreat
     determineUnitToRetreat(args.shortKey,args.guid,args.options,updatedMission.guid,missionUnits,1,70)
     -- Determine EMCON
@@ -3392,12 +3327,12 @@ function actorUpdateUnitsInOffensiveStealthAirMission(args)
     local updatedMission = {}
     -- Condition Check
     if #missions == 0 then
-        return false
+        return
     end
     -- Get Linked Mission
     updatedMission = ScenEdit_GetMission(side.name,missions[1])
     -- Find Area And Retreat Point
-    local missionUnits = getUnitsFromMission(side.name,updatedMission.guid)
+    local missionUnits = getGroupLeadsFromMission(side.name,updatedMission.guid)
     -- Determine Unit To Retreat
     determineUnitToRetreat(args.shortKey,args.guid,args.options,updatedMission.guid,missionUnits,0,60)
     -- Determine EMCON
@@ -3411,12 +3346,12 @@ function actorUpdateUnitsInOffensiveSeadMission(args)
     local updatedMission = {}
     -- Condition Check
     if #missions == 0 then
-        return false
+        return
     end
     -- Take First One For Now
     updatedMission = ScenEdit_GetMission(side.name,missions[1])
     -- Find Area And Return Point
-    local missionUnits = getUnitsFromMission(side.name,updatedMission.guid)
+    local missionUnits = getGroupLeadsFromMission(side.name,updatedMission.guid)
     -- Determine Retreat
     determineUnitToRetreat(args.shortKey,args.guid,args.options,updatedMission.guid,missionUnits,2,70)
 end
@@ -3428,12 +3363,12 @@ function actorUpdateUnitsInOffensiveLandMission(args)
     local updatedMission = {}
     -- Condition Check
     if #missions == 0 then--or (currentTime - lastTimeStamp) < 1 * 60 then
-        return false
+        return
     end
     -- Take First One For Now
     updatedMission = ScenEdit_GetMission(side.name,missions[1])
     -- Find Area And Return Point
-    local missionUnits = getUnitsFromMission(side.name,updatedMission.guid)
+    local missionUnits = getGroupLeadsFromMission(side.name,updatedMission.guid)
     -- Determine Retreat
     determineUnitToRetreat(args.shortKey,args.guid,args.options,updatedMission.guid,missionUnits,0,70)
 end
@@ -3445,12 +3380,12 @@ function actorUpdateUnitsInOffensiveAntiShipMission(args)
     local updatedMission = {}
     -- Condition Check
     if #missions == 0 then
-        return false
+        return
     end
     -- Take First One For Now
     updatedMission = ScenEdit_GetMission(side.name,missions[1])
     -- Find Area And Return Point
-    local missionUnits = getUnitsFromMission(side.name,updatedMission.guid)
+    local missionUnits = getGroupLeadsFromMission(side.name,updatedMission.guid)
     -- Determine Retreat
     determineUnitToRetreat(args.shortKey,args.guid,args.options,updatedMission.guid,missionUnits,3,70)
     -- Determine EMCON
@@ -3464,12 +3399,12 @@ function actorUpdateUnitsInOffensiveAEWMission(args)
     local updatedMission = {}
     -- Condition Check
     if #missions == 0 then
-        return false
+        return
     end
     -- Get Linked Mission
     updatedMission = ScenEdit_GetMission(side.name,missions[1])
     -- Find Area And Retreat Point
-    local missionUnits = getUnitsFromMission(side.name,updatedMission.guid)
+    local missionUnits = getGroupLeadsFromMission(side.name,updatedMission.guid)
     -- Determine Retreat
     determineUnitToRetreat(args.shortKey,args.guid,args.options,updatedMission.guid,missionUnits,0,200)
     -- Determine Retreat
@@ -3483,12 +3418,12 @@ function actorUpdateUnitsInOffensiveTankerMission(args)
     local updatedMission = {}
     -- Condition Check
     if #missions == 0 then
-        return false
+        return
     end
     -- Get Linked Mission
     updatedMission = ScenEdit_GetMission(side.name,missions[1])
     -- Find Area And Retreat Point
-    local missionUnits = getUnitsFromMission(side.name,updatedMission.guid)
+    local missionUnits = getGroupLeadsFromMission(side.name,updatedMission.guid)
     -- Determine Retreat
     determineUnitToRetreat(args.shortKey,args.guid,args.options,updatedMission.guid,missionUnits,0,200)
 end
@@ -3500,7 +3435,7 @@ function actorUpdateUnitsInDefensiveAirMission(args)
     local updatedMission = nil
     -- Condition Check
     if #missions == 0 then
-        return false
+        return
     end
     -- Loop Through Coverted HVAs Missions
     for k, v in pairs(missions) do
@@ -3509,7 +3444,7 @@ function actorUpdateUnitsInDefensiveAirMission(args)
         -- Check Defense Mission
         if updatedMission then
             -- Find Area And Return Point
-            local missionUnits = getUnitsFromMission(side.name,updatedMission.guid)
+            local missionUnits = getGroupLeadsFromMission(side.name,updatedMission.guid)
             -- Determine Retreat
             determineUnitToRetreat(args.shortKey,args.guid,args.options,updatedMission.guid,missionUnits,1,100)
             -- Determine EMCON
@@ -3525,7 +3460,7 @@ function actorUpdateUnitsInDefensiveAEWMission(args)
     local updatedMission = nil
     -- Condition Check
     if #missions == 0 then
-        return false
+        return
     end
     -- Loop Through Coverted HVAs Missions
     for k, v in pairs(missions) do
@@ -3534,7 +3469,7 @@ function actorUpdateUnitsInDefensiveAEWMission(args)
         -- Check Defense Mission
         if updatedMission then
             -- Determine Units To Assign
-            local missionUnits = updatedMission.unitlist
+            local missionUnits = getGroupLeadsFromMission(side.name,updatedMission.guid)
             -- Determine Retreat
             determineUnitToRetreat(args.shortKey,args.guid,args.options,updatedMission.guid,missionUnits,0,200)
         end
@@ -3548,7 +3483,7 @@ function actorUpdateUnitsInDefensiveTankerMission(args)
     local updatedMission = nil
     -- Condition Check
     if #missions == 0 then
-        return false
+        return
     end
     -- Loop Through Coverted HVAs Missions
     for k, v in pairs(missions) do
@@ -3557,7 +3492,7 @@ function actorUpdateUnitsInDefensiveTankerMission(args)
         -- Check Defense Mission
         if updatedMission then
             -- Find Contact Close To Unit And Retreat If Necessary
-            local missionUnits = updatedMission.unitlist
+            local missionUnits = getGroupLeadsFromMission(side.name,updatedMission.guid)
             -- Determine Retreat
             determineUnitToRetreat(args.shortKey,args.guid,args.options,updatedMission.guid,missionUnits,0,200)
         end
@@ -3699,7 +3634,6 @@ function initializeAresAI(sideName,options)
     local observerActionUpdateLandContactsBT = BT:make(observerActionUpdateLandContacts,sideGuid,shortSideKey,attributes)
     local observerActionUpdateWeaponContactsBT = BT:make(observerActionUpdateWeaponContacts,sideGuid,shortSideKey,attributes)
     local observerActionUpdateAIAreaOfOperationsBT = BT:make(observerActionUpdateAIAreaOfOperations,sideGuid,shortSideKey,attributes)
-    --local observerActionUpdateAirContactsQuadTreeBT = BT:make(observerActionUpdateAirContactsQuadTree,sideGuid,shortSideKey,attributes)
     aresObserverBTMain:addChild(observerActionUpdateAirInventoriesBT)
     aresObserverBTMain:addChild(observerActionUpdateSurfaceInventoriesBT)
     aresObserverBTMain:addChild(observerActionUpdateSubmarineInventoriesBT)
@@ -3711,7 +3645,6 @@ function initializeAresAI(sideName,options)
     aresObserverBTMain:addChild(observerActionUpdateLandContactsBT)
     aresObserverBTMain:addChild(observerActionUpdateWeaponContactsBT)
     aresObserverBTMain:addChild(observerActionUpdateAIAreaOfOperationsBT)
-    --aresObserverBTMain:addChild(observerActionUpdateAirContactsQuadTreeBT)
     ----------------------------------------------------------------------------------------------------------------------------
     -- Ares Decider
     ----------------------------------------------------------------------------------------------------------------------------
