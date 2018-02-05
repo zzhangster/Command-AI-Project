@@ -552,6 +552,7 @@ function updateAITimes()
     local timeStampEveryTen = getTimeStampForKey("GlobalTimeEveryTen")
     local timeStampEveryTwenty = getTimeStampForKey("GlobalTimeEveryTwenty")
     local timeStampEveryThirty = getTimeStampForKey("GlobalTimeEveryThirty")
+    local timeStampEverySixty = getTimeStampForKey("GlobalTimeEverySixty")
     local currentTime = ScenEdit_CurrentTime()
     if timeStampEveryTen - currentTime <= 0 then
         setTimeStampForKey("GlobalTimeEveryTen",tostring(currentTime + 10))
@@ -560,6 +561,9 @@ function updateAITimes()
         setTimeStampForKey("GlobalTimeEveryTwenty",tostring(currentTime + 20))
     end
     if timeStampEveryThirty - currentTime <= 0 then
+        setTimeStampForKey("GlobalTimeEveryThirty",tostring(currentTime + 30))
+    end
+    if timeStampEverySixty - currentTime <= 0 then
         setTimeStampForKey("GlobalTimeEveryThirty",tostring(currentTime + 30))
     end
 end
@@ -586,6 +590,16 @@ end
 
 function canUpdateEveryThirtySeconds()
     local nextTime = getTimeStampForKey("GlobalTimeEveryThirty")
+    local currentTime = ScenEdit_CurrentTime()
+    if nextTime - currentTime <= 0 then
+        return true
+    else
+        return false
+    end
+end
+
+function canUpdateEverySixtySeconds()
+    local nextTime = getTimeStampForKey("GlobalTimeEverySixty")
     local currentTime = ScenEdit_CurrentTime()
     if nextTime - currentTime <= 0 then
         return true
@@ -1676,7 +1690,7 @@ function determineEmconToUnits(sideShortKey,sideAttributes,sideName,unitGuidList
             for k1,v1 in pairs(busyAEWInventory) do
                 local aewUnit = ScenEdit_GetUnit({side=sideName, guid=v1})
                 if aewUnit and aewUnit.speed > 0 and aewUnit.altitude > 0 then
-                    if Tool_Range(v1,v) < 180 then
+                    if Tool_Range(v1,v) < 120 then
                         ScenEdit_SetEMCON("Unit",v,"Radar=Passive")
                     end
                 end
@@ -3788,13 +3802,13 @@ function updateAresAI()
         v:run()
     end
     -- Run Orienter
-    if canUpdateEveryThirtySeconds() then
+    if canUpdateEverySixtySeconds() then
         for k, v in pairs(aresOrienterAIArray) do
             v:run()
         end
     end
     -- Run Decider
-    if canUpdateEveryThirtySeconds() then
+    if canUpdateEverySixtySeconds() then
         for k, v in pairs(aresDeciderAIArray) do
             v:run()
         end
