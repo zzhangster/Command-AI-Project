@@ -411,13 +411,14 @@ end
 
 function deepPrint(e,output)
     -- if e is a table, we should iterate over its elements
-    if type(e) == "table" then
+    if not type(e)=="string" and not type(e)=="number" then
         for k,v in pairs(e) do -- for every element in the table
             output = output.." { "..k.." : "
-            deepPrint(v,output)       -- recursively repeat the same procedure
+            output = output..deepPrint(v,output)       -- recursively repeat the same procedure
         end
+        return output
     else -- if not, we can just print it
-        output = output..e.." } "
+        return ""..tostring(e).." } "
     end
 end
 
@@ -802,7 +803,7 @@ end
 function determineUnitRTB(sideName,unitGuid)
     local unit = ScenEdit_GetUnit({side=sideName, guid=unitGuid})
     if unit then
-        if string.match(unit.unitstate,"RTB") then
+        if unit.unitstate == "RTB" then
             return true
         else
             return false
@@ -813,7 +814,7 @@ end
 function determineUnitBingo(sideName,unitGuid)
     local unit = ScenEdit_GetUnit({side=sideName, guid=unitGuid})
     if unit then
-        if string.match(unit.unitstate,"Bingo") then
+        if unit.fuelstate == "IsBingo" then
             return true
         else
             return false
@@ -1701,25 +1702,19 @@ end
 function determineEmconToUnits(sideShortKey,sideAttributes,sideName,unitGuidList)
     local busyAEWInventory = getBusyAirAEWInventory(sideShortKey)
     local emconChangeState = ScenEdit_GetKeyValue(sideShortKey.."_emcon_chg_state")
+    if not canUpdateEveryThirtySeconds() then
+        return
+    end
     for k,v in pairs(unitGuidList) do
         local unit = ScenEdit_GetUnit({side=sideName, guid=v})
-        if unit and unit.speed > 0 then --and not unit.firingAt
-            if canUpdateEveryThirtySeconds() then
-                if emconChangeState == "Active" then
-                    emconChangeState = "Passive"
-                else 
-                    emconChangeState = "Active"
-                end
-                ScenEdit_SetKeyValue(sideShortKey.."_emcon_chg_state",emconChangeState)
-                ScenEdit_SetEMCON("Unit",unit.guid,"Radar="..emconChangeState)
-                --ScenEdit_SpecialMessage("Blue Force","determineEmconToUnits "..unit.name.." "..emconChangeState)
-            end
+        if unit and unit.speed > 0 and not unit.firingAt then
+            ScenEdit_SetEMCON("Unit",unit.guid,"Radar="..emconChangeState)
             for k1,v1 in pairs(busyAEWInventory) do
                 local aewUnit = ScenEdit_GetUnit({side=sideName, guid=v1})
-                if aewUnit and aewUnit.speed > 0 and aewUnit.altitude > 0 then
-                    if Tool_Range(v1,v) < 120 then
-                        --ScenEdit_SpecialMessage("Blue Force","determineEmconToUnits - close "..unit.name.." "..aewUnit.name)
+                if aewUnit and aewUnit.speed > 0 then
+                    if Tool_Range(v1,v) < 160 then
                         ScenEdit_SetEMCON("Unit",unit.guid,"Radar=Passive")
+                        break
                     end
                 end
             end
@@ -1731,10 +1726,15 @@ end
 -- Determine Unit Retreat Functions
 --------------------------------------------------------------------------------------------------------------------------------
 function determineUnitToRetreat(sideShortKey,sideGuid,sideAttributes,missionGuid,missionUnits,zoneType,retreatRange)
+    --[[local side = VP_GetSide({guid=sideGuid})
+    for k,v in pairs(missionUnits) do
+        local missionUnit = ScenEdit_GetUnit({side=side.name,guid=v})
+        ScenEdit_SpecialMessage("Blue Force",deepPrint(missionUnit.firedOn))
+    end]]--
     local side = VP_GetSide({guid=sideGuid})
     for k,v in pairs(missionUnits) do
         local missionUnit = ScenEdit_GetUnit({side=side.name,guid=v})
-        if missionUnit and missionUnit.speed > 0  then
+        if missionUnit and missionUnit.speed > 0 and (missionUnit.targetedBy or missionUnit.firedOn)  then
             local unitRetreatPoint = {}
             if zoneType == 0 then
                 unitRetreatPoint = getAllNoNavZoneThatContainsUnit(sideGuid,sideShortKey,sideAttributes,missionUnit.guid,retreatRange)
@@ -1854,6 +1854,7 @@ function getEmergencyMissileNoNavZoneThatContainsUnit(sideGuid,shortSideKey,side
     if not unit and not canUpdateEveryTenSeconds() then
         return nil
     end
+    --ScenEdit_SpecialMessage("Blue Force",deepPrint(unit.targetedBy))
     for k,v in pairs(hostileMissilesContacts) do
         local currentRange = Tool_Range(v,unitGuid)
         local contact = ScenEdit_GetContact({side=side.name, guid=v})
@@ -1968,6 +1969,19 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 -- Observer Functions
 --------------------------------------------------------------------------------------------------------------------------------
+function observerActionUpdateAIVariables(args)
+    local sideShortKey = args.shortKey
+    if canUpdateEveryThirtySeconds() then
+        local emconChangeState = ScenEdit_GetKeyValue(sideShortKey.."_emcon_chg_state")
+        if emconChangeState == "Active" then
+            emconChangeState = "Passive"
+        else 
+            emconChangeState = "Active"
+        end
+        ScenEdit_SetKeyValue(sideShortKey.."_emcon_chg_state",emconChangeState)
+    end
+end
+
 function observerActionUpdateAirInventories(args)
     -- Local Variables
     local sideShortKey = args.shortKey
@@ -3640,6 +3654,7 @@ function initializeAresAI(sideName,options)
     ----------------------------------------------------------------------------------------------------------------------------
     -- Ares Observer
     ----------------------------------------------------------------------------------------------------------------------------
+    local observerActionUpdateAIVariablesBT = BT:make(observerActionUpdateAIVariables,sideGuid,shortSideKey,attributes)
     local observerActionUpdateAirInventoriesBT = BT:make(observerActionUpdateAirInventories,sideGuid,shortSideKey,attributes)
     local observerActionUpdateSurfaceInventoriesBT = BT:make(observerActionUpdateSurfaceInventories,sideGuid,shortSideKey,attributes)
     local observerActionUpdateSubmarineInventoriesBT = BT:make(observerActionUpdateSubmarineInventories,sideGuid,shortSideKey,attributes)
@@ -3651,6 +3666,7 @@ function initializeAresAI(sideName,options)
     local observerActionUpdateLandContactsBT = BT:make(observerActionUpdateLandContacts,sideGuid,shortSideKey,attributes)
     local observerActionUpdateWeaponContactsBT = BT:make(observerActionUpdateWeaponContacts,sideGuid,shortSideKey,attributes)
     local observerActionUpdateAIAreaOfOperationsBT = BT:make(observerActionUpdateAIAreaOfOperations,sideGuid,shortSideKey,attributes)
+    aresObserverBTMain:addChild(observerActionUpdateAIVariablesBT)
     aresObserverBTMain:addChild(observerActionUpdateAirInventoriesBT)
     aresObserverBTMain:addChild(observerActionUpdateSurfaceInventoriesBT)
     aresObserverBTMain:addChild(observerActionUpdateSubmarineInventoriesBT)
