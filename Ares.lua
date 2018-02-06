@@ -1734,7 +1734,7 @@ function determineUnitToRetreat(sideShortKey,sideGuid,sideAttributes,missionGuid
     local side = VP_GetSide({guid=sideGuid})
     for k,v in pairs(missionUnits) do
         local missionUnit = ScenEdit_GetUnit({side=side.name,guid=v})
-        if missionUnit and missionUnit.speed > 0 and (missionUnit.targetedBy or missionUnit.firedOn)  then
+        if missionUnit and missionUnit.speed > 0 and not determineUnitBingo(side.name,missionUnit.guid) and (missionUnit.targetedBy or missionUnit.firedOn) then
             local unitRetreatPoint = {}
             if zoneType == 0 then
                 unitRetreatPoint = getAllNoNavZoneThatContainsUnit(sideGuid,sideShortKey,sideAttributes,missionUnit.guid,retreatRange)
@@ -1747,7 +1747,7 @@ function determineUnitToRetreat(sideShortKey,sideGuid,sideAttributes,missionGuid
             else
                 unitRetreatPoint = nil
             end
-            if unitRetreatPoint ~= nil and not determineUnitRTB(side.name,missionUnit.guid) then
+            if unitRetreatPoint ~= nil then
                 if missionUnit.group and missionUnit.group.unitlist  then
                     for k1,v1 in pairs(missionUnit.group.unitlist) do
                         local subUnit = ScenEdit_GetUnit({side=side.name,guid=v1})
