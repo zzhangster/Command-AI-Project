@@ -553,6 +553,7 @@ function updateAITimes()
     local timeStampEveryTwenty = getTimeStampForKey("GlobalTimeEveryTwenty")
     local timeStampEveryThirty = getTimeStampForKey("GlobalTimeEveryThirty")
     local timeStampEverySixty = getTimeStampForKey("GlobalTimeEverySixty")
+    local timeStampEveryTwoMinutes = getTimeStampForKey("GlobalTimeEveryTwoMinutes")
     local timeStampEveryFiveMinutes = getTimeStampForKey("GlobalTimeEveryFiveMinutes")
     local currentTime = ScenEdit_CurrentTime()
     if timeStampEveryTen < currentTime then
@@ -566,6 +567,9 @@ function updateAITimes()
     end
     if timeStampEverySixty < currentTime then
         setTimeStampForKey("GlobalTimeEverySixty",currentTime + 60)
+    end
+    if timeStampEveryTwoMinutes < currentTime then
+        setTimeStampForKey("GlobalTimeEveryTwoMinutes",currentTime + 120)
     end
     if timeStampEveryFiveMinutes < currentTime then
         setTimeStampForKey("GlobalTimeEveryFiveMinutes",currentTime + 300)
@@ -604,6 +608,16 @@ end
 
 function canUpdateEverySixtySeconds()
     local nextTime = getTimeStampForKey("GlobalTimeEverySixty")
+    local currentTime = ScenEdit_CurrentTime()
+    if nextTime < currentTime then
+        return true
+    else
+        return false
+    end
+end
+
+function canUpdateEveryTwoMinutes()
+    local nextTime = getTimeStampForKey("GlobalTimeEveryTwoMinutes")
     local currentTime = ScenEdit_CurrentTime()
     if nextTime < currentTime then
         return true
@@ -2993,6 +3007,9 @@ end
 -- Actor Update Air Reinforcement Request
 --------------------------------------------------------------------------------------------------------------------------------
 function actorUpdateAirReinforcementRequest(args)
+    if not canUpdateEverySixtySeconds() then
+        return
+    end
     local side = VP_GetSide({guid=args.guid})
     local reconMissions = persistentMemoryGetForKey(args.shortKey.."_rec_miss")
     local airMissions = persistentMemoryGetForKey(args.shortKey.."_aaw_miss")
@@ -3735,13 +3752,13 @@ function updateAresAI()
         v:run()
     end
     -- Run Orienter
-    if canUpdateEverySixtySeconds() then
+    if canUpdateEveryTwoMinutes() then
         for k, v in pairs(aresOrienterAIArray) do
             v:run()
         end
     end
     -- Run Decider
-    if canUpdateEverySixtySeconds() then
+    if canUpdateEveryTwoMinutes() then
         for k, v in pairs(aresDeciderAIArray) do
             v:run()
         end
