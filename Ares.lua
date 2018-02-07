@@ -1744,11 +1744,6 @@ end
 -- Determine Unit Retreat Functions
 --------------------------------------------------------------------------------------------------------------------------------
 function determineUnitToRetreat(sideShortKey,sideGuid,sideAttributes,missionGuid,missionUnits,zoneType,retreatRange)
-    --[[local side = VP_GetSide({guid=sideGuid})
-    for k,v in pairs(missionUnits) do
-        local missionUnit = ScenEdit_GetUnit({side=side.name,guid=v})
-        ScenEdit_SpecialMessage("Blue Force",deepPrint(missionUnit.firedOn))
-    end]]--
     local side = VP_GetSide({guid=sideGuid})
     for k,v in pairs(missionUnits) do
         local missionUnit = ScenEdit_GetUnit({side=side.name,guid=v})
@@ -2581,6 +2576,7 @@ function deciderOffensiveAEWCreateUpdateMission(args)
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_aaew_miss")
     local linkedMissions = persistentMemoryGetForKey(args.shortKey.."_aaw_miss")
+    local totalHVAs = localMemoryGetFromKey(args.shortKey.."_def_hva")
     local missionNumber = 1
     local rp1,rp2,rp3,rp4 = ""
     local createdUpdatedMission = {}
@@ -2592,7 +2588,7 @@ function deciderOffensiveAEWCreateUpdateMission(args)
         linkedMission = ScenEdit_GetMission(side.name,linkedMissions[1])
         linkedMissionPoints = ScenEdit_GetReferencePoints({side=side.name, area={linkedMission.name.."_rp_1",linkedMission.name.."_rp_2",linkedMission.name.."_rp_3",linkedMission.name.."_rp_4"}})
         linkedMissionCenterPoint = midPointCoordinate(linkedMissionPoints[1].latitude,linkedMissionPoints[1].longitude,linkedMissionPoints[3].latitude,linkedMissionPoints[3].longitude)
-        patrolBoundingBox = findBoundingBoxForGivenLocations({makeLatLong(linkedMissionCenterPoint.latitude,linkedMissionCenterPoint.longitude)},1.0)
+        patrolBoundingBox = findBoundingBoxForGivenLocations({makeLatLong(linkedMissionCenterPoint.latitude,linkedMissionCenterPoint.longitude)},0.5)
         if #missions == 0 then
             rp1 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_1", lat=patrolBoundingBox[1].latitude, lon=patrolBoundingBox[1].longitude})
             rp2 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_2", lat=patrolBoundingBox[2].latitude, lon=patrolBoundingBox[2].longitude})
@@ -2603,11 +2599,30 @@ function deciderOffensiveAEWCreateUpdateMission(args)
             persistentMemoryAddToKey(args.shortKey.."_aaew_miss",createdUpdatedMission.name)
         else
             createdUpdatedMission = ScenEdit_GetMission(side.name,missions[1])
-            ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_1", lat=patrolBoundingBox[1].latitude, lon=patrolBoundingBox[1].longitude})
-            ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_2", lat=patrolBoundingBox[2].latitude, lon=patrolBoundingBox[2].longitude})
-            ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_3", lat=patrolBoundingBox[3].latitude, lon=patrolBoundingBox[3].longitude})
-            ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_4", lat=patrolBoundingBox[4].latitude, lon=patrolBoundingBox[4].longitude})
-            addReinforcementRequest(args.shortKey,args.options,side.name,createdUpdatedMission.name,1)
+            if #createdUpdatedMission.unitlist > 0 then
+                local hostUnit = (ScenEdit_GetUnit({side=side.name, guid=createdUpdatedMission.unitlist[1]})).base
+                if hostUnit then
+                    linkedMissionCenterPoint = midPointCoordinate(hostUnit.latitude,hostUnit.longitude,linkedMissionCenterPoint.latitude,linkedMissionCenterPoint.longitude)
+                    patrolBoundingBox = findBoundingBoxForGivenLocations({makeLatLong(linkedMissionCenterPoint.latitude,linkedMissionCenterPoint.longitude)},0.5)
+                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_1", lat=patrolBoundingBox[1].latitude, lon=patrolBoundingBox[1].longitude})
+                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_2", lat=patrolBoundingBox[2].latitude, lon=patrolBoundingBox[2].longitude})
+                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_3", lat=patrolBoundingBox[3].latitude, lon=patrolBoundingBox[3].longitude})
+                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_4", lat=patrolBoundingBox[4].latitude, lon=patrolBoundingBox[4].longitude})
+                    addReinforcementRequest(args.shortKey,args.options,side.name,createdUpdatedMission.name,1)
+                else
+                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_1", lat=patrolBoundingBox[1].latitude, lon=patrolBoundingBox[1].longitude})
+                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_2", lat=patrolBoundingBox[2].latitude, lon=patrolBoundingBox[2].longitude})
+                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_3", lat=patrolBoundingBox[3].latitude, lon=patrolBoundingBox[3].longitude})
+                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_4", lat=patrolBoundingBox[4].latitude, lon=patrolBoundingBox[4].longitude})
+                    addReinforcementRequest(args.shortKey,args.options,side.name,createdUpdatedMission.name,1)
+                end
+            else
+                ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_1", lat=patrolBoundingBox[1].latitude, lon=patrolBoundingBox[1].longitude})
+                ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_2", lat=patrolBoundingBox[2].latitude, lon=patrolBoundingBox[2].longitude})
+                ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_3", lat=patrolBoundingBox[3].latitude, lon=patrolBoundingBox[3].longitude})
+                ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaew_miss_"..tostring(missionNumber).."_rp_4", lat=patrolBoundingBox[4].latitude, lon=patrolBoundingBox[4].longitude})
+                addReinforcementRequest(args.shortKey,args.options,side.name,createdUpdatedMission.name,1)
+            end
         end
     end
 end
