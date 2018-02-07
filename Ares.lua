@@ -741,6 +741,24 @@ function findBoundingBoxForGivenContacts(sideName,contacts,defaults,padding)
     return contactBoundingBox
 end
 
+function findBoundingBoxForGivenUnits(sideName,units,defaults,padding)
+    local unitBoundingBox = findBoundingBoxForGivenLocations({makeLatLong(defaults[1].latitude,defaults[1].longitude),makeLatLong(defaults[2].latitude,defaults[2].longitude),makeLatLong(defaults[3].latitude,defaults[3].longitude),makeLatLong(defaults[4].latitude,defaults[4].longitude)},padding)
+    local unitCoordinates = {}
+    -- Looping
+    for k, v in pairs(units) do
+        local unit = ScenEdit_GetUnit({side=sideName, guid=v})
+        if unit then
+            unitCoordinates[#unitCoordinates + 1] = makeLatLong(unit.latitude,unit.longitude)
+        end
+    end
+    -- Get Unit Bounding Box
+    if #unitCoordinates > 0 then
+        unitBoundingBox = findBoundingBoxForGivenLocations(unitCoordinates,padding)
+    end
+    -- Return Bounding Box
+    return unitBoundingBox
+end
+
 function split(s, sep)
     local fields = {}
     local sep = sep or " "
@@ -1748,7 +1766,7 @@ function determineUnitToRetreat(sideShortKey,sideGuid,sideAttributes,missionGuid
                 unitRetreatPoint = nil
             end
             if unitRetreatPoint ~= nil then
-                if missionUnit.group and missionUnit.group.unitlist  then
+                if missionUnit.group and missionUnit.group.unitlist then
                     for k1,v1 in pairs(missionUnit.group.unitlist) do
                         local subUnit = ScenEdit_GetUnit({side=side.name,guid=v1})
                         ScenEdit_SetDoctrine({side=side.name,guid=subUnit.guid},{ignore_plotted_course = "no" })
@@ -2494,6 +2512,7 @@ function deciderOffensiveAirCreateUpdateMission(args)
     local missions = persistentMemoryGetForKey(args.shortKey.."_aaw_miss")
     local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
     local totalHostileContacts = getHostileAirContacts(args.shortKey)
+    local totalHVAs = localMemoryGetFromKey(args.shortKey.."_def_hva")
     local totalAirUnitsToAssign = getHostileAirContactsStrength(args.shortKey) * 3
     local missionNumber = 1
     local rp1,rp2,rp3,rp4 = ""
@@ -2510,7 +2529,11 @@ function deciderOffensiveAirCreateUpdateMission(args)
         ScenEdit_SetDoctrine({side=side.name,mission=createdUpdatedMission.name},{automatic_evasion="yes",maintain_standoff="yes",ignore_emcon_while_under_attack="yes",weapon_state_planned="5001",weapon_state_rtb ="1"})
         persistentMemoryAddToKey(args.shortKey.."_aaw_miss",createdUpdatedMission.name)
     else
-        hostileContactBoundingBox = findBoundingBoxForGivenContacts(side.name,totalHostileContacts,aoPoints,3)
+        if #totalHostileContacts > 0 then
+            hostileContactBoundingBox = findBoundingBoxForGivenContacts(side.name,totalHostileContacts,aoPoints,3)
+        else
+            hostileContactBoundingBox = findBoundingBoxForGivenUnits(side.name,totalHVAs,aoPoints,2)
+        end
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_miss_"..tostring(missionNumber).."_rp_1", lat=hostileContactBoundingBox[1].latitude, lon=hostileContactBoundingBox[1].longitude})
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_miss_"..tostring(missionNumber).."_rp_2", lat=hostileContactBoundingBox[2].latitude, lon=hostileContactBoundingBox[2].longitude})
         ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_aaw_miss_"..tostring(missionNumber).."_rp_3", lat=hostileContactBoundingBox[3].latitude, lon=hostileContactBoundingBox[3].longitude})
@@ -3021,9 +3044,6 @@ end
 -- Actor Update Air Reinforcement Request
 --------------------------------------------------------------------------------------------------------------------------------
 function actorUpdateAirReinforcementRequest(args)
-    if not canUpdateEverySixtySeconds() then
-        return
-    end
     local side = VP_GetSide({guid=args.guid})
     local reconMissions = persistentMemoryGetForKey(args.shortKey.."_rec_miss")
     local airMissions = persistentMemoryGetForKey(args.shortKey.."_aaw_miss")
@@ -3037,6 +3057,9 @@ function actorUpdateAirReinforcementRequest(args)
     local tankerDefenseMissions = persistentMemoryGetForKey(args.shortKey.."_tan_d_miss")
     local aewDefenseMissions = persistentMemoryGetForKey(args.shortKey.."_aew_d_miss")
     local reinforcementRequests = getReinforcementRequests(args.shortKey)
+    if not canUpdateEverySixtySeconds() then
+        return
+    end
     for k,v in pairs(reconMissions) do
         local mission = ScenEdit_GetMission(side.name,v)
         local reinforceNumber = reinforcementRequests[v]
