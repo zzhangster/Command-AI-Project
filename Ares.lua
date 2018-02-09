@@ -558,22 +558,22 @@ function updateAITimes()
     local timeStampEveryFiveMinutes = getTimeStampForKey("GlobalTimeEveryFiveMinutes")
     local currentTime = ScenEdit_CurrentTime()
     if timeStampEveryTen < currentTime then
-        setTimeStampForKey("GlobalTimeEveryTen",currentTime + 10)
+        setTimeStampForKey("GlobalTimeEveryTen",tostring(currentTime + 10))
     end
     if timeStampEveryTwenty < currentTime then
-        setTimeStampForKey("GlobalTimeEveryTwenty",currentTime + 20)
+        setTimeStampForKey("GlobalTimeEveryTwenty",tostring(currentTime + 20))
     end
     if timeStampEveryThirty < currentTime then
-        setTimeStampForKey("GlobalTimeEveryThirty",currentTime + 30)
+        setTimeStampForKey("GlobalTimeEveryThirty",tostring(currentTime + 30))
     end
     if timeStampEverySixty < currentTime then
-        setTimeStampForKey("GlobalTimeEverySixty",currentTime + 60)
+        setTimeStampForKey("GlobalTimeEverySixty",tostring(currentTime + 60))
     end
     if timeStampEveryTwoMinutes < currentTime then
-        setTimeStampForKey("GlobalTimeEveryTwoMinutes",currentTime + 120)
+        setTimeStampForKey("GlobalTimeEveryTwoMinutes",tostring(currentTime + 120))
     end
     if timeStampEveryFiveMinutes < currentTime then
-        setTimeStampForKey("GlobalTimeEveryFiveMinutes",currentTime + 300)
+        setTimeStampForKey("GlobalTimeEveryFiveMinutes",tostring(currentTime + 300))
     end
 end
 
@@ -856,9 +856,10 @@ function determineAndAddHVTByUnitDatabaseId(sideShortKey,unitGuid,unitDBID)
     end
 end
 
-function determineThreatRangeByUnitDatabaseId(sideGuid,contactGuid)
+function determineThreatRangeByUnitDatabaseId(sideShortKey,sideGuid,contactGuid)
     local side = VP_GetSide({guid=sideGuid})
     local contact = ScenEdit_GetContact({side=side.name, guid=contactGuid})
+    local threatRangeDecay = tonumber(ScenEdit_GetKeyValue(sideShortKey.."_threat_range_decay"))
     local range = 0
     if not contact then
         return 5
@@ -901,7 +902,7 @@ function determineThreatRangeByUnitDatabaseId(sideGuid,contactGuid)
         end
     end
     -- Return Range
-    return range
+    return range * threatRangeDecay
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
@@ -1699,7 +1700,7 @@ function determineUnitsToAssign(sideShortKey,sideName,missionGuid,totalRequiredU
                 if not getAllocatedUnitExists(sideShortKey,unit.guid) then
                     if (not determineUnitRTB(sideName,v) and unit.speed > 0) or (tostring(unit.readytime) == "0" and unit.speed == 0) then
                         totalRequiredUnits = totalRequiredUnits - 1
-                        ScenEdit_AssignUnitToMission(v,mission.guid)
+                        ScenEdit_AssignUnitToMission(v,mission.guid,false,false)
                         addAllocatedUnit(sideShortKey,unit.guid)
                     end
                 end
@@ -1826,7 +1827,7 @@ function getSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,un
         local contact = ScenEdit_GetContact({side=side.name, guid=v})
         if contact then
             local currentRange = Tool_Range(contact.guid,unitGuid)
-            local desiredRange = determineThreatRangeByUnitDatabaseId(side.guid,contact.guid)
+            local desiredRange = determineThreatRangeByUnitDatabaseId(shortSideKey,side.guid,contact.guid)
             if currentRange < desiredRange then
                 local bearing = Tool_Bearing(contact.guid,unitGuid)
                 local retreatLocation = projectLatLong(makeLatLong(contact.latitude,contact.longitude),bearing,desiredRange + 20)
@@ -1849,7 +1850,7 @@ function getShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,u
         local contact = ScenEdit_GetContact({side=side.name, guid=v})
         if contact then
             local currentRange = Tool_Range(contact.guid,unitGuid)
-            local desiredRange = determineThreatRangeByUnitDatabaseId(side.guid,contact.guid)
+            local desiredRange = determineThreatRangeByUnitDatabaseId(shortSideKey,side.guid,contact.guid)
             if currentRange < desiredRange then
                 local bearing = Tool_Bearing(contact.guid,unitGuid)
                 local retreatLocation = projectLatLong(makeLatLong(contact.latitude,contact.longitude),bearing,desiredRange + 20)
@@ -1984,7 +1985,9 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 function observerActionUpdateAIVariables(args)
     local sideShortKey = args.shortKey
+    local hostileWeaponContacts = getHostileWeaponContacts(args.shortKey)
     if canUpdateEveryThirtySeconds() then
+        -- Update Emcon Change State
         local emconChangeState = ScenEdit_GetKeyValue(sideShortKey.."_emcon_chg_state")
         if emconChangeState == "Active" then
             emconChangeState = "Passive"
@@ -1992,6 +1995,19 @@ function observerActionUpdateAIVariables(args)
             emconChangeState = "Active"
         end
         ScenEdit_SetKeyValue(sideShortKey.."_emcon_chg_state",emconChangeState)
+
+        -- Update Threat Decay
+        local threatRangeDecay = ScenEdit_GetKeyValue(sideShortKey.."_threat_range_decay")
+        if threatRangeDecay == "" or #hostileWeaponContacts > 0 then
+            threatRangeDecay = "1"
+        else
+            if threatRangeDecay == "0.04" then
+                threatRangeDecay = "0.05"
+            else
+                threatRangeDecay = tostring(tonumber(threatRangeDecay) - 0.01)
+            end
+        end
+        ScenEdit_SetKeyValue(sideShortKey.."_threat_range_decay",threatRangeDecay)
     end
 end
 
