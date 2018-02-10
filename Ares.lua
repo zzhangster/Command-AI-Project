@@ -2715,6 +2715,38 @@ function deciderOffensiveAntiSurfaceShipCreateUpdateMission(args)
     end
 end
 
+function deciderOffensiveAntiSubmarineCreateUpdateMission(args)
+    local side = VP_GetSide({guid=args.guid})
+    local missions = persistentMemoryGetForKey(args.shortKey.."_asw_miss")
+    local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
+    local totalHostileContacts = getHostileSubmarineContacts(args.shortKey)
+    local totalAirUnitsToAssign = getHostileSurfaceShipContactsStrength(args.shortKey) * 3
+    local missionNumber = 1
+    local rp1,rp2,rp3,rp4 = ""
+    local createdUpdatedMission = {}
+    local hostileContactBoundingBox = {}
+    if #missions == 0 then
+        hostileContactBoundingBox = findBoundingBoxForGivenContacts(side.name,totalHostileContacts,aoPoints,1)
+        rp1 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_asw_miss_"..tostring(missionNumber).."_rp_1", lat=hostileContactBoundingBox[1].latitude, lon=hostileContactBoundingBox[1].longitude})
+        rp2 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_asw_miss_"..tostring(missionNumber).."_rp_2", lat=hostileContactBoundingBox[2].latitude, lon=hostileContactBoundingBox[2].longitude})
+        rp3 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_asw_miss_"..tostring(missionNumber).."_rp_3", lat=hostileContactBoundingBox[3].latitude, lon=hostileContactBoundingBox[3].longitude})
+        rp4 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_asw_miss_"..tostring(missionNumber).."_rp_4", lat=hostileContactBoundingBox[4].latitude, lon=hostileContactBoundingBox[4].longitude})
+        createdUpdatedMission = ScenEdit_AddMission(side.name,args.shortKey.."_asw_miss_"..tostring(missionNumber),"patrol",{type="naval",zone={rp1.name,rp2.name,rp3.name,rp4.name}})
+        ScenEdit_SetMission(side.name,createdUpdatedMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=true,flightSize=1,useFlightSize=true})
+        ScenEdit_SetDoctrine({side=side.name,mission=createdUpdatedMission.name},{automatic_evasion="yes",maintain_standoff="yes",ignore_emcon_while_under_attack="yes",weapon_state_planned="5001",weapon_state_rtb="1",fuel_state_rtb="2",dive_on_threat="2"})
+        ScenEdit_SetEMCON("Mission",createdUpdatedMission.guid,"Radar=Active")
+        persistentMemoryAddToKey(args.shortKey.."_asw_miss",createdUpdatedMission.name)
+    else
+        hostileContactBoundingBox = findBoundingBoxForGivenContacts(side.name,totalHostileContacts,aoPoints,3)
+        createdUpdatedMission = ScenEdit_GetMission(side.name,missions[1])
+        ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_asw_miss_"..tostring(missionNumber).."_rp_1", lat=hostileContactBoundingBox[1].latitude, lon=hostileContactBoundingBox[1].longitude})
+        ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_asw_miss_"..tostring(missionNumber).."_rp_2", lat=hostileContactBoundingBox[2].latitude, lon=hostileContactBoundingBox[2].longitude})
+        ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_asw_miss_"..tostring(missionNumber).."_rp_3", lat=hostileContactBoundingBox[3].latitude, lon=hostileContactBoundingBox[3].longitude})
+        ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_asw_miss_"..tostring(missionNumber).."_rp_4", lat=hostileContactBoundingBox[4].latitude, lon=hostileContactBoundingBox[4].longitude})
+        addReinforcementRequest(args.shortKey,args.options,side.name,createdUpdatedMission.name,totalAirUnitsToAssign)
+    end
+end
+
 function deciderOffensiveSeadCreateUpdateMission(args)
     local side = VP_GetSide({guid=args.guid})
     local missions = persistentMemoryGetForKey(args.shortKey.."_sead_miss")
@@ -2941,6 +2973,124 @@ function deciderDefensiveTankerCreateUpdateMission(args)
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
+-- Defensive Anti Submarine Doctrine Create Update Mission Action
+--------------------------------------------------------------------------------------------------------------------------------
+function deciderDefensiveAntiSubmarineCreateUpdateMission(args)
+    local side = VP_GetSide({guid=args.guid})
+    local missions = persistentMemoryGetForKey(args.shortKey.."_asw_d_miss")
+    local createdMission = {}
+    local updatedMission = {}
+    local aoPoints = ScenEdit_GetReferencePoints({side=side.name, area={"AI-AO-1","AI-AO-2","AI-AO-3","AI-AO-4"}})
+    local defenseBoundingBox = {}
+    local prosecutionBoundingBox = {}
+    local rp1,rp2,rp3,rp4 = ""
+    local prp1,prp2,prp3,prp4 = ""
+    local totalHostileContacts = getHostileSubmarineContacts(args.shortKey)
+    local totalUnknownContacts = getUnknownSubmarineContacts(args.shortKey)
+    local totalHVAs = localMemoryGetFromKey(args.shortKey.."_def_hva")
+    local coveredHVAs = persistentMemoryGetForKey(args.shortKey.."_def_asw_hva_cov")
+    local unitToDefend = nil
+    local totalAAWUnitsToAssign = 2
+    if #coveredHVAs < #totalHVAs then
+        -- Find Unit That Is Not Covered
+        for k, v in pairs(totalHVAs) do
+            local found = false
+            for k2, v2 in pairs(coveredHVAs) do 
+                if v == v2 then
+                    found = true
+                end
+            end
+            if not found then
+                unitToDefend = ScenEdit_GetUnit({side=side.name, guid=v})
+                break
+            end
+        end
+        -- Check If No Unit To Defend
+        if unitToDefend then
+            -- Set Contact Bounding Box Variables
+            defenseBoundingBox = findBoundingBoxForGivenLocations({makeLatLong(unitToDefend.latitude,unitToDefend.longitude)},1.5)
+            prosecutionBoundingBox = findBoundingBoxForGivenLocations({makeLatLong(unitToDefend.latitude,unitToDefend.longitude)},2.5)
+            -- Set Reference Points
+            rp1 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_asw_d_miss_"..unitToDefend.guid.."_rp_1", lat=defenseBoundingBox[1].latitude, lon=defenseBoundingBox[1].longitude})
+            rp2 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_asw_d_miss_"..unitToDefend.guid.."_rp_2", lat=defenseBoundingBox[2].latitude, lon=defenseBoundingBox[2].longitude})
+            rp3 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_asw_d_miss_"..unitToDefend.guid.."_rp_3", lat=defenseBoundingBox[3].latitude, lon=defenseBoundingBox[3].longitude})
+            rp4 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_asw_d_miss_"..unitToDefend.guid.."_rp_4", lat=defenseBoundingBox[4].latitude, lon=defenseBoundingBox[4].longitude})
+            -- Set Prosecution Points
+            prp1 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_asw_d_miss_"..unitToDefend.guid.."_prp_1", lat=prosecutionBoundingBox[1].latitude, lon=prosecutionBoundingBox[1].longitude})
+            prp2 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_asw_d_miss_"..unitToDefend.guid.."_prp_2", lat=prosecutionBoundingBox[2].latitude, lon=prosecutionBoundingBox[2].longitude})
+            prp3 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_asw_d_miss_"..unitToDefend.guid.."_prp_3", lat=prosecutionBoundingBox[3].latitude, lon=prosecutionBoundingBox[3].longitude})
+            prp4 = ScenEdit_AddReferencePoint({side=side.name, name=args.shortKey.."_asw_d_miss_"..unitToDefend.guid.."_prp_4", lat=prosecutionBoundingBox[4].latitude, lon=prosecutionBoundingBox[4].longitude})
+            -- Create Mission
+            createdMission = ScenEdit_AddMission(side.name,args.shortKey.."_asw_d_miss_"..unitToDefend.guid,"patrol",{type="asw",zone={rp1.name,rp2.name,rp3.name,rp4.name}})
+            ScenEdit_SetMission(side.name,createdMission.name,{checkOPA=false,checkWWR=true,oneThirdRule=true,flightSize=1,useFlightSize=true})
+            ScenEdit_SetDoctrine({side=side.name,mission=createdMission.name},{automatic_evasion="yes",maintain_standoff="yes",ignore_emcon_while_under_attack="yes",weapon_state_planned="5001",weapon_state_rtb ="1"})
+            ScenEdit_SetEMCON("Mission",createdMission.guid,"Radar=Passive")
+            -- Add Guid And Add Time Stamp
+            persistentMemoryAddToKey(args.shortKey.."_asw_d_miss",createdMission.name)
+            persistentMemoryAddToKey(args.shortKey.."_def_asw_hva_cov",unitToDefend.guid)
+        end
+    end
+    -- Update Mission
+    for k, v in pairs(coveredHVAs) do
+        -- Local Covered HVA
+        local coveredHVA = ScenEdit_GetUnit({side=side.name,guid=v})
+        -- Check Condition
+        if coveredHVA then
+            -- Get Defense Mission
+            updatedMission = ScenEdit_GetMission(side.name,args.shortKey.."_asw_d_miss_"..coveredHVA.guid)
+            -- Check Defense Mission
+            if updatedMission then
+                -- Set Contact Bounding Box Variables
+                defenseBoundingBox = findBoundingBoxForGivenLocations({makeLatLong(coveredHVA.latitude,coveredHVA.longitude)},1.5)
+                prosecutionBoundingBox = findBoundingBoxForGivenLocations({makeLatLong(coveredHVA.latitude,coveredHVA.longitude)},2.5)
+                -- Update Coordinates
+                rp1 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_asw_d_miss_"..coveredHVA.guid.."_rp_1", lat=defenseBoundingBox[1].latitude, lon=defenseBoundingBox[1].longitude})
+                rp2 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_asw_d_miss_"..coveredHVA.guid.."_rp_2", lat=defenseBoundingBox[2].latitude, lon=defenseBoundingBox[2].longitude})
+                rp3 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_asw_d_miss_"..coveredHVA.guid.."_rp_3", lat=defenseBoundingBox[3].latitude, lon=defenseBoundingBox[3].longitude})
+                rp4 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_asw_d_miss_"..coveredHVA.guid.."_rp_4", lat=defenseBoundingBox[4].latitude, lon=defenseBoundingBox[4].longitude})
+                -- Update Coordinates
+                prp1 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_asw_d_miss_"..coveredHVA.guid.."_prp_1", lat=prosecutionBoundingBox[1].latitude, lon=prosecutionBoundingBox[1].longitude})
+                prp2 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_asw_d_miss_"..coveredHVA.guid.."_prp_2", lat=prosecutionBoundingBox[2].latitude, lon=prosecutionBoundingBox[2].longitude})
+                prp3 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_asw_d_miss_"..coveredHVA.guid.."_prp_3", lat=prosecutionBoundingBox[3].latitude, lon=prosecutionBoundingBox[3].longitude})
+                prp4 = ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_asw_d_miss_"..coveredHVA.guid.."_prp_4", lat=prosecutionBoundingBox[4].latitude, lon=prosecutionBoundingBox[4].longitude})
+                -- Find Enemy Strength In Area
+                local contactsInZone = 0
+                for k1, v1 in pairs(totalHostileContacts) do
+                    local contact = ScenEdit_GetContact({side=side.name, guid=v1})
+                    if contact then
+                        if contact:inArea({prp1.name,prp2.name,prp3.name,prp4.name}) then
+                            contactsInZone = contactsInZone + 1
+                        end
+                    end
+                end
+                for k1, v1 in pairs(totalUnknownContacts) do
+                    local contact = ScenEdit_GetContact({side=side.name, guid=v1})
+                    if contact then
+                        if contact:inArea({prp1.name,prp2.name,prp3.name,prp4.name}) then
+                            contactsInZone = contactsInZone + 1
+                        end
+                    end
+                end
+                -- Check
+                if contactsInZone > 0 then
+                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_asw_d_miss_"..coveredHVA.guid.."_rp_1", lat=prosecutionBoundingBox[1].latitude, lon=prosecutionBoundingBox[1].longitude})
+                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_asw_d_miss_"..coveredHVA.guid.."_rp_2", lat=prosecutionBoundingBox[2].latitude, lon=prosecutionBoundingBox[2].longitude})
+                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_asw_d_miss_"..coveredHVA.guid.."_rp_3", lat=prosecutionBoundingBox[3].latitude, lon=prosecutionBoundingBox[3].longitude})
+                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_asw_d_miss_"..coveredHVA.guid.."_rp_4", lat=prosecutionBoundingBox[4].latitude, lon=prosecutionBoundingBox[4].longitude})
+                else
+                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_asw_d_miss_"..coveredHVA.guid.."_rp_1", lat=defenseBoundingBox[1].latitude, lon=defenseBoundingBox[1].longitude})
+                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_asw_d_miss_"..coveredHVA.guid.."_rp_2", lat=defenseBoundingBox[2].latitude, lon=defenseBoundingBox[2].longitude})
+                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_asw_d_miss_"..coveredHVA.guid.."_rp_3", lat=defenseBoundingBox[3].latitude, lon=defenseBoundingBox[3].longitude})
+                    ScenEdit_SetReferencePoint({side=side.name, name=args.shortKey.."_asw_d_miss_"..coveredHVA.guid.."_rp_4", lat=defenseBoundingBox[4].latitude, lon=defenseBoundingBox[4].longitude})
+                end
+                -- Add Reinforcement Request
+                addReinforcementRequest(args.shortKey,args.options,side.name,updatedMission.name,totalAAWUnitsToAssign + contactsInZone)
+            end
+        end
+    end
+end
+
+--------------------------------------------------------------------------------------------------------------------------------
 -- Defend AEW Doctrine Create Update Mission Action
 --------------------------------------------------------------------------------------------------------------------------------
 function deciderDefensiveAEWCreateUpdateMission(args)
@@ -3082,6 +3232,7 @@ function actorUpdateAirReinforcementRequest(args)
     local aewMissions = persistentMemoryGetForKey(args.shortKey.."_aaew_miss")
     local tankerMissions = persistentMemoryGetForKey(args.shortKey.."_atan_miss")
     local antiSurfaceMissions = persistentMemoryGetForKey(args.shortKey.."_asuw_miss")
+    local antiSubmarineMissions = persistentMemoryGetForKey(args.shortKey.."_asw_miss")
     local seadMissions = persistentMemoryGetForKey(args.shortKey.."_sead_miss")
     local landMissions = persistentMemoryGetForKey(args.shortKey.."_land_miss")
     local airDefenseMissions = persistentMemoryGetForKey(args.shortKey.."_aaw_d_miss")
@@ -3291,6 +3442,23 @@ function actorUpdateAirReinforcementRequest(args)
             end
         end
     end
+    for k,v in pairs(antiSubmarineMissions) do
+        local mission = ScenEdit_GetMission(side.name,v)
+        local reinforceNumber = reinforcementRequests[v]
+        local missionReinforced = false
+        local reinforceInventory = {}
+        if reinforceNumber then
+            determineUnitsToUnAssign(args.shortKey,side.name,mission.guid)
+            if not missionReinforced then
+                reinforceInventory = getFreeAirASWInventory(args.shortKey)
+                missionReinforced = determineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
+            if not missionReinforced then
+                reinforceInventory = getBusyAirASWInventory(args.shortKey)
+                missionReinforced = determineUnitsToAssign(args.shortKey,side.name,mission.guid,reinforceNumber,reinforceInventory)
+            end
+        end
+    end
     for k,v in pairs(airDefenseMissions) do
         local mission = ScenEdit_GetMission(side.name,v)
         local reinforceNumber = reinforcementRequests[v]
@@ -3473,6 +3641,25 @@ function actorUpdateUnitsInOffensiveAntiShipMission(args)
     local missionUnits = getGroupLeadsFromMission(side.name,updatedMission.guid)
     -- Determine Retreat
     determineUnitToRetreat(args.shortKey,args.guid,args.options,updatedMission.guid,missionUnits,3,70)
+    -- Determine EMCON
+    determineEmconToUnits(args.shortKey,args.options,side.name,missionUnits)
+end
+
+function actorUpdateUnitsInOffensiveAntiSubmarineMission(args)
+    -- Locals
+    local side = VP_GetSide({guid=args.guid})
+    local missions = persistentMemoryGetForKey(args.shortKey.."_asw_miss")
+    local updatedMission = {}
+    -- Condition Check
+    if #missions == 0 then
+        return
+    end
+    -- Take First One For Now
+    updatedMission = ScenEdit_GetMission(side.name,missions[1])
+    -- Find Area And Return Point
+    local missionUnits = getGroupLeadsFromMission(side.name,updatedMission.guid)
+    -- Determine Retreat
+    determineUnitToRetreat(args.shortKey,args.guid,args.options,updatedMission.guid,missionUnits,0,70)
     -- Determine EMCON
     determineEmconToUnits(args.shortKey,args.options,side.name,missionUnits)
 end
@@ -3748,11 +3935,13 @@ function initializeAresAI(sideName,options)
     local deciderOffensiveTankerCreateUpdateMissionBT = BT:make(deciderOffensiveTankerCreateUpdateMission,sideGuid,shortSideKey,attributes)
     local deciderOffensiveLandAttackCreateUpdateMissionBT = BT:make(deciderOffensiveLandAttackCreateUpdateMission,sideGuid,shortSideKey,attributes)
     local deciderOffensiveAntiSurfaceShipCreateUpdateMissionBT = BT:make(deciderOffensiveAntiSurfaceShipCreateUpdateMission,sideGuid,shortSideKey,attributes)
+    local deciderOffensiveAntiSubmarineCreateUpdateMissionBT = BT:make(deciderOffensiveAntiSubmarineCreateUpdateMission,sideGuid,shortSideKey,attributes)
     -- Defensive Behavior Tree
     local deciderDefensiveCheckBT = BT:make(deciderDefensiveCheck,sideGuid,shortSideKey,attributes)
     local deciderDefensiveAirCreateUpdateMissionBT = BT:make(deciderDefensiveAirCreateUpdateMission,sideGuid,shortSideKey,attributes)
     local deciderDefensiveAEWCreateUpdateMissionBT = BT:make(deciderDefensiveAEWCreateUpdateMission,sideGuid,shortSideKey,attributes)
     local deciderDefensiveTankerCreateUpdateMissionBT = BT:make(deciderDefensiveTankerCreateUpdateMission,sideGuid,shortSideKey,attributes)
+    local deciderDefensiveAntiSubmarineCreateUpdateMissionBT = BT:make(deciderDefensiveAntiSubmarineCreateUpdateMission,sideGuid,shortSideKey,attributes)
     -- Neutral Behavior Tree
     local deciderNeutralShipCreateUpdateMissionBT = BT:make(deciderNeutralShipCreateUpdateMission,sideGuid,shortSideKey,attributes)
     local deciderNeutralSubmarineCreateUpdateMissionBT = BT:make(deciderNeutralSubmarineCreateUpdateMission,sideGuid,shortSideKey,attributes)
@@ -3770,6 +3959,7 @@ function initializeAresAI(sideName,options)
     deciderAttackDoctrineSequenceBT:addChild(deciderOffensiveSeadCreateUpdateMissionBT)
     deciderAttackDoctrineSequenceBT:addChild(deciderOffensiveLandAttackCreateUpdateMissionBT)
     deciderAttackDoctrineSequenceBT:addChild(deciderOffensiveAntiSurfaceShipCreateUpdateMissionBT)
+    deciderAttackDoctrineSequenceBT:addChild(deciderOffensiveAntiSubmarineCreateUpdateMissionBT)
     deciderAttackDoctrineSequenceBT:addChild(deciderNeutralShipCreateUpdateMissionBT)
     deciderAttackDoctrineSequenceBT:addChild(deciderNeutralSubmarineCreateUpdateMissionBT)
     -- Setup Defend Doctrine Sequence
@@ -3778,6 +3968,7 @@ function initializeAresAI(sideName,options)
     deciderDefendDoctrineSequenceBT:addChild(deciderDefensiveAirCreateUpdateMissionBT)
     deciderDefendDoctrineSequenceBT:addChild(deciderDefensiveAEWCreateUpdateMissionBT)
     deciderDefendDoctrineSequenceBT:addChild(deciderDefensiveTankerCreateUpdateMissionBT)
+    deciderDefendDoctrineSequenceBT:addChild(deciderDefensiveAntiSubmarineCreateUpdateMissionBT)
     deciderDefendDoctrineSequenceBT:addChild(deciderNeutralShipCreateUpdateMissionBT)
     deciderDefendDoctrineSequenceBT:addChild(deciderNeutralSubmarineCreateUpdateMissionBT)
     ----------------------------------------------------------------------------------------------------------------------------
@@ -3790,6 +3981,7 @@ function initializeAresAI(sideName,options)
     local actorUpdateUnitsInOffensiveSeadMissionBT = BT:make(actorUpdateUnitsInOffensiveSeadMission,sideGuid,shortSideKey,attributes)
     local actorUpdateUnitsInOffensiveLandMissionBT = BT:make(actorUpdateUnitsInOffensiveLandMission,sideGuid,shortSideKey,attributes)
     local actorUpdateUnitsInOffensiveAntiShipMissionBT = BT:make(actorUpdateUnitsInOffensiveAntiShipMission,sideGuid,shortSideKey,attributes)
+    local actorUpdateUnitsInOffensiveAntiSubmarineMissionBT = BT:make(actorUpdateUnitsInOffensiveAntiSubmarineMission,sideGuid,shortSideKey,attributes)
     local actorUpdateUnitsInOffensiveAEWMissionBT = BT:make(actorUpdateUnitsInOffensiveAEWMission,sideGuid,shortSideKey,attributes)
     local actorUpdateUnitsInOffensiveTankerMissionBT = BT:make(actorUpdateUnitsInOffensiveTankerMission,sideGuid,shortSideKey,attributes)
     local actorUpdateUnitsInDefensiveAirMissionBT = BT:make(actorUpdateUnitsInDefensiveAirMission,sideGuid,shortSideKey,attributes)
@@ -3802,6 +3994,7 @@ function initializeAresAI(sideName,options)
     aresActorBTMain:addChild(actorUpdateUnitsInOffensiveSeadMissionBT)
     aresActorBTMain:addChild(actorUpdateUnitsInOffensiveLandMissionBT)
     aresActorBTMain:addChild(actorUpdateUnitsInOffensiveAntiShipMissionBT)
+    aresActorBTMain:addChild(actorUpdateUnitsInOffensiveAntiSubmarineMissionBT)
     aresActorBTMain:addChild(actorUpdateUnitsInOffensiveAEWMissionBT)
     aresActorBTMain:addChild(actorUpdateUnitsInOffensiveTankerMissionBT)
     aresActorBTMain:addChild(actorUpdateUnitsInDefensiveAirMissionBT)
