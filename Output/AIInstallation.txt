@@ -1,0 +1,15 @@
+AI Installation Guide - See the provided guide for reference
+
+1.) Open your premade scenario
+2.) Create Event => "Event - Load AI Functions"
+    a.) Set repeatable, active
+    b.) Set Trigger as load on scenario
+    c.) Set 2 lua script actions
+        i.) Script 1 should be copied from "Ares.lua" file contents, to set the AI to a particular side find line:
+	initializeAresAI("Red Force",{preset="Sheridan"}), where "Red Force" is the side you want the AI to play
+       ii.) Script 2 should be copied from "AresLibrary.lua" file contents
+3.) Create Event => "Event - Update AI Functions"
+    a.) Set repeatable, active
+    b.) Set Trigger 5 seconds regular time
+    c.) Set 1 lua script actions
+        i.) Script 1 should have contents => updateAresAI()
