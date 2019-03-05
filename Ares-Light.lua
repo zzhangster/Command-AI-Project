@@ -1156,7 +1156,7 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
             unitRetreatPointArray = nil
         end
         -- Set Unit Retreat Point
-        if unitRetreatPointArray ~= nil then
+        if unitRetreatPointArray then
 			--ScenEdit_SpecialMessage("PRC","determineAirUnitToRetreatByRole - "..unitRetreatPoint.latitude.." "..unitRetreatPoint.longitude)
 			--{latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=2000}
             --if unit.group and unit.group.unitlist then
@@ -1171,12 +1171,12 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
             --    unit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
             --    unit.manualSpeed = unitRetreatPoint.speed
             --end
-            unit.manualAlitude = true
+            unit.manualAltitude = true
             ScenEdit_SetDoctrine({side=side.name,guid=unit.guid},{ignore_plotted_course = "no" })
             unit.course=unitRetreatPointArray
-            unit.manualSpeed = unitRetreatPoint.speed
+            unit.manualSpeed = unitRetreatPointArray[1].speed
         else
-            unit.manualAlitude = false
+            unit.manualAltitude = false
             ScenEdit_SetDoctrine({side=side.name,guid=unit.guid},{ignore_plotted_course = "yes" })
             unit.manualSpeed = "OFF"
         end
@@ -1335,14 +1335,73 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
     local hostileMissilesContacts = getHostileWeaponContacts(shortSideKey)
     local minDesiredRange = 8
     local maxDesiredRange = 60
+	local distanceToMissile = 10000
+	local contact = nil
+	-- Check Update
     if not unit and not canUpdateEveryTenSeconds() then
         return nil
     end
-    for k,v in pairs(hostileMissilesContacts) do
-        local distanceToMissile = Tool_Range(v,unitGuid)
+	-- Check Fired on
+    if not unit.targetedBy and not unit.firedOn then
+		return nil
+	end
+	-- Find Shortest Range Missile
+	for k,v in pairs(hostileMissilesContacts) do
+        local currentContact = ScenEdit_GetContact({side=side.name, guid=v})
+		if currentContact then
+			local distanceToCurrentMissile = Tool_Range(v,unitGuid)
+			if distanceToCurrentMissile < distanceToMissile then
+				distanceToMissile = distanceToCurrentMissile
+				contact = currentContact
+			end
+		end
+	end
+	-- Find Checks
+	if not contact then
+		return nil
+	elseif distanceToMissile < 30 then
+		-- Emergency Evasion
+		local contactPoint = makeLatLong(contact.latitude,contact.longitude)
+		local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
+		local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
+        return {{lat=retreatLocation.latitude,lon=retreatLocation.longitude,alt=30,speed=2000}}
+	elseif distanceToMissile < maxDesiredRange then
+		-- Check If Attacking Enemy And Break At Last Minute
+		local isFiringAt = false
+		local isFiringAtRange = 100000
+		if unit.firingAt then
+			for k1,v1 in pairs(unit.firingAt) do
+				local targetRange = Tool_Range(v1,unitGuid)
+				if targetRange < isFiringAtRange then
+					isFiringAt = true
+					isFiringAtRange = targetRange
+				end
+			end
+		end
+		if isFiringAt then
+			ScenEdit_SpecialMessage("PRC","getRetreatPathForEmergencyMissileNoNavZone :"..distanceToMissile.." "..0.4*isFiringAtRange)
+			if distanceToMissile < 0.4 * isFiringAtRange then
+				local contactPoint = makeLatLong(contact.latitude,contact.longitude)
+				local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
+				local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
+				return {{lat=retreatLocation.latitude,lon=retreatLocation.longitude,alt=30,speed=2000}}
+			end
+		else
+			local contactPoint = makeLatLong(contact.latitude,contact.longitude)
+			local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
+			local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
+			return {{lat=retreatLocation.latitude,lon=retreatLocation.longitude,alt=30,speed=2000}}
+		end
+	else
+		return nil
+	end
+
+    --[[for k,v in pairs(hostileMissilesContacts) do
         local contact = ScenEdit_GetContact({side=side.name, guid=v})
         if contact then
 			-- Range Check
+			local distanceToMissile = Tool_Range(v,unitGuid)
+			--ScenEdit_SpecialMessage("PRC","getRetreatPathForEmergencyMissileNoNavZone - Distance To Missile: "..distanceToMissile)
 			if distanceToMissile < minDesiredRange then
 				-- Pray and Do Nothing
 			elseif distanceToMissile < 20 then
@@ -1355,26 +1414,30 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
 			elseif distanceToMissile < maxDesiredRange then
 				-- Check If Attacking Enemy And Break At Last Minute
 				local isFiringAt = false
-				local isFiringAtRange = 10000
+				local isFiringAtRange = 100000
 				if unit.firingAt then
 					for k1,v1 in pairs(unit.firingAt) do
 						local targetRange = Tool_Range(v1,unitGuid)
-						isFiringAt = true
 						if targetRange < isFiringAtRange then
+							isFiringAt = true
 							isFiringAtRange = targetRange
 						end
 					end
 				end
-				if not isFiringAt or (isFiringAt and isFiringAtRange * 0.5 > missileRange) then 
+				if not isFiringAt or (isFiringAt and isFiringAtRange * 0.5 > distanceToMissile) then 
 					local contactPoint = makeLatLong(contact.latitude,contact.longitude)
 					local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
 					local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
+					if isFiringAt then
+						ScenEdit_SpecialMessage("PRC","getRetreatPathForEmergencyMissileNoNavZone - "..isFiringAtRange.." "..distanceToMissile)
+					end
+					--ScenEdit_SpecialMessage("PRC","getRetreatPathForEmergencyMissileNoNavZone - "..isFiringAtRange.." "..distanceToMissile)
                     return {{lat=retreatLocation.latitude,lon=retreatLocation.longitude,alt=30,speed=2000}}
 					--return {{latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=2000,altitude=30}}
 				end
 			end
         end
-    end
+    end]]--
     return nil
 end
 
