@@ -522,6 +522,14 @@ function internationalDecimalConverter(value)
     end
 end
 
+function distanceToHorizon(height) 
+    return 6371000 * math.acos(6371000/(6371000 + height))
+end
+
+function heightToHorizon(distance)
+    return math.sqrt((6371000 * 6371000) + (distance * distance)) - 6371000
+end
+
 function makeLatLong(latitude,longitude)
     local instance = {}
     instance.latitude = internationalDecimalConverter(latitude)
@@ -1126,44 +1134,49 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
 	--ScenEdit_SpecialMessage("PRC","determineAirUnitToRetreatByRole")
     if unit and not determineUnitBingo(side.name,unit.guid) and (unit.targetedBy or unit.firedOn or #unit.ascontact > 0) then
         -- Find Unit Retreat Point
-        local unitRetreatPoint = {}
+        local unitRetreatPointArray = {}
         -- Determine Retreat Type By Role
         if unitRole == "aaw" then
-            unitRetreatPoint = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,60,{"missiles","sams","ships"})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,60,{"missiles","sams","ships"})
         elseif unitRole == "ag-asuw" then
-            unitRetreatPoint = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,80,{"missiles"})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,80,{"missiles"})
         elseif unitRole == "ag" then
-            unitRetreatPoint = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,60,{"missiles","planes","ships"})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,60,{"missiles","planes","ships"})
         elseif unitRole == "asuw" then
-            unitRetreatPoint = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,80,{"missiles","planes"})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,80,{"missiles","planes"})
         elseif unitRole == "support" then
-            unitRetreatPoint = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,200,{"missiles","planes","sams","ships"})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,200,{"missiles","planes","sams","ships"})
         elseif unitRole == "asw" then
-            unitRetreatPoint = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,80,{"missiles","planes","sams","ships"})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,80,{"missiles","planes","sams","ships"})
         elseif unitRole == "recon" then
-            unitRetreatPoint = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,60,{"missiles","planes","sams","ships"})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,60,{"missiles","planes","sams","ships"})
         elseif unitRole == "sead" then
-            unitRetreatPoint = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,60,{"missiles","planes"})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,60,{"missiles","planes"})
         else
-            unitRetreatPoint = nil
+            unitRetreatPointArray = nil
         end
         -- Set Unit Retreat Point
-        if unitRetreatPoint ~= nil then
+        if unitRetreatPointArray ~= nil then
 			--ScenEdit_SpecialMessage("PRC","determineAirUnitToRetreatByRole - "..unitRetreatPoint.latitude.." "..unitRetreatPoint.longitude)
 			--{latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=2000}
-            if unit.group and unit.group.unitlist then
-                for k1,v1 in pairs(unit.group.unitlist) do
-                    local subUnit = ScenEdit_GetUnit({side=side.name,guid=v1})
-                    ScenEdit_SetDoctrine({side=side.name,guid=subUnit.guid},{ignore_plotted_course = "no" })
-                    subUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
-                    subUnit.manualSpeed = unitRetreatPoint.speed
-                end
-            else 
-                ScenEdit_SetDoctrine({side=side.name,guid=unit.guid},{ignore_plotted_course = "no" })
-                unit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
-                unit.manualSpeed = unitRetreatPoint.speed
-            end
+            --if unit.group and unit.group.unitlist then
+            --   for k1,v1 in pairs(unit.group.unitlist) do
+            --        local subUnit = ScenEdit_GetUnit({side=side.name,guid=v1})
+            --        ScenEdit_SetDoctrine({side=side.name,guid=subUnit.guid},{ignore_plotted_course = "no" })
+            --        subUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
+            --        subUnit.manualSpeed = unitRetreatPoint.speed
+            --    end
+            --else 
+            --    ScenEdit_SetDoctrine({side=side.name,guid=unit.guid},{ignore_plotted_course = "no" })
+            --    unit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
+            --    unit.manualSpeed = unitRetreatPoint.speed
+            --end
+            unit.manualAlitude = true
+            ScenEdit_SetDoctrine({side=side.name,guid=unit.guid},{ignore_plotted_course = "no" })
+            unit.course=unitRetreatPointArray
+            unit.manualSpeed = unitRetreatPoint.speed
         else
+            unit.manualAlitude = false
             ScenEdit_SetDoctrine({side=side.name,guid=unit.guid},{ignore_plotted_course = "yes" })
             unit.manualSpeed = "OFF"
         end
@@ -1176,28 +1189,28 @@ function determineRetreatPoint(sideGuid,shortSideKey,sideAttributes,unitGuid,ran
     local desiredRange = range
     -- Loop Through Avoidance Types
     for i = 1, #avoidanceTypes do
-        local retreatPoint  = nil
+        local retreatPointArray  = nil
         if avoidanceTypes[i] == "planes" then
-            retreatPoint = getAirNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,range)
+            retreatPointArray = getRetreatPathForAirNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,range)
         elseif avoidanceTypes[i] == "ships" then
-            retreatPoint = getShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
+            retreatPointArray = getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid)
         elseif avoidanceTypes[i] == "sams" then
-            retreatPoint = getSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
+            retreatPointArray = getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid)
         elseif avoidanceTypes[i] == "missiles" then
-            retreatPoint = getEmergencyMissileNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
+            retreatPointArray = getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid)
         else
-            retreatPoint = nil
+            retreatPointArray = nil
         end
         -- Return First Valid One
-        if retreatPoint then
-            return retreatPoint 
+        if retreatPointArray then
+            return retreatPointArray 
         end
     end
     -- Nothing Found
     return nil
 end
 
-function getAirNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,range)
+function getRetreatPathForAirNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,range)
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
     local hostileAirContacts = getHostileAirContacts(shortSideKey)
@@ -1213,7 +1226,8 @@ function getAirNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,un
             if currentRange < desiredRange then
                 local bearing = Tool_Bearing(contact.guid,unitGuid)
                 local retreatLocation = projectLatLong(makeLatLong(contact.latitude,contact.longitude),bearing,desiredRange + 20)
-                return {latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=2000}
+                return {{lat=retreatLocation.latitude,lon=retreatLocation.longitude,alt=unit.altitude,speed=2000}}
+                --return {{latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=2000}}
             end
         end
     end
@@ -1224,116 +1238,121 @@ function getAirNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,un
             if currentRange < desiredRange then
                 local bearing = Tool_Bearing(contact.guid,unitGuid)
                 local retreatLocation = projectLatLong(makeLatLong(contact.latitude,contact.longitude),bearing,desiredRange + 20)
-                return {latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=2000}
+                return {{lat=retreatLocation.latitude,lon=retreatLocation.longitude,alt=unit.altitude,speed=2000}}
+                --return {{latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=2000}}
             end
         end
     end
     return nil
 end
 
-function getSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
+function getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid)
     local side = VP_GetSide({guid=sideGuid})
     local hostileSAMContacts = getHostileSAMContacts(shortSideKey)
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
-    if not unit and not canUpdateEveryThirtySeconds() then
+    if not unit or not canUpdateEverySixtySeconds() then
         return nil
     end
+    -- Distance To SAM
+    local distanceToSAM = 100000
     for k,v in pairs(hostileSAMContacts) do
         local contact = ScenEdit_GetContact({side=side.name, guid=v})
         if contact then
+            -- Get Closes SAM Range
             local currentRange = Tool_Range(contact.guid,unitGuid)
             local desiredRange = determineThreatRangeByUnitDatabaseId(shortSideKey,side.guid,contact.guid)
             if currentRange < desiredRange then
-                local bearing = Tool_Bearing(contact.guid,unitGuid)
-                local retreatLocation = projectLatLong(makeLatLong(contact.latitude,contact.longitude),bearing,desiredRange + 20)
-                return {latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=2000}
+                if distanceToSAM > currentRange then
+                    distanceToSAM = currentRange
+                end
             end
         end
     end
+    -- Check
+    if distanceToSAM == 100000 then
+        return nil
+    elseif distanceToSAM < 20 then
+        local bearing = Tool_Bearing(contact.guid,unitGuid)
+        local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,10)
+        return {{lat=retreatLocation.latitude,lon=retreatLocation.longitude,alt=unit.altitude,speed=2000}}
+        --return {{latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=2000,altitude=unit.altitude}}
+    else
+        if #unit.course > 0 then
+            local waypoint = unit.course[1]
+            return {{lat=retreatLocation.latitude,lon=retreatLocation.longitude,alt=heightToHorizon(distanceToSAM),speed=waypoint.desiredSpeed}}
+            --return {{latitude=waypoint.latitude,longitude=waypoint.longitude,speed=waypoint.desiredSpeed,altitude=heightToHorizon(distanceToSAM)}}
+        end
+    end
+    -- Return
     return nil
 end
 
-function getShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
+function getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid)
+    -- Local Variables
     local side = VP_GetSide({guid=sideGuid})
+    local hostileShipContacts = getHostileSurfaceShipContacts(shortSideKey)
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
-    local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
-    local hostileSurfaceShipContacts = getHostileSurfaceShipContacts(shortSideKey)
-    if not unit and not canUpdateEveryThirtySeconds() then
+    if not unit or not canUpdateEverySixtySeconds() then
         return nil
     end
-    for k,v in pairs(hostileSurfaceShipContacts) do
+    -- Distance To Ship
+    local distanceToShip = 100000
+    for k,v in pairs(hostileShipContacts) do
         local contact = ScenEdit_GetContact({side=side.name, guid=v})
         if contact then
+            -- Get Closes Ship Range
             local currentRange = Tool_Range(contact.guid,unitGuid)
             local desiredRange = determineThreatRangeByUnitDatabaseId(shortSideKey,side.guid,contact.guid)
             if currentRange < desiredRange then
-                local bearing = Tool_Bearing(contact.guid,unitGuid)
-                local retreatLocation = projectLatLong(makeLatLong(contact.latitude,contact.longitude),bearing,desiredRange + 20)
-                return {latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=2000}
+                if distanceToShip > currentRange then
+                    distanceToShip = currentRange
+                end
             end
         end
     end
-    return nil
-end
-
-function getSubmarineNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,range)
-    local side = VP_GetSide({guid=sideGuid})
-    local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
-    local hostileSubmarineContacts = getHostileSubmarineContacts(shortSideKey)
-    local unknownSubmarineContacts = getUnknownSubmarineContacts(shortSideKey)
-    if not unit and not canUpdateEveryFiveMinutes() then
+    -- Check
+    if distanceToShip == 100000 then
         return nil
-    end
-    for k,v in pairs(hostileSubmarineContacts) do
-        local contact = ScenEdit_GetContact({side=side.name, guid=v})
-        if contact then
-            local currentRange = Tool_Range(contact.guid,unitGuid)
-            local desiredRange = range
-            if currentRange < desiredRange then
-                local bearing = Tool_Bearing(contact.guid,unitGuid)
-                local retreatLocation = projectLatLong(makeLatLong(contact.latitude,contact.longitude),bearing,desiredRange + 12)
-                return {latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=unit.speed}
-            end
+    elseif distanceToShip < 20 then
+        local bearing = Tool_Bearing(contact.guid,unitGuid)
+        local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,10)
+        return {{lat=retreatLocation.latitude,lon=retreatLocation.longitude,alt=unit.altitude,speed=2000}}
+        --return {{latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=2000,altitude=unit.altitude}}
+    else
+        if #unit.course > 0 then
+            local waypoint = unit.course[1]
+            return {{lat=waypoint.latitude,lon=waypoint.longitude,alt=heightToHorizon(distanceToShip),speed=waypoint.desiredSpeed}}
+            --return {{latitude=waypoint.latitude,longitude=waypoint.longitude,speed=waypoint.desiredSpeed,altitude=heightToHorizon(distanceToShip)}}
         end
     end
-    for k,v in pairs(unknownSubmarineContacts) do
-        local contact = ScenEdit_GetContact({side=side.name, guid=v})
-        if contact then
-            local currentRange = Tool_Range(contact.guid,unitGuid)
-            local desiredRange = range
-            if currentRange < desiredRange then
-                local bearing = Tool_Bearing(contact.guid,unitGuid)
-                local retreatLocation = projectLatLong(makeLatLong(contact.latitude,contact.longitude),bearing,desiredRange + 20)
-                return {latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=unit.speed}
-            end
-        end
-    end
+    -- Return
     return nil
 end
 
-function getEmergencyMissileNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
+function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid)
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
     local hostileMissilesContacts = getHostileWeaponContacts(shortSideKey)
+    local minDesiredRange = 8
+    local maxDesiredRange = 60
     if not unit and not canUpdateEveryTenSeconds() then
         return nil
     end
     for k,v in pairs(hostileMissilesContacts) do
-        local missileRange = Tool_Range(v,unitGuid)
+        local distanceToMissile = Tool_Range(v,unitGuid)
         local contact = ScenEdit_GetContact({side=side.name, guid=v})
         if contact then
-            local minDesiredRange = 8
-            local maxDesiredRange = 60
 			-- Range Check
-			if missileRange < minDesiredRange then
+			if distanceToMissile < minDesiredRange then
 				-- Pray and Do Nothing
-			elseif missileRange < 20 then
+			elseif distanceToMissile < 20 then
 				-- Emergency Evasion
 				local contactPoint = makeLatLong(contact.latitude,contact.longitude)
 				local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
 				local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
-				return {latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=2000}
-			elseif missileRange < maxDesiredRange then
+                return {{lat=retreatLocation.latitude,lon=retreatLocation.longitude,alt=30,speed=2000}}
+				--return {{latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=2000,altitude=30}}
+			elseif distanceToMissile < maxDesiredRange then
 				-- Check If Attacking Enemy And Break At Last Minute
 				local isFiringAt = false
 				local isFiringAtRange = 10000
@@ -1350,73 +1369,13 @@ function getEmergencyMissileNoNavZoneThatContainsUnit(sideGuid,shortSideKey,side
 					local contactPoint = makeLatLong(contact.latitude,contact.longitude)
 					local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
 					local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
-					return {latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=2000}
+                    return {{lat=retreatLocation.latitude,lon=retreatLocation.longitude,alt=30,speed=2000}}
+					--return {{latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=2000,altitude=30}}
 				end
 			end
         end
     end
     return nil
-end
-
-function getSAMAndShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
-    local contactPoint = getEmergencyMissileNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
-    if contactPoint then
-        return contactPoint
-    else
-        contactPoint = getSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
-        if contactPoint then
-            return contactPoint
-        else
-            return getShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
-        end
-    end
-end
-
-function getAirAndShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
-    local contactPoint = getEmergencyMissileNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
-    if contactPoint then
-        return contactPoint
-    else
-        contactPoint = getAirNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
-        if contactPoint then
-            return contactPoint
-        else
-            return getShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
-        end
-    end
-end
-
-function getAirAndSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
-    local contactPoint = getEmergencyMissileNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
-    if contactPoint then
-        return contactPoint 
-    else
-        contactPoint = getAirNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
-        if contactPoint then
-            return contactPoint
-        else
-            return getSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
-        end
-    end
-end
-
-function getAllNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
-    local contactPoint = getEmergencyMissileNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
-    if contactPoint then
-        return contactPoint
-    else
-        contactPoint = getAirNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid,airRange)
-        if contactPoint then
-            return contactPoint
-        else
-            contactPoint = getSAMNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
-            if contactPoint then
-                return contactPoint
-            else
-                return getShipNoNavZoneThatContainsUnit(sideGuid,shortSideKey,sideAttributes,unitGuid)
-            end
-        end
-    end
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
@@ -1524,7 +1483,6 @@ function observerActionUpdateMissionInventories(args)
                                 unitRole = "sead"
                             end
                         end
-						
 						-- Compare Mission Role Vs Unit Role (Mission Role Takes Precedent In Certain Conditions)
 						if missionRole == "AAW Patrol" or missionRole == "Air Intercept" then
 							-- No Override - Units Will Retain Their Respective Role
@@ -1756,13 +1714,13 @@ function actorUpdateReconUnits(args)
 end
 
 function actorUpdateAAWUnits(args)
--- Locals
+    -- Locals
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
-    -- Get Recon Units
-    local reconUnits = getAirAawInventory(sideShortKey)
-    for i = 1, #reconUnits do
-		determineAirUnitToRetreatByRole(args.shortKey,args.guid,args.options,reconUnits[i],"aaw") 
+    -- Get AAW Units
+    local aawUnits = getAirAawInventory(sideShortKey)
+    for i = 1, #aawUnits do
+		determineAirUnitToRetreatByRole(args.shortKey,args.guid,args.options,aawUnits[i],"aaw") 
 	end
 end
 
@@ -1770,154 +1728,77 @@ function actorUpdateAGUnits(args)
     -- Locals
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
+    -- Get AG Units
+    local agUnits = getAirAgInventory(sideShortKey)
+    for i = 1, #agUnits do
+		determineAirUnitToRetreatByRole(args.shortKey,args.guid,args.options,agUnits[i],"ag") 
+	end
 end
 
 function actorUpdateAGAsuWUnits(args)
     -- Locals
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
+    -- Get AG-ASUW Units
+    local agAsuwUnits = getAirAgAsuwInventory(sideShortKey)
+    for i = 1, #agAsuwUnits do
+		determineAirUnitToRetreatByRole(args.shortKey,args.guid,args.options,agAsuwUnits[i],"ag-asuw") 
+	end
 end
 
 function actorUpdateAsuWUnits(args)
     -- Locals
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
+    -- Get ASUW Units
+    local asuwUnits = getAirAsuwInventory(sideShortKey)
+    for i = 1, #asuwUnits do
+		determineAirUnitToRetreatByRole(args.shortKey,args.guid,args.options,asuwUnits[i],"ag-asuw")
+	end
 end
 
 function actorUpdateASWUnits(args)
     -- Locals
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
+    -- Get ASUW Units
+    local asuwUnits = getAirAsuwInventory(sideShortKey)
+    for i = 1, #asuwUnits do
+		determineAirUnitToRetreatByRole(args.shortKey,args.guid,args.options,asuwUnits[i],"asuw")
+	end
 end
 
 function actorUpdateSeadUnits(args)
     -- Locals
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
+    -- Get SEAD Units
+    local seadUnits = getAirSeadInventory(sideShortKey)
+    for i = 1, #seadUnits do
+		determineAirUnitToRetreatByRole(args.shortKey,args.guid,args.options,seadUnits[i],"sead")
+	end
 end
 
 function actorUpdateSupportUnits(args)
     -- Locals
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
-end
-
---------------------------------------------------------------------------------------------------------------------------------
--- Initialize AI Attributes
---------------------------------------------------------------------------------------------------------------------------------
-function initializeAIAttributes(options)
-    -- Local AI Attributes
-    local attributes = {aggressive = 5, defensive = 5, cunning = 5, direct = 5, determined = 5, reserved = 5}
-    local preset = options.preset
-    local userAttributes = options.options
-    -- Load Presets
-    if preset then
-        if preset == "Leroy" then
-            attributes.aggressive = 10
-            attributes.defensive = 0
-            attributes.cunning = 0
-            attributes.direct = 10
-            attributes.determined = 10
-            attributes.reserved = 0
-        elseif preset == "Grant" then
-            attributes.aggressive = 8
-            attributes.defensive = 2
-            attributes.cunning = 4
-            attributes.direct = 6
-            attributes.determined = 6
-            attributes.reserved = 4
-        elseif preset == "Sherman" then
-            attributes.aggressive = 6
-            attributes.defensive = 4
-            attributes.cunning = 8
-            attributes.direct = 2
-            attributes.determined = 6
-            attributes.reserved = 4
-        elseif preset == "Sheridan" then
-            attributes.aggressive = 5
-            attributes.defensive = 5
-            attributes.cunning = 5
-            attributes.direct = 5
-            attributes.determined = 5
-            attributes.reserved = 5
-        elseif preset == "Longstreet" then
-            attributes.aggressive = 4
-            attributes.defensive = 6
-            attributes.cunning = 5
-            attributes.direct = 5
-            attributes.determined = 5
-            attributes.reserved = 5
-        elseif preset == "Mcclellan" then
-            attributes.aggressive = 2
-            attributes.defensive = 8
-            attributes.cunning = 4
-            attributes.direct = 6
-            attributes.determined = 8
-            attributes.reserved = 2
-        elseif preset == "Butler" then
-            attributes.aggressive = 0
-            attributes.defensive = 10
-            attributes.cunning = 0
-            attributes.direct = 10
-            attributes.determined = 0
-            attributes.reserved = 10
-        end
-    elseif userAttributes then
-        -- Aggressive, Defensive Check
-        local aggressive = attributes.aggressive
-        local defensive = attributes.defensive
-        local cunning = attributes.cunning
-        local direct = attributes.direct
-        local determined = attributes.determined
-        local reserved = attributes.reserved
-        -- Get Override User Values
-        if userAttributes.aggressive then
-            aggressive = userAttributes.aggressive
-        end
-
-        if userAttributes.defensive then
-            defensive = userAttributes.defensive
-        end
-        if userAttributes.cunning then
-            cunning = userAttributes.cunning
-        end
-        if userAttributes.direct then
-            direct = userAttributes.direct
-        end
-        if userAttributes.determined then
-            determined = userAttributes.determined
-        end
-        if userAttributes.reserved then
-            reserved = userAttributes.reserved
-        end
-        -- Set Weight Back To Scale Of !0
-        aggressive = math.floor((aggressive/(aggressive+defensive))*10) 
-        defensive = 10 - aggressive
-        cunning = math.floor((cunning/(cunning+direct))*10)
-        direct = 10 - cunning
-        determined = math.floor((determined/(determined+reserved))*10)
-        reserved = 10 - determined
-        -- Set User Attributes
-        attributes.aggressive = aggressive
-        attributes.defensive = defensive
-        attributes.cunning = cunning
-        attributes.direct = direct
-        attributes.determined = determined
-        attributes.reserved = reserved
-    end
-    -- Return
-    return attributes
+    -- Get Support Units
+    local supportUnits = getAirSupportInventory(sideShortKey)
+    for i = 1, #supportUnits do
+		determineAirUnitToRetreatByRole(args.shortKey,args.guid,args.options,supportUnits[i],"support")
+	end
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
 -- Initialize AI
 --------------------------------------------------------------------------------------------------------------------------------
-function initializeAresAI(sideName,options)
+function initializeAresAI(sideName)
     -- Local Values
     local side = ScenEdit_GetSideOptions({side=sideName})
     local sideGuid = side.guid
     local shortSideKey = "a"..tostring(#aresObserverAIArray + 1)
-    local attributes = initializeAIAttributes(options)
+    local attributes = {}
     -- Ares OA Selectors 
     local aresObserverBTMain = BT:make(BT.sequence,sideGuid,shortSideKey,attributes)
     local aresActorBTMain = BT:make(BT.sequence,sideGuid,shortSideKey,attributes)
@@ -1984,4 +1865,4 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 -- Global Call
 --------------------------------------------------------------------------------------------------------------------------------
-initializeAresAI("PRC",{preset="Sheridan"})
+initializeAresAI("PRC")
