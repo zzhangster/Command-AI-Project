@@ -513,12 +513,12 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 -- Generic Helper Functions
 --------------------------------------------------------------------------------------------------------------------------------
-function makeWaypoint(latitude, longitude, altitude, speed, followPlottedPath, overrideAltitude)
+function makeWaypoint(latitude, longitude, altitude, speed, followPlottedPath, overrideAltitude, overrideCoordinates)
     local ignorePath = "yes"
     if followPlottedPath then
         ignorePath = "no"
     end
-    return {lat=latitude,lon=longitude,alt=altitude,manualSpeed=speed,ignorePlottedPath=ignorePath,overrideAltitude=overrideAltitude}
+    return {lat=latitude,lon=longitude,alt=altitude,manualSpeed=speed,ignorePlottedPath=ignorePath,overrideAltitude=overrideAltitude,overrideCoordinates=overrideCoordinates}
 end
 
 function internationalDecimalConverter(value)
@@ -535,7 +535,29 @@ function distanceToHorizon(height)
 end
 
 function heightToHorizon(distance)
-    return math.sqrt((6371000 * 6371000) + (distance * distance)) - 6371000
+    -- Segment For Better results
+	if distance > 200 then
+		return 10000
+	elseif distance > 180 then
+		return 7000
+	elseif distance > 160 then
+		return 6000
+	elseif distance > 140 then
+		return 5000
+	elseif distance > 120 then
+		return 4000
+	elseif distance > 100 then
+		return 2000
+	elseif distance > 80 then
+		return 1000
+	elseif distance > 60 then
+		return 500
+	elseif distance > 40 then
+		return 100
+	else
+		return 50
+	end
+	--return math.sqrt((6371000 * 6371000) + (distance * distance)) - 6371000
 end
 
 function makeLatLong(latitude,longitude)
@@ -750,6 +772,7 @@ function determineUnitRTB(sideName,unitGuid)
             return false
         end
     end
+	return false
 end
 
 function determineUnitBingo(sideName,unitGuid)
@@ -761,6 +784,7 @@ function determineUnitBingo(sideName,unitGuid)
             return false
         end
     end
+	return false
 end
 
 function determineThreatRangeByUnitDatabaseId(sideShortKey,sideGuid,contactGuid)
@@ -1139,7 +1163,7 @@ end
 function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,unitGuid,unitRole) 
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name,guid=unitGuid})
-    if unit and not determineUnitBingo(side.name,unit.guid) and (unit.targetedBy or unit.firedOn or #unit.ascontact > 0) then
+    if unit and (unit.targetedBy or unit.firedOn or #unit.ascontact > 0) then
         -- Find Unit Retreat Point
         local unitRetreatPointArray = {}
         -- Determine Retreat Type By Role
@@ -1164,28 +1188,37 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
         end
         -- Set Unit Retreat Point
         if unitRetreatPointArray then
-			--ScenEdit_SpecialMessage("PRC","determineAirUnitToRetreatByRole - "..unitRetreatPoint.latitude.." "..unitRetreatPoint.longitude)
-			--{latitude=retreatLocation.latitude,longitude=retreatLocation.longitude,speed=2000}
-            --if unit.group and unit.group.unitlist then
-            --   for k1,v1 in pairs(unit.group.unitlist) do
-            --        local subUnit = ScenEdit_GetUnit({side=side.name,guid=v1})
-            --        ScenEdit_SetDoctrine({side=side.name,guid=subUnit.guid},{ignore_plotted_course = "no" })
-            --        subUnit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
-            --        subUnit.manualSpeed = unitRetreatPoint.speed
-            --    end
-            --else 
-            --    ScenEdit_SetDoctrine({side=side.name,guid=unit.guid},{ignore_plotted_course = "no" })
-            --    unit.course={{lat=unitRetreatPoint.latitude,lon=unitRetreatPoint.longitude}}
-            --    unit.manualSpeed = unitRetreatPoint.speed
-            --end
-            unit.manualAltitude = unitRetreatPointArray[1].overrideAltitude
-            ScenEdit_SetDoctrine({side=side.name,guid=unit.guid},{ignore_plotted_course = unitRetreatPointArray[1].ignorePlottedPath })
-            unit.course = unitRetreatPointArray
-            unit.manualSpeed = unitRetreatPointArray[1].manualSpeed
+            if unit.group and unit.group.unitlist then
+               for k1,v1 in pairs(unit.group.unitlist) do
+                    local subUnit = ScenEdit_GetUnit({side=side.name,guid=v1})
+					subUnit.manualAltitude = unitRetreatPointArray[1].alt
+					ScenEdit_SetDoctrine({side=side.name,guid=subUnit.guid},{ignore_plotted_course = unitRetreatPointArray[1].ignorePlottedPath})
+					subUnit.manualSpeed = unitRetreatPointArray[1].manualSpeed
+					if unitRetreatPointArray[1].overrideCoordinates then
+						subUnit.course = unitRetreatPointArray
+					end
+                end
+            else 
+				unit.manualAltitude = unitRetreatPointArray[1].alt
+				ScenEdit_SetDoctrine({side=side.name,guid=unit.guid},{ignore_plotted_course = unitRetreatPointArray[1].ignorePlottedPath})
+				unit.manualSpeed = unitRetreatPointArray[1].manualSpeed
+				if unitRetreatPointArray[1].overrideCoordinates then
+					unit.course = unitRetreatPointArray
+				end
+            end
         else
-            unit.manualAltitude = false
-            ScenEdit_SetDoctrine({side=side.name,guid=unit.guid},{ignore_plotted_course = "yes" })
-            unit.manualSpeed = "OFF"
+            if unit.group and unit.group.unitlist then
+               for k1,v1 in pairs(unit.group.unitlist) do
+                    local subUnit = ScenEdit_GetUnit({side=side.name,guid=v1})
+					subUnit.manualAltitude = false
+					ScenEdit_SetDoctrine({side=side.name,guid=subUnit.guid},{ignore_plotted_course = "yes" })
+					subUnit.manualSpeed = "OFF"
+                end
+            else 
+				unit.manualAltitude = false
+				ScenEdit_SetDoctrine({side=side.name,guid=unit.guid},{ignore_plotted_course = "yes" })
+				unit.manualSpeed = "OFF"
+            end
         end
     end
 end
@@ -1232,7 +1265,7 @@ function getRetreatPathForAirNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
             if currentRange < desiredRange then
                 local bearing = Tool_Bearing(contact.guid,unitGuid)
                 local retreatLocation = projectLatLong(makeLatLong(unit.latitude,unit.longitude),bearing,20)
-                return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,unit.altitude,2000,true,false)}
+                return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,unit.altitude,2000,true,false,true)}
             end
         end
     end
@@ -1252,6 +1285,10 @@ function getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,uni
     if not unit and not canUpdateEverySixtySeconds() then
         return nil
     end
+	-- Check RTB
+	if determineUnitRTB(side.name,unitGuid) then
+		return nil
+	end
 	-- Find Shortest Range Missile
 	for k,v in pairs(hostileShipContacts) do
         local currentContact = ScenEdit_GetContact({side=side.name, guid=v})
@@ -1271,13 +1308,13 @@ function getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,uni
         local contactPoint = makeLatLong(contact.latitude,contact.longitude)
         local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
         local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
-        return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,2000,true,true)}
+        return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,2000,true,true,true)}
     elseif distanceToShip < maxDesiredRange then
         if #unit.course > 0 then
             local waypoint = unit.course[#unit.course]
-            return {makeWaypoint(waypoint.latitude,waypoint.longitude,heightToHorizon(distanceToShip),unit.speed,false,true)}
+            return {makeWaypoint(waypoint.latitude,waypoint.longitude,heightToHorizon(distanceToShip),unit.speed,false,true,false)}
         else
-            return {makeWaypoint(unit.latitude,unit.longitude,heightToHorizon(distanceToShip),unit.speed,false,true)}
+            return {makeWaypoint(unit.latitude,unit.longitude,heightToHorizon(distanceToShip),unit.speed,false,true,false)}
         end
     end
     -- Catch All Return
@@ -1297,6 +1334,10 @@ function getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
     if not unit and not canUpdateEverySixtySeconds() then
         return nil
     end
+	-- Check RTB
+	if determineUnitRTB(side.name,unitGuid) then
+		return nil
+	end
 	-- Find Shortest Range Missile
 	for k,v in pairs(hostileSAMContacts) do
         local currentContact = ScenEdit_GetContact({side=side.name, guid=v})
@@ -1316,13 +1357,13 @@ function getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
         local contactPoint = makeLatLong(contact.latitude,contact.longitude)
         local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
         local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
-        return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,2000,true,true)}
+        return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,2000,true,true,true)}
     elseif distanceToSAM < maxDesiredRange then
         if #unit.course > 0 then
             local waypoint = unit.course[#unit.course]
-            return {makeWaypoint(waypoint.latitude,waypoint.longitude,heightToHorizon(distanceToSAM),unit.speed,false,true)}
+            return {makeWaypoint(waypoint.latitude,waypoint.longitude,heightToHorizon(distanceToSAM),unit.speed,false,true,false)}
         else
-            return {makeWaypoint(unit.latitude,unit.longitude,heightToHorizon(distanceToSAM),unit.speed,false,true)}
+            return {makeWaypoint(unit.latitude,unit.longitude,heightToHorizon(distanceToSAM),unit.speed,false,true,false)}
         end
     end
     -- Catch All Return
@@ -1342,7 +1383,7 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
         return nil
     end
 	-- Check Fired on
-    if not unit.targetedBy and not unit.firedOn then
+    if not unit.targetedBy or not unit.firedOn then
 		return nil
 	end
 	-- Find Shortest Range Missile
@@ -1365,7 +1406,7 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
 		local contactPoint = makeLatLong(contact.latitude,contact.longitude)
 		local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 1
         local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
-        return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,2000,true,true)}
+        return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,2000,true,true,true)}
 	elseif distanceToMissile < maxDesiredRange then
 		-- Check If Attacking Enemy And Break At Last Minute
 		local isFiringAt = false
@@ -1384,13 +1425,13 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
 				local contactPoint = makeLatLong(contact.latitude,contact.longitude)
 				local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 1
                 local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
-                return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,2000,true,true)}
+                return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,2000,true,true,true)}
 			end
 		else
 			local contactPoint = makeLatLong(contact.latitude,contact.longitude)
 			local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 1
 			local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
-            return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,2000,true,true)}
+            return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,2000,true,true,true)}
 		end
     end
     -- Catch All Return
