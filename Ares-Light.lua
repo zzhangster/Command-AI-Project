@@ -534,8 +534,40 @@ function distanceToHorizon(height)
     return 6371000 * math.acos(6371000/(6371000 + height))
 end
 
-function heightToHorizon(distance)
-    -- Segment For Better results
+function heightToHorizon(distance,role)
+    --return math.sqrt((6371000 * 6371000) + (distance * distance)) - 6371000
+    if role == "aaw" then
+        return heightToHorizonAntiAirApproach(distance)
+    else
+        return heightToHorizonAntiLandApproach(distance)
+    end
+end
+
+function heightToHorizonAntiLandApproach(distance)
+	if distance > 200 then
+		return 10000
+	elseif distance > 180 then
+		return 7000
+	elseif distance > 160 then
+		return 6000
+	elseif distance > 140 then
+		return 5000
+	elseif distance > 120 then
+		return 4000
+	elseif distance > 100 then
+		return 2000
+	elseif distance > 80 then
+		return 1000
+	elseif distance > 60 then
+		return 500
+	elseif distance > 40 then
+        return 250
+	else
+		return 250
+	end
+end
+
+function heightToHorizonAntiAirApproach(distance)
 	if distance > 200 then
 		return 10000
 	elseif distance > 180 then
@@ -557,7 +589,6 @@ function heightToHorizon(distance)
 	else
 		return 50
 	end
-	--return math.sqrt((6371000 * 6371000) + (distance * distance)) - 6371000
 end
 
 function makeLatLong(latitude,longitude)
@@ -1168,21 +1199,21 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
         local unitRetreatPointArray = {}
         -- Determine Retreat Type By Role
         if unitRole == "aaw" then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,60,{"missiles","sams","ships"})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,60,{"missiles","sams","ships"})
         elseif unitRole == "ag-asuw" then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,80,{"missiles"})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,80,{"missiles"})
         elseif unitRole == "ag" then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,60,{"missiles","planes","ships"})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,60,{"missiles","planes","ships"})
         elseif unitRole == "asuw" then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,80,{"missiles","planes"})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,80,{"missiles","planes"})
         elseif unitRole == "support" then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,200,{"missiles","planes","sams","ships"})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,200,{"missiles","planes","sams","ships"})
         elseif unitRole == "asw" then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,80,{"missiles","planes","sams","ships"})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,80,{"missiles","planes","sams","ships"})
         elseif unitRole == "recon" then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,60,{"missiles","planes","sams","ships"})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,60,{"missiles","planes","sams","ships"})
         elseif unitRole == "sead" then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,60,{"missiles","planes"})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,60,{"missiles","planes"})
         else
             unitRetreatPointArray = nil
         end
@@ -1223,7 +1254,7 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
     end
 end
 
-function determineRetreatPoint(sideGuid,shortSideKey,sideAttributes,unitGuid,range,avoidanceTypes)
+function determineRetreatPoint(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,range,avoidanceTypes)
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
     local desiredRange = range
@@ -1231,13 +1262,13 @@ function determineRetreatPoint(sideGuid,shortSideKey,sideAttributes,unitGuid,ran
     for i = 1, #avoidanceTypes do
         local retreatPointArray  = nil
         if avoidanceTypes[i] == "planes" then
-            retreatPointArray = getRetreatPathForAirNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,range)
+            retreatPointArray = getRetreatPathForAirNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,range)
         elseif avoidanceTypes[i] == "ships" then
-            retreatPointArray = getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid)
+            retreatPointArray = getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole)
         elseif avoidanceTypes[i] == "sams" then
-            retreatPointArray = getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid)
+            retreatPointArray = getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole)
         elseif avoidanceTypes[i] == "missiles" then
-            retreatPointArray = getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid)
+            retreatPointArray = getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole)
         else
             retreatPointArray = nil
         end
@@ -1250,7 +1281,7 @@ function determineRetreatPoint(sideGuid,shortSideKey,sideAttributes,unitGuid,ran
     return nil
 end
 
-function getRetreatPathForAirNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,range)
+function getRetreatPathForAirNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,range)
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
     local hostileAirContacts = getHostileAirContacts(shortSideKey)
@@ -1272,7 +1303,7 @@ function getRetreatPathForAirNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
     return nil
 end
 
-function getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid)
+function getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole)
     -- Variables
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
@@ -1312,16 +1343,16 @@ function getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,uni
     elseif distanceToShip < maxDesiredRange then
         if #unit.course > 0 then
             local waypoint = unit.course[#unit.course]
-            return {makeWaypoint(waypoint.latitude,waypoint.longitude,heightToHorizon(distanceToShip),unit.speed,false,true,false)}
+            return {makeWaypoint(waypoint.latitude,waypoint.longitude,heightToHorizon(distanceToShip,unitRole),unit.speed,false,true,false)}
         else
-            return {makeWaypoint(unit.latitude,unit.longitude,heightToHorizon(distanceToShip),unit.speed,false,true,false)}
+            return {makeWaypoint(unit.latitude,unit.longitude,heightToHorizon(distanceToShip,unitRole),unit.speed,false,true,false)}
         end
     end
     -- Catch All Return
     return nil
 end
 
-function getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid)
+function getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole)
     -- Variables
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
@@ -1361,16 +1392,16 @@ function getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
     elseif distanceToSAM < maxDesiredRange then
         if #unit.course > 0 then
             local waypoint = unit.course[#unit.course]
-            return {makeWaypoint(waypoint.latitude,waypoint.longitude,heightToHorizon(distanceToSAM),unit.speed,false,true,false)}
+            return {makeWaypoint(waypoint.latitude,waypoint.longitude,heightToHorizon(distanceToSAM,unitRole),unit.speed,false,true,false)}
         else
-            return {makeWaypoint(unit.latitude,unit.longitude,heightToHorizon(distanceToSAM),unit.speed,false,true,false)}
+            return {makeWaypoint(unit.latitude,unit.longitude,heightToHorizon(distanceToSAM,unitRole),unit.speed,false,true,false)}
         end
     end
     -- Catch All Return
     return nil
 end
 
-function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid)
+function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole)
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
     local hostileMissilesContacts = getHostileWeaponContacts(shortSideKey)
