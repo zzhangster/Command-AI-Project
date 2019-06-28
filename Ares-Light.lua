@@ -1241,12 +1241,12 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
             if unit.group and unit.group.unitlist then
                for k1,v1 in pairs(unit.group.unitlist) do
                     local subUnit = ScenEdit_GetUnit({side=side.name,guid=v1})
-					subUnit.manualAltitude = false
+					subUnit.manualAltitude = "OFF"
 					ScenEdit_SetDoctrine({side=side.name,guid=subUnit.guid},{ignore_plotted_course = "yes" })
 					subUnit.manualSpeed = "OFF"
                 end
             else 
-				unit.manualAltitude = false
+				unit.manualAltitude = "OFF"
 				ScenEdit_SetDoctrine({side=side.name,guid=unit.guid},{ignore_plotted_course = "yes" })
 				unit.manualSpeed = "OFF"
             end
@@ -1956,4 +1956,4 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 -- Global Call
 --------------------------------------------------------------------------------------------------------------------------------
-initializeAresAI("PRC")
+initializeAresAI("Test1")
