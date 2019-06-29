@@ -336,56 +336,6 @@ function localMemoryContactExistForKey(primaryKey,value)
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
--- Persistent Generic Memory
---------------------------------------------------------------------------------------------------------------------------------
-function persistentMemoryGetForKey(primaryKey)
-    local value = ScenEdit_GetKeyValue(primaryKey)
-    if value == nil then
-        value = ""
-    end
-    return split(value,",")
-end
-
-function persistentMemoryAddToKey(primaryKey,value)
-    local valueString = ScenEdit_GetKeyValue(primaryKey)
-    if valueString == nil then
-        valueString = value
-    else
-        valueString = valueString..","..value
-    end
-    ScenEdit_SetKeyValue(primaryKey,valueString)
-end
-
-function persistentMemoryResetFromKey(primaryKey)
-    ScenEdit_SetKeyValue(primaryKey,"")
-end
-
-function persistentMemoryRemoveFromKey(primaryKey,value)
-    local table = persistentMemoryGetForKey(primaryKey)
-    local valueString = nil
-    for k, v in pairs(table) do
-        if value ~= v then
-            if valueString then
-                valueString = valueString..","..v
-            else
-                valueString = v
-            end
-        end
-    end
-    ScenEdit_SetKeyValue(primaryKey,valueString)
-end
-
-function persistentMemoryValueExists(primaryKey,value)
-    local table = persistentMemoryGetForKey(primaryKey)
-    for k, v in pairs(table) do
-        if value == v then
-            return true
-        end
-    end
-    return false
-end
-
---------------------------------------------------------------------------------------------------------------------------------
 -- Combine Tables
 --------------------------------------------------------------------------------------------------------------------------------
 function combineTablesNew(table1,table2)
@@ -1437,7 +1387,7 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
 		local contactPoint = makeLatLong(contact.latitude,contact.longitude)
 		local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 1
         local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
-        return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,2000,true,true,true)}
+        return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,"OFF",2000,true,true,true)}
 	elseif distanceToMissile < maxDesiredRange then
 		-- Check If Attacking Enemy And Break At Last Minute
 		local isFiringAt = false
@@ -1456,13 +1406,13 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
 				local contactPoint = makeLatLong(contact.latitude,contact.longitude)
 				local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 1
                 local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
-                return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,2000,true,true,true)}
+                return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,"OFF",2000,true,true,true)}
 			end
 		else
 			local contactPoint = makeLatLong(contact.latitude,contact.longitude)
 			local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 1
 			local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
-            return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,2000,true,true,true)}
+            return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,"OFF",2000,true,true,true)}
 		end
     end
     -- Catch All Return
@@ -1515,7 +1465,7 @@ function observerActionUpdateMissions(args)
                 -- Local Values
                 local unit = ScenEdit_GetUnit({side=side.name, guid=v.guid})
                 -- Check Mission Exits And Save In Key Value Pairs (Remove Duplication)
-                if unit.mission and unit.mission.isactive and unit.speed > 0 then
+                if unit.mission and unit.mission.isactive and unit.speed > 0 and string.match(unit.mission.name, "<Ares>") then
 					if not savedMissions[unit.mission.guid] then
 						savedMissions[unit.mission.guid] = unit.mission.guid
 						-- Save Missions And Time Stamp
@@ -1537,14 +1487,9 @@ function observerActionUpdateMissionInventories(args)
         local savedMissions = localMemoryGetFromKey(sideShortKey.."_saved_missions")
         local savedInventory = {}
         localMemoryInventoryRemoveFromKey(sideShortKey.."_saved_air_inventory")
-		--ScenEdit_SpecialMessage("PRC","observerActionUpdateMissions")
-		--ScenEdit_SpecialMessage("PRC",deepPrint(aircraftInventory,""))
-		--ScenEdit_SpecialMessage("PRC",v)
-		--ScenEdit_SpecialMessage("PRC",deepPrint(mission,""))
         -- Loop Through Missions
         for k, v in pairs(savedMissions) do
             local mission = ScenEdit_GetMission(side.name,v)
-			--ScenEdit_SpecialMessage("PRC",deepPrint(mission,""))
             if mission.isactive then
 				-- Get Group Lead And Individual Units
                 local missionRole = mission.subtype
