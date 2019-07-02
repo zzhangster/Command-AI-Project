@@ -461,9 +461,9 @@ function canUpdateEveryFiveMinutes()
 end
 
 function oscillateEveryTwoMinutes()
-    local averageTime = getTimeStampForKey("GlobalTiGlobalTimeEveryTwoMinutesmeEverySixty") - 60
+    local averageTime = getTimeStampForKey("GlobalTimeEveryTwoMinutes") - 60
     local currentTime = ScenEdit_CurrentTime()
-	return (averageTime - currentTime) / 60
+	return (averageTime - currentTime) / 60.0
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
@@ -491,7 +491,6 @@ function distanceToHorizon(height)
 end
 
 function heightToHorizon(distance,role,engaged)
-    --return math.sqrt((6371000 * 6371000) + (distance * distance)) - 6371000
     if role == "aaw" then
         return heightToHorizonAntiAirApproach(distance,engaged)
     else
@@ -500,6 +499,7 @@ function heightToHorizon(distance,role,engaged)
 end
 
 function heightToHorizonAntiLandApproach(distance,engaged)
+	ScenEdit_SpecialMessage("Test1","heightToHorizonAntiLandApproach")
 	-- Determine Height
 	local height = 0
 	if distance > 300 then
@@ -529,14 +529,19 @@ function heightToHorizonAntiLandApproach(distance,engaged)
 	if engaged then
 		-- If Higher Than 4000, return original height, else oscillate between "height" and 4000
 		if height > 4000 then
-		ScenEdit_SpecialMessage("Test1","Height oscillate - "..height)
+			ScenEdit_SpecialMessage("Test1","Height no oscillate - "..height)
 			return height
 		else
-			local heightRatio = oscillateEveryTwoMinutes()
-			ScenEdit_SpecialMessage("Test1","Height oscillate - "..(height + (4000 - height) * heightRatio))
-			return height + (4000 - height) * heightRatio
+			height = height + (4000 - height) * oscillateEveryTwoMinutes()
+			ScenEdit_SpecialMessage("Test1","Height oscillate - "..height)
+			if height < 250 then
+				return 250
+			else
+				return height
+			end
 		end
 	else
+		ScenEdit_SpecialMessage("Test1","Height no oscillate - "..height)
 		return height
 	end
 end
@@ -1349,9 +1354,9 @@ function getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,uni
     elseif distanceToShip < maxDesiredRange then
         if #unit.course > 0 then
             local waypoint = unit.course[#unit.course]
-            return {makeWaypoint(waypoint.latitude,waypoint.longitude,heightToHorizon(distanceToShip,unitRole,determineUnitOffensive(unit)),unit.speed,false,true,false)}
+            return {makeWaypoint(waypoint.latitude,waypoint.longitude,heightToHorizon(distanceToShip,unitRole,determineUnitOffensive(side.name,unitGuid)),unit.speed,false,true,false)}
         else
-            return {makeWaypoint(unit.latitude,unit.longitude,heightToHorizon(distanceToShip,unitRole,determineUnitOffensive(unit)),unit.speed,false,true,false)}
+            return {makeWaypoint(unit.latitude,unit.longitude,heightToHorizon(distanceToShip,unitRole,determineUnitOffensive(side.name,unitGuid)),unit.speed,false,true,false)}
         end
     end
     -- Catch All Return
@@ -1398,9 +1403,9 @@ function getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
     elseif distanceToSAM < maxDesiredRange then
         if #unit.course > 0 then
             local waypoint = unit.course[#unit.course]
-            return {makeWaypoint(waypoint.latitude,waypoint.longitude,heightToHorizon(distanceToSAM,unitRole,determineUnitOffensive(unit)),unit.speed,false,true,false)}
+            return {makeWaypoint(waypoint.latitude,waypoint.longitude,heightToHorizon(distanceToSAM,unitRole,determineUnitOffensive(side.name,unitGuidit)),unit.speed,false,true,false)}
         else
-            return {makeWaypoint(unit.latitude,unit.longitude,heightToHorizon(distanceToSAM,unitRole,determineUnitOffensive(unit)),unit.speed,false,true,false)}
+            return {makeWaypoint(unit.latitude,unit.longitude,heightToHorizon(distanceToSAM,unitRole,determineUnitOffensive(side.name,unitGuid)),unit.speed,false,true,false)}
         end
     end
     -- Catch All Return
