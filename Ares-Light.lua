@@ -460,6 +460,12 @@ function canUpdateEveryFiveMinutes()
     end
 end
 
+function oscillateEveryTwoMinutes()
+    local averageTime = getTimeStampForKey("GlobalTiGlobalTimeEveryTwoMinutesmeEverySixty") - 60
+    local currentTime = ScenEdit_CurrentTime()
+	return (averageTime - currentTime) / 60
+end
+
 --------------------------------------------------------------------------------------------------------------------------------
 -- Generic Helper Functions
 --------------------------------------------------------------------------------------------------------------------------------
@@ -484,41 +490,61 @@ function distanceToHorizon(height)
     return 6371000 * math.acos(6371000/(6371000 + height))
 end
 
-function heightToHorizon(distance,role)
+function heightToHorizon(distance,role,engaged)
     --return math.sqrt((6371000 * 6371000) + (distance * distance)) - 6371000
     if role == "aaw" then
-        return heightToHorizonAntiAirApproach(distance)
+        return heightToHorizonAntiAirApproach(distance,engaged)
     else
-        return heightToHorizonAntiLandApproach(distance)
+        return heightToHorizonAntiLandApproach(distance,engaged)
     end
 end
 
-function heightToHorizonAntiLandApproach(distance)
-	if distance > 200 then
-		return 10000
+function heightToHorizonAntiLandApproach(distance,engaged)
+	-- Determine Height
+	local height = 0
+	if distance > 300 then
+		return "OFF"
+	elseif distance > 200 then
+		height = 10000
 	elseif distance > 180 then
-		return 7000
+		height = 7000
 	elseif distance > 160 then
-		return 6000
+		height = 6000
 	elseif distance > 140 then
-		return 5000
+		height = 5000
 	elseif distance > 120 then
-		return 4000
+		height = 4000
 	elseif distance > 100 then
-		return 2000
+		height = 2000
 	elseif distance > 80 then
-		return 1000
+		height = 1000
 	elseif distance > 60 then
-		return 500
+		height = 500
 	elseif distance > 40 then
-        return 250
+        height = 250
 	else
-		return 250
+		height = 250
+	end
+	-- Check Engaged
+	if engaged then
+		-- If Higher Than 4000, return original height, else oscillate between "height" and 4000
+		if height > 4000 then
+		ScenEdit_SpecialMessage("Test1","Height oscillate - "..height)
+			return height
+		else
+			local heightRatio = oscillateEveryTwoMinutes()
+			ScenEdit_SpecialMessage("Test1","Height oscillate - "..(height + (4000 - height) * heightRatio))
+			return height + (4000 - height) * heightRatio
+		end
+	else
+		return height
 	end
 end
 
-function heightToHorizonAntiAirApproach(distance)
-	if distance > 200 then
+function heightToHorizonAntiAirApproach(distance,engaged)
+	if distance > 300 then
+		return "OFF"
+	elseif distance > 200 then
 		return 10000
 	elseif distance > 180 then
 		return 7000
@@ -760,6 +786,18 @@ function determineUnitBingo(sideName,unitGuid)
     local unit = ScenEdit_GetUnit({side=sideName, guid=unitGuid})
     if unit then
         if unit.fuelstate == "IsBingo" then
+            return true
+        else
+            return false
+        end
+    end
+	return false
+end
+
+function determineUnitOffensive(sideName,unitGuid)
+    local unit = ScenEdit_GetUnit({side=sideName, guid=unitGuid})
+    if unit then
+        if unit.unitstate == "EngagedOffensive" then
             return true
         else
             return false
@@ -1170,7 +1208,7 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
 
         -- Set Unit Retreat Point
         if unitRetreatPointArray then
-			ScenEdit_SpecialMessage("Test1",unit.name.."-"..unitRole.."-overide-altitude")
+			--ScenEdit_SpecialMessage("Test1",unit.name.."-"..unitRole.."-overide-altitude")
             if unit.group and unit.group.unitlist then
                for k1,v1 in pairs(unit.group.unitlist) do
                     local subUnit = ScenEdit_GetUnit({side=side.name,guid=v1})
@@ -1190,7 +1228,7 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
 				end
             end
         else
-			ScenEdit_SpecialMessage("Test1",unit.name.."-"..unitRole.."-not-overide-altitude")
+			--ScenEdit_SpecialMessage("Test1",unit.name.."-"..unitRole.."-not-overide-altitude")
             if unit.group and unit.group.unitlist then
                for k1,v1 in pairs(unit.group.unitlist) do
                     local subUnit = ScenEdit_GetUnit({side=side.name,guid=v1})
@@ -1233,9 +1271,9 @@ function determineRetreatPoint(sideGuid,shortSideKey,sideAttributes,unitGuid,uni
 	-- Loop Through Height Avoidance types
 	for i = 1, #heightAvoidanceTypes do
         local retreatPointArray  = nil
-        if avoidanceTypes[i] == "ships" then
+        if heightAvoidanceTypes[i] == "ships" then
             retreatPointArray = getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,true)
-        elseif avoidanceTypes[i] == "sams" then
+        elseif heightAvoidanceTypes[i] == "sams" then
             retreatPointArray = getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,true)
         else
             retreatPointArray = nil
@@ -1276,7 +1314,7 @@ function getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,uni
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
     local hostileShipContacts = getHostileSurfaceShipContacts(shortSideKey)
-    local minDesiredRange = 25
+    local minDesiredRange = 12
     local maxDesiredRange = 200
 	local distanceToShip = 10000
 	local contact = nil
@@ -1285,7 +1323,7 @@ function getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,uni
         return nil
     end
 	-- Check RTB
-	if determineUnitRTB(side.name,unitGuid) then
+	if determineUnitBingo(side.name,unitGuid) then
 		return nil
 	end
 	-- Find Shortest Range Missile
@@ -1311,9 +1349,9 @@ function getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,uni
     elseif distanceToShip < maxDesiredRange then
         if #unit.course > 0 then
             local waypoint = unit.course[#unit.course]
-            return {makeWaypoint(waypoint.latitude,waypoint.longitude,heightToHorizon(distanceToShip,unitRole),unit.speed,false,true,false)}
+            return {makeWaypoint(waypoint.latitude,waypoint.longitude,heightToHorizon(distanceToShip,unitRole,determineUnitOffensive(unit)),unit.speed,false,true,false)}
         else
-            return {makeWaypoint(unit.latitude,unit.longitude,heightToHorizon(distanceToShip,unitRole),unit.speed,false,true,false)}
+            return {makeWaypoint(unit.latitude,unit.longitude,heightToHorizon(distanceToShip,unitRole,determineUnitOffensive(unit)),unit.speed,false,true,false)}
         end
     end
     -- Catch All Return
@@ -1325,7 +1363,7 @@ function getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
     local hostileSAMContacts = getHostileSAMContacts(shortSideKey)
-    local minDesiredRange = 25
+    local minDesiredRange = 12
     local maxDesiredRange = 200
 	local distanceToSAM = 10000
 	local contact = nil
@@ -1334,7 +1372,7 @@ function getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
         return nil
     end
 	-- Check RTB
-	if determineUnitRTB(side.name,unitGuid) then
+	if determineUnitBingo(side.name,unitGuid) then
 		return nil
 	end
 	-- Find Shortest Range Missile
@@ -1360,9 +1398,9 @@ function getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
     elseif distanceToSAM < maxDesiredRange then
         if #unit.course > 0 then
             local waypoint = unit.course[#unit.course]
-            return {makeWaypoint(waypoint.latitude,waypoint.longitude,heightToHorizon(distanceToSAM,unitRole),unit.speed,false,true,false)}
+            return {makeWaypoint(waypoint.latitude,waypoint.longitude,heightToHorizon(distanceToSAM,unitRole,determineUnitOffensive(unit)),unit.speed,false,true,false)}
         else
-            return {makeWaypoint(unit.latitude,unit.longitude,heightToHorizon(distanceToSAM,unitRole),unit.speed,false,true,false)}
+            return {makeWaypoint(unit.latitude,unit.longitude,heightToHorizon(distanceToSAM,unitRole,determineUnitOffensive(unit)),unit.speed,false,true,false)}
         end
     end
     -- Catch All Return
@@ -1566,10 +1604,9 @@ function observerActionUpdateMissionInventories(args)
 						-- Increment Add Save
 						stringArray[#stringArray + 1] = unit.guid
 						savedInventory[stringKey] = stringArray
-						-- Print result
-						--ScenEdit_SpecialMessage("Test1","observerActionUpdateMissionInventories")
-						ScenEdit_SpecialMessage("Test1","observerActionUpdateMissionInventories "..unit.name.."-"..unitRole)
-                    end
+						-- Deep Print
+						--ScenEdit_SpecialMessage("Test1",unit.name.."-"..unit.unitstate.."-"..unit.fuelstate.."-"..unit.weaponstate.."-"..unit.condition_v.."-"..unit.condition)
+				   end
 				end
             end
         end
