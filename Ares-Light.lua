@@ -460,10 +460,17 @@ function canUpdateEveryFiveMinutes()
     end
 end
 
-function oscillateEveryTwoMinutes()
+function oscillateEveryTwoMinutesGate()
+	--ScenEdit_SpecialMessage("Test1","Height no oscillate - "..height)
     local averageTime = getTimeStampForKey("GlobalTimeEveryTwoMinutes") - 60
     local currentTime = ScenEdit_CurrentTime()
-	return (averageTime - currentTime) / 60.0
+	if  currentTime > averageTime then
+		ScenEdit_SpecialMessage("Test1","oscillateEveryTwoMinutesGate - True")
+		return true
+	else
+		ScenEdit_SpecialMessage("Test1","oscillateEveryTwoMinutesGate - False")
+		return false
+	end
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
@@ -499,7 +506,7 @@ function heightToHorizon(distance,role,engaged)
 end
 
 function heightToHorizonAntiLandApproach(distance,engaged)
-	ScenEdit_SpecialMessage("Test1","heightToHorizonAntiLandApproach")
+	--ScenEdit_SpecialMessage("Test1","heightToHorizonAntiLandApproach")
 	-- Determine Height
 	local height = 0
 	if distance > 300 then
@@ -529,19 +536,19 @@ function heightToHorizonAntiLandApproach(distance,engaged)
 	if engaged then
 		-- If Higher Than 4000, return original height, else oscillate between "height" and 4000
 		if height > 4000 then
-			ScenEdit_SpecialMessage("Test1","Height no oscillate - "..height)
+			ScenEdit_SpecialMessage("Test1","heightToHorizonAntiLandApproach - Regular Height "..height)
 			return height
 		else
-			height = height + (4000 - height) * oscillateEveryTwoMinutes()
-			ScenEdit_SpecialMessage("Test1","Height oscillate - "..height)
-			if height < 250 then
-				return 250
-			else
+			if oscillateEveryTwoMinutesGate() then
+				ScenEdit_SpecialMessage("Test1","heightToHorizonAntiLandApproach - Regular Height - 2 "..height)
 				return height
+			else
+				ScenEdit_SpecialMessage("Test1","heightToHorizonAntiLandApproach - Regular Height Off")
+				return "OFF"
 			end
 		end
 	else
-		ScenEdit_SpecialMessage("Test1","Height no oscillate - "..height)
+		ScenEdit_SpecialMessage("Test1","heightToHorizonAntiLandApproach - Regular Height - 3 "..height)
 		return height
 	end
 end
@@ -803,11 +810,14 @@ function determineUnitOffensive(sideName,unitGuid)
     local unit = ScenEdit_GetUnit({side=sideName, guid=unitGuid})
     if unit then
         if unit.unitstate == "EngagedOffensive" then
+			ScenEdit_SpecialMessage("Test1","determineUnitOffensive - true - 1")
             return true
         else
+			ScenEdit_SpecialMessage("Test1","determineUnitOffensive - false - 1")
             return false
         end
     end
+	ScenEdit_SpecialMessage("Test1","determineUnitOffensive - false - 2")
 	return false
 end
 
@@ -1213,7 +1223,7 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
 
         -- Set Unit Retreat Point
         if unitRetreatPointArray then
-			--ScenEdit_SpecialMessage("Test1",unit.name.."-"..unitRole.."-overide-altitude")
+			--ScenEdit_SpecialMessage("Test1",unit.name.."-"..unitRole.."-"..unitRetreatPointArray[1].alt.."-"..unit.unitstate)
             if unit.group and unit.group.unitlist then
                for k1,v1 in pairs(unit.group.unitlist) do
                     local subUnit = ScenEdit_GetUnit({side=side.name,guid=v1})
@@ -1233,6 +1243,7 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
 				end
             end
         else
+			--ScenEdit_SpecialMessage("Test1",unit.name.."-"..unitRole.."-no-retreat-"..unit.unitstate)
 			--ScenEdit_SpecialMessage("Test1",unit.name.."-"..unitRole.."-not-overide-altitude")
             if unit.group and unit.group.unitlist then
                for k1,v1 in pairs(unit.group.unitlist) do
@@ -1260,9 +1271,9 @@ function determineRetreatPoint(sideGuid,shortSideKey,sideAttributes,unitGuid,uni
         if avoidanceTypes[i] == "planes" then
             retreatPointArray = getRetreatPathForAirNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,range)
         elseif avoidanceTypes[i] == "ships" then
-            retreatPointArray = getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,false)
+            retreatPointArray = getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,8)
         elseif avoidanceTypes[i] == "sams" then
-            retreatPointArray = getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,false)
+            retreatPointArray = getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,8)
         elseif avoidanceTypes[i] == "missiles" then
             retreatPointArray = getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole)
         else
@@ -1277,9 +1288,9 @@ function determineRetreatPoint(sideGuid,shortSideKey,sideAttributes,unitGuid,uni
 	for i = 1, #heightAvoidanceTypes do
         local retreatPointArray  = nil
         if heightAvoidanceTypes[i] == "ships" then
-            retreatPointArray = getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,true)
+            retreatPointArray = getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,0)
         elseif heightAvoidanceTypes[i] == "sams" then
-            retreatPointArray = getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,true)
+            retreatPointArray = getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,0)
         else
             retreatPointArray = nil
         end
@@ -1314,12 +1325,12 @@ function getRetreatPathForAirNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
     return nil
 end
 
-function getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,overideMinDesiredRange)
+function getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,range)
     -- Variables
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
     local hostileShipContacts = getHostileSurfaceShipContacts(shortSideKey)
-    local minDesiredRange = 12
+    local minDesiredRange = range
     local maxDesiredRange = 200
 	local distanceToShip = 10000
 	local contact = nil
@@ -1345,7 +1356,7 @@ function getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,uni
 	-- Find Checks
 	if not contact then
         return nil
-    elseif distanceToShip < minDesiredRange and not overideMinDesiredRange then
+    elseif distanceToShip < minDesiredRange then
         -- Emergency Evasion
         local contactPoint = makeLatLong(contact.latitude,contact.longitude)
         local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
@@ -1363,15 +1374,17 @@ function getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,uni
     return nil
 end
 
-function getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,overideMinDesiredRange)
+function getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,minRange)
     -- Variables
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
     local hostileSAMContacts = getHostileSAMContacts(shortSideKey)
-    local minDesiredRange = 12
+    local minDesiredRange = minRange
     local maxDesiredRange = 200
 	local distanceToSAM = 10000
 	local contact = nil
+	
+	--ScenEdit_SpecialMessage("Test1","getRetreatPathForSAMNoNavZone - Start")
 	-- Check Update
     if not unit and not canUpdateEverySixtySeconds() then
         return nil
@@ -1393,17 +1406,20 @@ function getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
 	end
 	-- Find Checks
 	if not contact then
+		--ScenEdit_SpecialMessage("Test1","getRetreatPathForSAMNoNavZone - No Contact")
         return nil
-    elseif distanceToSAM < minDesiredRange and not overideMinDesiredRange then
+    elseif distanceToSAM < minDesiredRange then
+		--ScenEdit_SpecialMessage("Test1","getRetreatPathForSAMNoNavZone - Emergency Retreat")
         -- Emergency Evasion
         local contactPoint = makeLatLong(contact.latitude,contact.longitude)
         local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
         local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
         return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,2000,true,true,true)}
     elseif distanceToSAM < maxDesiredRange then
+		--ScenEdit_SpecialMessage("Test1","getRetreatPathForSAMNoNavZone - Ducking")
         if #unit.course > 0 then
             local waypoint = unit.course[#unit.course]
-            return {makeWaypoint(waypoint.latitude,waypoint.longitude,heightToHorizon(distanceToSAM,unitRole,determineUnitOffensive(side.name,unitGuidit)),unit.speed,false,true,false)}
+            return {makeWaypoint(waypoint.latitude,waypoint.longitude,heightToHorizon(distanceToSAM,unitRole,determineUnitOffensive(side.name,unitGuid)),unit.speed,false,true,false)}
         else
             return {makeWaypoint(unit.latitude,unit.longitude,heightToHorizon(distanceToSAM,unitRole,determineUnitOffensive(side.name,unitGuid)),unit.speed,false,true,false)}
         end
@@ -1706,9 +1722,10 @@ function observerActionUpdateLandContacts(args)
     -- Local Variables
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
-    if canUpdateEveryFiveMinutes() then
+    if canUpdateEverySixtySeconds() then
         local landContacts = side:contactsBy("4")
         localMemoryContactRemoveFromKey(sideShortKey.."_saved_land_contact")
+		local printString = ""
         if landContacts then
             local savedContacts = {}
             for k, v in pairs(landContacts) do
@@ -1716,7 +1733,7 @@ function observerActionUpdateLandContacts(args)
                 local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
                 local unitType = "land_con"
                 -- Check
-                if string.find(contact.type_description,"SAM") then
+                if string.find(contact.type_description,"SAM") or string.find(contact.type_description,"HQ-") or string.find(contact.type_description,"SA-") or string.find(contact.type_description,"Unknown mobile land unit") then
                     unitType = "sam_con"
                     -- Add To Memory
                     local stringKey = sideShortKey.."_"..unitType.."_"..contact.posture
@@ -1727,9 +1744,12 @@ function observerActionUpdateLandContacts(args)
                     stringArray[#stringArray + 1] = contact.guid
                     savedContacts[stringKey] = stringArray
                 end
+				printString = printString..contact.name.."-"..contact.type.."-"..contact.typed.."-"..contact.classificationlevel.."-"..contact.type_description.."\n"
             end
             localMemoryContactAddToKey(sideShortKey.."_saved_land_contact",savedContacts)
         end
+		
+		--ScenEdit_SpecialMessage("Test1","observerActionUpdateLandContacts"..printString)
     end
 end
 
