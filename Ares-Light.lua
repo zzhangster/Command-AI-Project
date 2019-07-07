@@ -461,14 +461,11 @@ function canUpdateEveryFiveMinutes()
 end
 
 function oscillateEveryTwoMinutesGate()
-	--ScenEdit_SpecialMessage("Test1","Height no oscillate - "..height)
     local averageTime = getTimeStampForKey("GlobalTimeEveryTwoMinutes") - 60
     local currentTime = ScenEdit_CurrentTime()
 	if  currentTime > averageTime then
-		ScenEdit_SpecialMessage("Test1","oscillateEveryTwoMinutesGate - True")
 		return true
 	else
-		ScenEdit_SpecialMessage("Test1","oscillateEveryTwoMinutesGate - False")
 		return false
 	end
 end
@@ -506,7 +503,6 @@ function heightToHorizon(distance,role,engaged)
 end
 
 function heightToHorizonAntiLandApproach(distance,engaged)
-	--ScenEdit_SpecialMessage("Test1","heightToHorizonAntiLandApproach")
 	-- Determine Height
 	local height = 0
 	if distance > 300 then
@@ -808,16 +804,21 @@ end
 
 function determineUnitOffensive(sideName,unitGuid)
     local unit = ScenEdit_GetUnit({side=sideName, guid=unitGuid})
-    if unit then
+	if unit.group and #unit.group.unitlist > 0 and unit.group.lead then
+		for k1,v1 in pairs(unit.group.unitlist) do
+			local subUnit = ScenEdit_GetUnit({side=sideName,guid=v1})
+			if subUnit.unitstate == "EngagedOffensive" then
+				return true
+			end
+        end
+		return false
+	else
         if unit.unitstate == "EngagedOffensive" then
-			ScenEdit_SpecialMessage("Test1","determineUnitOffensive - true - 1")
             return true
         else
-			ScenEdit_SpecialMessage("Test1","determineUnitOffensive - false - 1")
             return false
         end
-    end
-	ScenEdit_SpecialMessage("Test1","determineUnitOffensive - false - 2")
+	end
 	return false
 end
 
@@ -1243,8 +1244,6 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
 				end
             end
         else
-			--ScenEdit_SpecialMessage("Test1",unit.name.."-"..unitRole.."-no-retreat-"..unit.unitstate)
-			--ScenEdit_SpecialMessage("Test1",unit.name.."-"..unitRole.."-not-overide-altitude")
             if unit.group and unit.group.unitlist then
                for k1,v1 in pairs(unit.group.unitlist) do
                     local subUnit = ScenEdit_GetUnit({side=side.name,guid=v1})
@@ -1384,7 +1383,6 @@ function getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
 	local distanceToSAM = 10000
 	local contact = nil
 	
-	--ScenEdit_SpecialMessage("Test1","getRetreatPathForSAMNoNavZone - Start")
 	-- Check Update
     if not unit and not canUpdateEverySixtySeconds() then
         return nil
@@ -1406,17 +1404,14 @@ function getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
 	end
 	-- Find Checks
 	if not contact then
-		--ScenEdit_SpecialMessage("Test1","getRetreatPathForSAMNoNavZone - No Contact")
         return nil
     elseif distanceToSAM < minDesiredRange then
-		--ScenEdit_SpecialMessage("Test1","getRetreatPathForSAMNoNavZone - Emergency Retreat")
         -- Emergency Evasion
         local contactPoint = makeLatLong(contact.latitude,contact.longitude)
         local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
         local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
         return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,2000,true,true,true)}
     elseif distanceToSAM < maxDesiredRange then
-		--ScenEdit_SpecialMessage("Test1","getRetreatPathForSAMNoNavZone - Ducking")
         if #unit.course > 0 then
             local waypoint = unit.course[#unit.course]
             return {makeWaypoint(waypoint.latitude,waypoint.longitude,heightToHorizon(distanceToSAM,unitRole,determineUnitOffensive(side.name,unitGuid)),unit.speed,false,true,false)}
