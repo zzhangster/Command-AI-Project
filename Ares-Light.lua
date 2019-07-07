@@ -461,7 +461,7 @@ function canUpdateEveryFiveMinutes()
 end
 
 function oscillateEveryTwoMinutesGate()
-    local averageTime = getTimeStampForKey("GlobalTimeEveryTwoMinutes") - 60
+    local averageTime = getTimeStampForKey("GlobalTimeEveryTwoMinutes") - 45
     local currentTime = ScenEdit_CurrentTime()
 	if  currentTime > averageTime then
 		return true
