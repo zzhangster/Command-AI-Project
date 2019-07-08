@@ -1265,9 +1265,9 @@ function determineRetreatPoint(sideGuid,shortSideKey,sideAttributes,unitGuid,uni
         if avoidanceTypes[i] == "planes" then
             retreatPointArray = getRetreatPathForAirNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,range)
         elseif avoidanceTypes[i] == "ships" then
-            retreatPointArray = getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,8)
+            retreatPointArray = getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,20)
         elseif avoidanceTypes[i] == "sams" then
-            retreatPointArray = getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,8)
+            retreatPointArray = getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,20)
         elseif avoidanceTypes[i] == "missiles" then
             retreatPointArray = getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole)
         else
