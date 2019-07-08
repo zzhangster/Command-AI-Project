@@ -532,19 +532,15 @@ function heightToHorizonAntiLandApproach(distance,engaged)
 	if engaged then
 		-- If Higher Than 4000, return original height, else oscillate between "height" and 4000
 		if height > 4000 then
-			ScenEdit_SpecialMessage("Test1","heightToHorizonAntiLandApproach - Regular Height "..height)
 			return height
 		else
 			if oscillateEveryTwoMinutesGate() then
-				ScenEdit_SpecialMessage("Test1","heightToHorizonAntiLandApproach - Regular Height - 2 "..height)
 				return height
 			else
-				ScenEdit_SpecialMessage("Test1","heightToHorizonAntiLandApproach - Regular Height Off")
 				return "OFF"
 			end
 		end
 	else
-		ScenEdit_SpecialMessage("Test1","heightToHorizonAntiLandApproach - Regular Height - 3 "..height)
 		return height
 	end
 end
@@ -1224,7 +1220,6 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
 
         -- Set Unit Retreat Point
         if unitRetreatPointArray then
-			--ScenEdit_SpecialMessage("Test1",unit.name.."-"..unitRole.."-"..unitRetreatPointArray[1].alt.."-"..unit.unitstate)
             if unit.group and unit.group.unitlist then
                for k1,v1 in pairs(unit.group.unitlist) do
                     local subUnit = ScenEdit_GetUnit({side=side.name,guid=v1})
@@ -1620,8 +1615,6 @@ function observerActionUpdateMissionInventories(args)
 						-- Increment Add Save
 						stringArray[#stringArray + 1] = unit.guid
 						savedInventory[stringKey] = stringArray
-						-- Deep Print
-						--ScenEdit_SpecialMessage("Test1",unit.name.."-"..unit.unitstate.."-"..unit.fuelstate.."-"..unit.weaponstate.."-"..unit.condition_v.."-"..unit.condition)
 				   end
 				end
             end
@@ -1720,7 +1713,7 @@ function observerActionUpdateLandContacts(args)
     if canUpdateEverySixtySeconds() then
         local landContacts = side:contactsBy("4")
         localMemoryContactRemoveFromKey(sideShortKey.."_saved_land_contact")
-		local printString = ""
+		--local printString = ""
         if landContacts then
             local savedContacts = {}
             for k, v in pairs(landContacts) do
@@ -1728,7 +1721,8 @@ function observerActionUpdateLandContacts(args)
                 local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
                 local unitType = "land_con"
                 -- Check
-                if string.find(contact.type_description,"SAM") or string.find(contact.type_description,"HQ-") or string.find(contact.type_description,"SA-") or string.find(contact.type_description,"Unknown mobile land unit") then
+                if string.find(contact.type_description,"SAM") or contact.emissions or string.find(contact.type_description,"Unknown mobile land unit") then 
+					--or string.find(contact.type_description,"HQ-") or string.find(contact.type_description,"SA-") or string.find(contact.type_description,"Unknown mobile land unit") then
                     unitType = "sam_con"
                     -- Add To Memory
                     local stringKey = sideShortKey.."_"..unitType.."_"..contact.posture
@@ -1738,13 +1732,12 @@ function observerActionUpdateLandContacts(args)
                     end
                     stringArray[#stringArray + 1] = contact.guid
                     savedContacts[stringKey] = stringArray
+					--printString = printString..contact.name.."-"..contact.type.."-"..contact.typed.."-"..contact.classificationlevel.."-"..contact.type_description.."- Count: "..#contact.emissions.."\n"
                 end
-				printString = printString..contact.name.."-"..contact.type.."-"..contact.typed.."-"..contact.classificationlevel.."-"..contact.type_description.."\n"
             end
             localMemoryContactAddToKey(sideShortKey.."_saved_land_contact",savedContacts)
+			--ScenEdit_SpecialMessage("Test1","observerActionUpdateLandContacts - "..printString)
         end
-		
-		--ScenEdit_SpecialMessage("Test1","observerActionUpdateLandContacts"..printString)
     end
 end
 
