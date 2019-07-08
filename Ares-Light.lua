@@ -1199,21 +1199,21 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
         local unitRetreatPointArray = {}
         -- Determine Retreat Type By Role
         if unitRole == "aaw" then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,60,{"missiles","sams","ships"},{})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=60},{type="sams",range=30},{type="ships",range=30}})
         elseif unitRole == "ag-asuw" then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,80,{"missiles","sams"},{"ships"})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=80},{type="sams",range=40},{type="ships",range=0}})
         elseif unitRole == "ag" then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,60,{"missiles","planes","ships"},{"sams"})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=60},{type="planes",range=60},{type="ships",range=60},{type="sams",range=0}})
         elseif unitRole == "asuw" then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,80,{"missiles","planes"},{"sams","ships"})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=80},{type="planes",range=80},{type="sams",range=0},{type="ships",range=0}})
         elseif unitRole == "support" then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,200,{"missiles","planes","sams","ships"},{})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=200},{type="planes",range=200},{type="sams",range=100},{type="ships",range=100}})
         elseif unitRole == "asw" then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,80,{"missiles","planes","sams","ships"},{})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=80},{type="planes",range=80},{type="sams",range=40},{type="ships",range=40}})
         elseif unitRole == "recon" then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,60,{"missiles","planes","sams","ships"},{})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=60},{type="planes",range=60},{type="sams",range=30},{type="ships",range=30}})
         elseif unitRole == "sead" then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,60,{"missiles","planes"},{"sams","ships"})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=60},{type="planes",range=60},{type="sams",range=0},{type="ships",range=0}})
         else
             unitRetreatPointArray = nil
         end
@@ -1255,20 +1255,19 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
     end
 end
 
-function determineRetreatPoint(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,range,avoidanceTypes,heightAvoidanceTypes)
+function determineRetreatPoint(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,avoidanceTypes)
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
-    local desiredRange = range
     -- Loop Through Avoidance Types
     for i = 1, #avoidanceTypes do
         local retreatPointArray  = nil
-        if avoidanceTypes[i] == "planes" then
-            retreatPointArray = getRetreatPathForAirNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,range)
-        elseif avoidanceTypes[i] == "ships" then
-            retreatPointArray = getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,20)
-        elseif avoidanceTypes[i] == "sams" then
-            retreatPointArray = getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,20)
-        elseif avoidanceTypes[i] == "missiles" then
+        if avoidanceTypes[i].type == "planes" then
+            retreatPointArray = getRetreatPathForAirNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,avoidanceTypes[i].range)
+        elseif avoidanceTypes[i].type == "ships" then
+            retreatPointArray = getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,avoidanceTypes[i].range)
+        elseif avoidanceTypes[i].type == "sams" then
+            retreatPointArray = getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,avoidanceTypes[i].range)
+        elseif avoidanceTypes[i].type == "missiles" then
             retreatPointArray = getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole)
         else
             retreatPointArray = nil
@@ -1278,21 +1277,6 @@ function determineRetreatPoint(sideGuid,shortSideKey,sideAttributes,unitGuid,uni
             return retreatPointArray 
         end
     end
-	-- Loop Through Height Avoidance types
-	for i = 1, #heightAvoidanceTypes do
-        local retreatPointArray  = nil
-        if heightAvoidanceTypes[i] == "ships" then
-            retreatPointArray = getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,0)
-        elseif heightAvoidanceTypes[i] == "sams" then
-            retreatPointArray = getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,0)
-        else
-            retreatPointArray = nil
-        end
-        -- Return First Valid One
-        if retreatPointArray then
-            return retreatPointArray 
-        end
-	end
     -- Catch All Return
     return nil
 end
