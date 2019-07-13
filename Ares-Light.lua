@@ -474,9 +474,9 @@ end
 -- Generic Helper Functions
 --------------------------------------------------------------------------------------------------------------------------------
 function makeWaypoint(latitude, longitude, altitude, speed, followPlottedPath, overrideAltitude, overrideCoordinates)
-    local ignorePath = "yes"
+    local ignorePath = true
     if followPlottedPath then
-        ignorePath = "no"
+        ignorePath = false
     end
     return {lat=latitude,lon=longitude,alt=altitude,manualSpeed=speed,ignorePlottedPath=ignorePath,overrideAltitude=overrideAltitude,overrideCoordinates=overrideCoordinates}
 end
@@ -1199,7 +1199,7 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
         local unitRetreatPointArray = {}
         -- Determine Retreat Type By Role
         if unitRole == "aaw" then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=60},{type="sams",range=30},{type="ships",range=30}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=60},{type="sams",range=40},{type="ships",range=30}})
         elseif unitRole == "ag-asuw" then
             unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=80},{type="sams",range=40},{type="ships",range=0}})
         elseif unitRole == "ag" then
@@ -1937,4 +1937,4 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 -- Global Call
 --------------------------------------------------------------------------------------------------------------------------------
-initializeAresAI("Test1")
+initializeAresAI("Finland/Sweden")
