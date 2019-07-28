@@ -496,13 +496,13 @@ end
 
 function heightToHorizon(distance,role,engaged)
     if role == "aaw" then
-        return heightToHorizonAntiAirApproach(distance,engaged)
+        return heightToHorizonAntiAirAndLandApproach(distance,engaged)
     else
-        return heightToHorizonAntiLandApproach(distance,engaged)
+        return heightToHorizonAntiSeadAndShipApproach(distance,engaged)
     end
 end
 
-function heightToHorizonAntiLandApproach(distance,engaged)
+function heightToHorizonAntiSeadAndShipApproach(distance,engaged)
 	-- Determine Height
 	local height = 0
 	if distance > 300 then
@@ -545,7 +545,7 @@ function heightToHorizonAntiLandApproach(distance,engaged)
 	end
 end
 
-function heightToHorizonAntiAirApproach(distance,engaged)
+function heightToHorizonAntiAirAndLandApproach(distance,engaged)
 	if distance > 300 then
 		return "OFF"
 	elseif distance > 200 then
@@ -1317,9 +1317,9 @@ function getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,uni
         return nil
     end
 	-- Check RTB
-	if determineUnitBingo(side.name,unitGuid) then
-		return nil
-	end
+	--if determineUnitBingo(side.name,unitGuid) then
+	--	return nil
+	--end
 	-- Find Shortest Range Missile
 	for k,v in pairs(hostileShipContacts) do
         local currentContact = ScenEdit_GetContact({side=side.name, guid=v})
@@ -1367,9 +1367,9 @@ function getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
         return nil
     end
 	-- Check RTB
-	if determineUnitBingo(side.name,unitGuid) then
-		return nil
-	end
+	--if determineUnitBingo(side.name,unitGuid) then
+	--	return nil
+	--end
 	-- Find Shortest Range Missile
 	for k,v in pairs(hostileSAMContacts) do
         local currentContact = ScenEdit_GetContact({side=side.name, guid=v})
@@ -1436,7 +1436,7 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
 	elseif distanceToMissile < 25 then
 		-- Emergency Evasion
 		local contactPoint = makeLatLong(contact.latitude,contact.longitude)
-		local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 1
+		local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 45
         local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
         return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,100,2000,true,true,true)}
 	elseif distanceToMissile < maxDesiredRange then
@@ -1455,13 +1455,13 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
 		if isFiringAt then
 			if distanceToMissile < 0.75 * isFiringAtRange then
 				local contactPoint = makeLatLong(contact.latitude,contact.longitude)
-				local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 1
+				local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 15
                 local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
                 return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,100,2000,true,true,true)}
 			end
 		else
 			local contactPoint = makeLatLong(contact.latitude,contact.longitude)
-			local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 1
+			local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 15
 			local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
             return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,100,2000,true,true,true)}
 		end
@@ -1937,4 +1937,4 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 -- Global Call
 --------------------------------------------------------------------------------------------------------------------------------
-initializeAresAI("Finland/Sweden")
+initializeAresAI("Test1")
