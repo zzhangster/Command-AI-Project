@@ -2187,8 +2187,6 @@ function observerActionUpdateAirInventories(args)
                 end
                 stringArray[#stringArray + 1] = unit.guid
                 savedInventory[stringKey] = stringArray
-                -- Print
-                --ScenEdit_SpecialMessage("Blue Force",unit.name.." "..unit.subtype)
             end
             -- Save Memory Inventory And Time Stamp
             localMemoryInventoryAddToKey(sideShortKey.."_saved_air_inventory",savedInventory)

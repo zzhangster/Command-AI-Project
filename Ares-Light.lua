@@ -1158,6 +1158,16 @@ function getHostileWeaponContacts(sideShortKey)
     end
 end
 
+function getDatumContacts(sideShortKey)
+    local savedContacts = localMemoryContactGetFromKey(sideShortKey.."_saved_datum_contact")
+	if #savedContacts > 0 then
+        savedContacts = savedContacts[1]
+        return savedContacts
+    else 
+        return {}
+    end
+end
+
 --------------------------------------------------------------------------------------------------------------------------------
 -- Clear Contacts
 --------------------------------------------------------------------------------------------------------------------------------
@@ -1320,6 +1330,8 @@ function determineRetreatPoint(sideGuid,shortSideKey,sideAttributes,unitGuid,uni
 end
 
 function getRetreatPathForAirNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,range)
+	
+	ScenEdit_SpecialMessage("Test1","getRetreatPathForAirNoNavZone")
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
     local hostileAirContacts = getHostileAirContacts(shortSideKey)
@@ -1342,6 +1354,8 @@ function getRetreatPathForAirNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
 end
 
 function getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,range)
+	
+	ScenEdit_SpecialMessage("Test1","getRetreatPathForShipNoNavZone")
     -- Variables
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
@@ -1391,6 +1405,9 @@ function getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,uni
 end
 
 function getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,minRange)
+	
+	ScenEdit_SpecialMessage("Test1","getRetreatPathForSAMNoNavZone")
+
     -- Variables
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
@@ -1448,6 +1465,10 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
     local maxDesiredRange = 60
 	local distanceToMissile = 10000
 	local contact = nil
+
+	
+	ScenEdit_SpecialMessage("Test1","getRetreatPathForEmergencyMissileNoNavZone")
+	
 	-- Check Update
     if not unit and not canUpdateEveryTenSeconds() then
         return nil
@@ -1474,7 +1495,7 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
 	elseif distanceToMissile < 25 then
 		-- Emergency Evasion
 		local contactPoint = makeLatLong(contact.latitude,contact.longitude)
-		local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 45
+		local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 5
         local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
         return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,100,2000,true,true,true)}
 	elseif distanceToMissile < maxDesiredRange then
@@ -1493,13 +1514,13 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
 		if isFiringAt then
 			if distanceToMissile < 0.75 * isFiringAtRange then
 				local contactPoint = makeLatLong(contact.latitude,contact.longitude)
-				local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 15
+				local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 5
                 local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
                 return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,100,2000,true,true,true)}
 			end
 		else
 			local contactPoint = makeLatLong(contact.latitude,contact.longitude)
-			local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 15
+			local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 5
 			local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
             return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,100,2000,true,true,true)}
 		end
@@ -1776,7 +1797,7 @@ function observerActionUpdateWeaponContacts(args)
                 local unitType = "weap_con"
                 -- Filter Out By Weapon Speed
                 if contact.speed then
-                    if  contact.speed > 2000 then
+                    if  contact.speed > 1400 then
                         -- Add To Memory
                         local stringKey = sideShortKey.."_"..unitType.."_"..contact.posture
                         local stringArray = savedContacts[stringKey]
@@ -1803,44 +1824,35 @@ function observerActionUpdateWeaponContacts(args)
     end
 end
 
-function observerActionUpdateAlertDatums(args)
+function observerActionUpdateDatumContacts(args)
     -- Local Variables
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
     local savedContacts = {}
-    if canUpdateEveryTwoMinutes() then
-        local weaponContacts = side:contactsBy("6")
-        if weaponContacts then
-            for k, v in pairs(weaponContacts) do
-                -- Local Values
-                local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
-                local unitType = "weap_con"
-                -- Filter Out By Weapon Speed
-                if contact.speed then
-                    if  contact.speed > 2000 then
-                        -- Add To Memory
-                        local stringKey = sideShortKey.."_"..unitType.."_"..contact.posture
-                        local stringArray = savedContacts[stringKey]
-                        if not stringArray then
-                            stringArray = {}
-                        end
-                        stringArray[#stringArray + 1] = contact.guid
-                        savedContacts[stringKey] = stringArray
-                    end
-                else 
-                    -- Add To Memory
-                    local stringKey = sideShortKey.."_"..unitType.."_"..contact.posture
-                    local stringArray = savedContacts[stringKey]
-                    if not stringArray then
-                        stringArray = {}
-                    end
-                    stringArray[#stringArray + 1] = contact.guid
-                    savedContacts[stringKey] = stringArray
-                end
-            end
-        end
+    if canUpdateEveryTenSeconds() then
+		-- Local Datums
+		local datumContacts = getDatumContacts(sideShortKey)
+		local weaponContacts = getHostileWeaponContacts(sideShortKey)
+		--ScenEdit_SpecialMessage("Test1","Testing "..#datumContacts.." "..#weaponContacts)
+		-- Loop Alert Datums
+		for i = 1, #weaponContacts do
+			local contact = VP_GetContact({guid=weaponContacts[i]})
+			local inside = false
+			for j = 1, #datumContacts do 
+				if Tool_Range({latitude=contact.latitude, longitude=contact.longitude}, datumContacts[j]) <= 50 then
+					inside = true
+					break
+				end
+			end
+			if not inside then
+				--ScenEdit_SpecialMessage("Test1","Testing Outside Test Coordinates")
+				datumContacts[#datumContacts + 1] = ScenEdit_AddReferencePoint({side=side.name, name="Test", lat=contact.latitude, lon=contact.longitude, highlighted=true}).guid
+			else
+				--ScenEdit_SpecialMessage("Test1","Testing Inside Test Coordinates")
+			end
+		end
 		-- Set Contacts
-		setDatumContacts(sideShortKey,savedContacts)
+		setDatumContacts(sideShortKey,datumContacts)
     end
 end
 
@@ -1958,6 +1970,7 @@ function initializeAresAI(sideName)
     local observerActionUpdateSubmarineContactsBT = BT:make(observerActionUpdateSubmarineContacts,sideGuid,shortSideKey,attributes)
     local observerActionUpdateLandContactsBT = BT:make(observerActionUpdateLandContacts,sideGuid,shortSideKey,attributes)
     local observerActionUpdateWeaponContactsBT = BT:make(observerActionUpdateWeaponContacts,sideGuid,shortSideKey,attributes)
+	local observerActionUpdateDatumContactsBT = BT:make(observerActionUpdateDatumContacts,sideGuid,shortSideKey,attributes)
     -- Add Observers
     aresObserverBTMain:addChild(observerActionUpdateAIVariablesBT)
     aresObserverBTMain:addChild(observerActionUpdateMissionsBT)
@@ -1967,6 +1980,7 @@ function initializeAresAI(sideName)
     aresObserverBTMain:addChild(observerActionUpdateSubmarineContactsBT)
     aresObserverBTMain:addChild(observerActionUpdateLandContactsBT)
     aresObserverBTMain:addChild(observerActionUpdateWeaponContactsBT)
+    aresObserverBTMain:addChild(observerActionUpdateDatumContactsBT)
     ----------------------------------------------------------------------------------------------------------------------------
     -- Ares Actor
     ----------------------------------------------------------------------------------------------------------------------------
