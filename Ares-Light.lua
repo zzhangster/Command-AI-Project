@@ -277,11 +277,6 @@ function localMemoryInventoryExistForKey(primaryKey,value)
     return false
 end
 
-function resetAllInventoriesAndContacts()
-    localMemoryInventoryResetAll()
-    localMemoryContactResetAll()
-end
-
 function localMemoryPrintAll()
     local printMessage = ""
     deepPrint(aresLocalMemory,printMessage)
@@ -501,13 +496,13 @@ end
 
 function heightToHorizon(distance,role,engaged)
     if role == "aaw" then
-        return heightToHorizonAntiAirAndLandApproach(distance,engaged)
+        return heightToHorizonAntiAirApproach(distance,engaged)
     else
-        return heightToHorizonAntiSeadAndShipApproach(distance,engaged)
+        return heightToHorizonAntiLandApproach(distance,engaged)
     end
 end
 
-function heightToHorizonAntiSeadAndShipApproach(distance,engaged)
+function heightToHorizonAntiLandApproach(distance,engaged)
 	-- Determine Height
 	local height = 0
 	if distance > 300 then
@@ -550,19 +545,19 @@ function heightToHorizonAntiSeadAndShipApproach(distance,engaged)
 	end
 end
 
-function heightToHorizonAntiAirAndLandApproach(distance,engaged)
+function heightToHorizonAntiAirApproach(distance,engaged)
 	if distance > 300 then
 		return "OFF"
 	elseif distance > 200 then
-		return 10000
+		return 9000
 	elseif distance > 180 then
-		return 7000
-	elseif distance > 160 then
 		return 6000
-	elseif distance > 140 then
+	elseif distance > 160 then
 		return 5000
-	elseif distance > 120 then
+	elseif distance > 140 then
 		return 4000
+	elseif distance > 120 then
+		return 3000
 	elseif distance > 100 then
 		return 2000
 	elseif distance > 80 then
@@ -1169,39 +1164,6 @@ function getDatumContacts(sideShortKey)
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
--- Clear Contacts
---------------------------------------------------------------------------------------------------------------------------------
-function setAirContacts(sideShortKey,savedContacts)
-	localMemoryContactRemoveFromKey(sideShortKey.."_saved_air_contact")
-	localMemoryContactAddToKey(sideShortKey.."_saved_air_contact",savedContacts)
-end
-
-function setSurfaceShipContacts(sideShortKey,savedContacts)
-	localMemoryContactRemoveFromKey(sideShortKey.."_saved_ship_contact")
-	localMemoryContactAddToKey(sideShortKey.."_saved_ship_contact",savedContacts)
-end
-
-function setSubmarineContacts(sideShortKey,savedContacts)
-	localMemoryContactRemoveFromKey(sideShortKey.."_saved_sub_contact")
-	localMemoryContactAddToKey(sideShortKey.."_saved_sub_contact",savedContacts)
-end
-
-function setLandContacts(sideShortKey,savedContacts)
-	localMemoryContactRemoveFromKey(sideShortKey.."_saved_land_contact")
-	localMemoryContactAddToKey(sideShortKey.."_saved_land_contact",savedContacts)
-end
-
-function setWeaponContacts(sideShortKey,savedContacts)
-	localMemoryContactRemoveFromKey(sideShortKey.."_saved_weap_contact")
-	localMemoryContactAddToKey(sideShortKey.."_saved_weap_contact",savedContacts)
-end
-
-function setDatumContacts(sideShortKey,savedContacts)
-	localMemoryContactRemoveFromKey(sideShortKey.."_saved_datum_contact")
-	localMemoryContactAddToKey(sideShortKey.."_saved_datum_contact",savedContacts)
-end
-
---------------------------------------------------------------------------------------------------------------------------------
 -- Determine Emcon Functions
 --------------------------------------------------------------------------------------------------------------------------------
 function determineEmconToAirUnits(sideShortKey,sideAttributes,sideName,unitGuidList)
@@ -1247,9 +1209,9 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
         local unitRetreatPointArray = {}
         -- Determine Retreat Type By Role
         if unitRole == "aaw" then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=60},{type="sams",range=40},{type="ships",range=30}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=60},{type="sams",range=25},{type="ships",range=30}})
         elseif unitRole == "ag-asuw" then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=80},{type="sams",range=40},{type="ships",range=0}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=80},{type="sams",range=25},{type="ships",range=0}})
         elseif unitRole == "ag" then
             unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=60},{type="planes",range=60},{type="ships",range=60},{type="sams",range=0}})
         elseif unitRole == "asuw" then
@@ -1291,12 +1253,12 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
                for k1,v1 in pairs(unit.group.unitlist) do
                     local subUnit = ScenEdit_GetUnit({side=side.name,guid=v1})
 					subUnit.manualAltitude = "OFF"
-					ScenEdit_SetDoctrine({side=side.name,guid=subUnit.guid},{ignore_plotted_course = "yes" })
+					ScenEdit_SetDoctrine({side=side.name,guid=subUnit.guid},{ignore_plotted_course = true })
 					subUnit.manualSpeed = "OFF"
                 end
             else 
 				unit.manualAltitude = "OFF"
-				ScenEdit_SetDoctrine({side=side.name,guid=unit.guid},{ignore_plotted_course = "yes" })
+				ScenEdit_SetDoctrine({side=side.name,guid=unit.guid},{ignore_plotted_course = true })
 				unit.manualSpeed = "OFF"
             end
         end
@@ -1330,8 +1292,6 @@ function determineRetreatPoint(sideGuid,shortSideKey,sideAttributes,unitGuid,uni
 end
 
 function getRetreatPathForAirNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,range)
-	
-	ScenEdit_SpecialMessage("Test1","getRetreatPathForAirNoNavZone")
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
     local hostileAirContacts = getHostileAirContacts(shortSideKey)
@@ -1354,8 +1314,6 @@ function getRetreatPathForAirNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
 end
 
 function getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,range)
-	
-	ScenEdit_SpecialMessage("Test1","getRetreatPathForShipNoNavZone")
     -- Variables
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
@@ -1369,9 +1327,9 @@ function getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,uni
         return nil
     end
 	-- Check RTB
-	--if determineUnitBingo(side.name,unitGuid) then
-	--	return nil
-	--end
+	if determineUnitBingo(side.name,unitGuid) then
+		return nil
+	end
 	-- Find Shortest Range Missile
 	for k,v in pairs(hostileShipContacts) do
         local currentContact = ScenEdit_GetContact({side=side.name, guid=v})
@@ -1405,9 +1363,6 @@ function getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,uni
 end
 
 function getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,minRange)
-	
-	ScenEdit_SpecialMessage("Test1","getRetreatPathForSAMNoNavZone")
-
     -- Variables
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
@@ -1422,9 +1377,9 @@ function getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
         return nil
     end
 	-- Check RTB
-	--if determineUnitBingo(side.name,unitGuid) then
-	--	return nil
-	--end
+	if determineUnitBingo(side.name,unitGuid) then
+		return nil
+	end
 	-- Find Shortest Range Missile
 	for k,v in pairs(hostileSAMContacts) do
         local currentContact = ScenEdit_GetContact({side=side.name, guid=v})
@@ -1465,10 +1420,6 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
     local maxDesiredRange = 60
 	local distanceToMissile = 10000
 	local contact = nil
-
-	
-	ScenEdit_SpecialMessage("Test1","getRetreatPathForEmergencyMissileNoNavZone")
-	
 	-- Check Update
     if not unit and not canUpdateEveryTenSeconds() then
         return nil
@@ -1495,7 +1446,7 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
 	elseif distanceToMissile < 25 then
 		-- Emergency Evasion
 		local contactPoint = makeLatLong(contact.latitude,contact.longitude)
-		local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 5
+		local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 1
         local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
         return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,100,2000,true,true,true)}
 	elseif distanceToMissile < maxDesiredRange then
@@ -1514,13 +1465,13 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
 		if isFiringAt then
 			if distanceToMissile < 0.75 * isFiringAtRange then
 				local contactPoint = makeLatLong(contact.latitude,contact.longitude)
-				local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 5
+				local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 1
                 local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
                 return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,100,2000,true,true,true)}
 			end
 		else
 			local contactPoint = makeLatLong(contact.latitude,contact.longitude)
-			local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 5
+			local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 1
 			local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
             return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,100,2000,true,true,true)}
 		end
@@ -1671,11 +1622,12 @@ function observerActionUpdateAirContacts(args)
     -- Local Variables
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
-    local savedContacts = {}
     -- Check Time
     if canUpdateEverySixtySeconds() then
         local aircraftContacts = side:contactsBy("1")
+        localMemoryContactRemoveFromKey(sideShortKey.."_saved_air_contact")
         if aircraftContacts then
+            local savedContacts = {}
             for k, v in pairs(aircraftContacts) do
                 -- Local Values
                 local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
@@ -1689,9 +1641,8 @@ function observerActionUpdateAirContacts(args)
                 stringArray[#stringArray + 1] = contact.guid
                 savedContacts[stringKey] = stringArray
             end
+            localMemoryContactAddToKey(sideShortKey.."_saved_air_contact",savedContacts)
         end
-		-- Set Contact
-		setAirContacts(sideShortKey,savedContacts)
     end
 end
 
@@ -1699,10 +1650,11 @@ function observerActionUpdateSurfaceContacts(args)
     -- Local Variables
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
-    local savedContacts = {}
     if canUpdateEverySixtySeconds() then
         local shipContacts = side:contactsBy("2")
+        localMemoryContactRemoveFromKey(sideShortKey.."_saved_ship_contact")
         if shipContacts then
+            local savedContacts = {}
             for k, v in pairs(shipContacts) do
                 -- Local Values
                 local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
@@ -1716,9 +1668,8 @@ function observerActionUpdateSurfaceContacts(args)
                 stringArray[#stringArray + 1] = contact.guid
                 savedContacts[stringKey] = stringArray
             end
+            localMemoryContactAddToKey(sideShortKey.."_saved_ship_contact",savedContacts)
         end
-		-- Set Contact
-		setSurfaceShipContacts(sideShortKey,savedContacts)
     end
 end
 
@@ -1726,10 +1677,11 @@ function observerActionUpdateSubmarineContacts(args)
     -- Local Variables
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
-    local savedContacts = {}
     if canUpdateEverySixtySeconds() then
         local submarineContacts = side:contactsBy("3")
+        localMemoryContactRemoveFromKey(sideShortKey.."_saved_sub_contact")
         if submarineContacts then
+            local savedContacts = {}
             for k, v in pairs(submarineContacts) do
                 -- Local Values
                 local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
@@ -1743,9 +1695,8 @@ function observerActionUpdateSubmarineContacts(args)
                 stringArray[#stringArray + 1] = contact.guid
                 savedContacts[stringKey] = stringArray
             end
+            localMemoryContactAddToKey(sideShortKey.."_saved_sub_contact",savedContacts)
         end
-		-- Set Contact
-		setSubmarineContacts(sideShortKey,savedContacts)
     end
 end
 
@@ -1753,11 +1704,12 @@ function observerActionUpdateLandContacts(args)
     -- Local Variables
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
-    local savedContacts = {}
     if canUpdateEverySixtySeconds() then
         local landContacts = side:contactsBy("4")
+        localMemoryContactRemoveFromKey(sideShortKey.."_saved_land_contact")
 		--local printString = ""
         if landContacts then
+            local savedContacts = {}
             for k, v in pairs(landContacts) do
                 -- Local Values
                 local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
@@ -1777,9 +1729,9 @@ function observerActionUpdateLandContacts(args)
 					--printString = printString..contact.name.."-"..contact.type.."-"..contact.typed.."-"..contact.classificationlevel.."-"..contact.type_description.."- Count: "..#contact.emissions.."\n"
                 end
             end
+            localMemoryContactAddToKey(sideShortKey.."_saved_land_contact",savedContacts)
+			--ScenEdit_SpecialMessage("Test1","observerActionUpdateLandContacts - "..printString)
         end
-		-- Set contact
-		setLandContacts(sideShortKey,savedContacts)
     end
 end
 
@@ -1787,17 +1739,18 @@ function observerActionUpdateWeaponContacts(args)
     -- Local Variables
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
-    local savedContacts = {}
     if canUpdateEveryTenSeconds() then
         local weaponContacts = side:contactsBy("6")
+        localMemoryContactRemoveFromKey(sideShortKey.."_saved_weap_contact")
         if weaponContacts then
+            local savedContacts = {}
             for k, v in pairs(weaponContacts) do
                 -- Local Values
                 local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
                 local unitType = "weap_con"
                 -- Filter Out By Weapon Speed
                 if contact.speed then
-                    if  contact.speed > 1400 then
+                    if  contact.speed > 2000 then
                         -- Add To Memory
                         local stringKey = sideShortKey.."_"..unitType.."_"..contact.posture
                         local stringArray = savedContacts[stringKey]
@@ -1818,9 +1771,8 @@ function observerActionUpdateWeaponContacts(args)
                     savedContacts[stringKey] = stringArray
                 end
             end
+            localMemoryContactAddToKey(sideShortKey.."_saved_weap_contact",savedContacts)
         end
-		-- Set Contact
-		setWeaponContacts(sideShortKey,savedContacts)
     end
 end
 
@@ -1828,12 +1780,10 @@ function observerActionUpdateDatumContacts(args)
     -- Local Variables
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
-    local savedContacts = {}
     if canUpdateEveryTenSeconds() then
 		-- Local Datums
 		local datumContacts = getDatumContacts(sideShortKey)
 		local weaponContacts = getHostileWeaponContacts(sideShortKey)
-		--ScenEdit_SpecialMessage("Test1","Testing "..#datumContacts.." "..#weaponContacts)
 		-- Loop Alert Datums
 		for i = 1, #weaponContacts do
 			local contact = VP_GetContact({guid=weaponContacts[i]})
@@ -1851,9 +1801,14 @@ function observerActionUpdateDatumContacts(args)
 				--ScenEdit_SpecialMessage("Test1","Testing Inside Test Coordinates")
 			end
 		end
-		-- Set Contacts
-		setDatumContacts(sideShortKey,datumContacts)
+        --localMemoryContactRemoveFromKey(sideShortKey.."_saved_datum_contact")
+        --localMemoryContactAddToKey(sideShortKey.."_saved_datum_contact",datumContacts)
     end
+end
+
+function resetAllInventoriesAndContacts()
+    localMemoryInventoryResetAll()
+    localMemoryContactResetAll()
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
@@ -1971,6 +1926,7 @@ function initializeAresAI(sideName)
     local observerActionUpdateLandContactsBT = BT:make(observerActionUpdateLandContacts,sideGuid,shortSideKey,attributes)
     local observerActionUpdateWeaponContactsBT = BT:make(observerActionUpdateWeaponContacts,sideGuid,shortSideKey,attributes)
 	local observerActionUpdateDatumContactsBT = BT:make(observerActionUpdateDatumContacts,sideGuid,shortSideKey,attributes)
+	
     -- Add Observers
     aresObserverBTMain:addChild(observerActionUpdateAIVariablesBT)
     aresObserverBTMain:addChild(observerActionUpdateMissionsBT)
@@ -1980,7 +1936,6 @@ function initializeAresAI(sideName)
     aresObserverBTMain:addChild(observerActionUpdateSubmarineContactsBT)
     aresObserverBTMain:addChild(observerActionUpdateLandContactsBT)
     aresObserverBTMain:addChild(observerActionUpdateWeaponContactsBT)
-    aresObserverBTMain:addChild(observerActionUpdateDatumContactsBT)
     ----------------------------------------------------------------------------------------------------------------------------
     -- Ares Actor
     ----------------------------------------------------------------------------------------------------------------------------
