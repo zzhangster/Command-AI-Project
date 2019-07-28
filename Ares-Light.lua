@@ -554,15 +554,15 @@ function heightToHorizonAntiAirAndLandApproach(distance,engaged)
 	if distance > 300 then
 		return "OFF"
 	elseif distance > 200 then
-		return 9000
+		return 10000
 	elseif distance > 180 then
-		return 6000
+		return 7000
 	elseif distance > 160 then
-		return 5000
+		return 6000
 	elseif distance > 140 then
-		return 4000
+		return 5000
 	elseif distance > 120 then
-		return 3000
+		return 4000
 	elseif distance > 100 then
 		return 2000
 	elseif distance > 80 then
@@ -1247,9 +1247,9 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
         local unitRetreatPointArray = {}
         -- Determine Retreat Type By Role
         if unitRole == "aaw" then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=60},{type="sams",range=25},{type="ships",range=30}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=60},{type="sams",range=40},{type="ships",range=30}})
         elseif unitRole == "ag-asuw" then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=80},{type="sams",range=25},{type="ships",range=0}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=80},{type="sams",range=40},{type="ships",range=0}})
         elseif unitRole == "ag" then
             unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=60},{type="planes",range=60},{type="ships",range=60},{type="sams",range=0}})
         elseif unitRole == "asuw" then
@@ -1291,12 +1291,12 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
                for k1,v1 in pairs(unit.group.unitlist) do
                     local subUnit = ScenEdit_GetUnit({side=side.name,guid=v1})
 					subUnit.manualAltitude = "OFF"
-					ScenEdit_SetDoctrine({side=side.name,guid=subUnit.guid},{ignore_plotted_course = true })
+					ScenEdit_SetDoctrine({side=side.name,guid=subUnit.guid},{ignore_plotted_course = "yes" })
 					subUnit.manualSpeed = "OFF"
                 end
             else 
 				unit.manualAltitude = "OFF"
-				ScenEdit_SetDoctrine({side=side.name,guid=unit.guid},{ignore_plotted_course = true })
+				ScenEdit_SetDoctrine({side=side.name,guid=unit.guid},{ignore_plotted_course = "yes" })
 				unit.manualSpeed = "OFF"
             end
         end
