@@ -277,6 +277,11 @@ function localMemoryInventoryExistForKey(primaryKey,value)
     return false
 end
 
+function resetAllInventoriesAndContacts()
+    localMemoryInventoryResetAll()
+    localMemoryContactResetAll()
+end
+
 function localMemoryPrintAll()
     local printMessage = ""
     deepPrint(aresLocalMemory,printMessage)
@@ -1154,6 +1159,39 @@ function getHostileWeaponContacts(sideShortKey)
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
+-- Clear Contacts
+--------------------------------------------------------------------------------------------------------------------------------
+function setAirContacts(sideShortKey,savedContacts)
+	localMemoryContactRemoveFromKey(sideShortKey.."_saved_air_contact")
+	localMemoryContactAddToKey(sideShortKey.."_saved_air_contact",savedContacts)
+end
+
+function setSurfaceShipContacts(sideShortKey,savedContacts)
+	localMemoryContactRemoveFromKey(sideShortKey.."_saved_ship_contact")
+	localMemoryContactAddToKey(sideShortKey.."_saved_ship_contact",savedContacts)
+end
+
+function setSubmarineContacts(sideShortKey,savedContacts)
+	localMemoryContactRemoveFromKey(sideShortKey.."_saved_sub_contact")
+	localMemoryContactAddToKey(sideShortKey.."_saved_sub_contact",savedContacts)
+end
+
+function setLandContacts(sideShortKey,savedContacts)
+	localMemoryContactRemoveFromKey(sideShortKey.."_saved_land_contact")
+	localMemoryContactAddToKey(sideShortKey.."_saved_land_contact",savedContacts)
+end
+
+function setWeaponContacts(sideShortKey,savedContacts)
+	localMemoryContactRemoveFromKey(sideShortKey.."_saved_weap_contact")
+	localMemoryContactAddToKey(sideShortKey.."_saved_weap_contact",savedContacts)
+end
+
+function setDatumContacts(sideShortKey,savedContacts)
+	localMemoryContactRemoveFromKey(sideShortKey.."_saved_datum_contact")
+	localMemoryContactAddToKey(sideShortKey.."_saved_datum_contact",savedContacts)
+end
+
+--------------------------------------------------------------------------------------------------------------------------------
 -- Determine Emcon Functions
 --------------------------------------------------------------------------------------------------------------------------------
 function determineEmconToAirUnits(sideShortKey,sideAttributes,sideName,unitGuidList)
@@ -1612,12 +1650,11 @@ function observerActionUpdateAirContacts(args)
     -- Local Variables
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
+    local savedContacts = {}
     -- Check Time
     if canUpdateEverySixtySeconds() then
         local aircraftContacts = side:contactsBy("1")
-        localMemoryContactRemoveFromKey(sideShortKey.."_saved_air_contact")
         if aircraftContacts then
-            local savedContacts = {}
             for k, v in pairs(aircraftContacts) do
                 -- Local Values
                 local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
@@ -1631,8 +1668,9 @@ function observerActionUpdateAirContacts(args)
                 stringArray[#stringArray + 1] = contact.guid
                 savedContacts[stringKey] = stringArray
             end
-            localMemoryContactAddToKey(sideShortKey.."_saved_air_contact",savedContacts)
         end
+		-- Set Contact
+		setAirContacts(sideShortKey,savedContacts)
     end
 end
 
@@ -1640,11 +1678,10 @@ function observerActionUpdateSurfaceContacts(args)
     -- Local Variables
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
+    local savedContacts = {}
     if canUpdateEverySixtySeconds() then
         local shipContacts = side:contactsBy("2")
-        localMemoryContactRemoveFromKey(sideShortKey.."_saved_ship_contact")
         if shipContacts then
-            local savedContacts = {}
             for k, v in pairs(shipContacts) do
                 -- Local Values
                 local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
@@ -1658,8 +1695,9 @@ function observerActionUpdateSurfaceContacts(args)
                 stringArray[#stringArray + 1] = contact.guid
                 savedContacts[stringKey] = stringArray
             end
-            localMemoryContactAddToKey(sideShortKey.."_saved_ship_contact",savedContacts)
         end
+		-- Set Contact
+		setSurfaceShipContacts(sideShortKey,savedContacts)
     end
 end
 
@@ -1667,11 +1705,10 @@ function observerActionUpdateSubmarineContacts(args)
     -- Local Variables
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
+    local savedContacts = {}
     if canUpdateEverySixtySeconds() then
         local submarineContacts = side:contactsBy("3")
-        localMemoryContactRemoveFromKey(sideShortKey.."_saved_sub_contact")
         if submarineContacts then
-            local savedContacts = {}
             for k, v in pairs(submarineContacts) do
                 -- Local Values
                 local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
@@ -1685,8 +1722,9 @@ function observerActionUpdateSubmarineContacts(args)
                 stringArray[#stringArray + 1] = contact.guid
                 savedContacts[stringKey] = stringArray
             end
-            localMemoryContactAddToKey(sideShortKey.."_saved_sub_contact",savedContacts)
         end
+		-- Set Contact
+		setSubmarineContacts(sideShortKey,savedContacts)
     end
 end
 
@@ -1694,12 +1732,11 @@ function observerActionUpdateLandContacts(args)
     -- Local Variables
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
+    local savedContacts = {}
     if canUpdateEverySixtySeconds() then
         local landContacts = side:contactsBy("4")
-        localMemoryContactRemoveFromKey(sideShortKey.."_saved_land_contact")
 		--local printString = ""
         if landContacts then
-            local savedContacts = {}
             for k, v in pairs(landContacts) do
                 -- Local Values
                 local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
@@ -1719,9 +1756,9 @@ function observerActionUpdateLandContacts(args)
 					--printString = printString..contact.name.."-"..contact.type.."-"..contact.typed.."-"..contact.classificationlevel.."-"..contact.type_description.."- Count: "..#contact.emissions.."\n"
                 end
             end
-            localMemoryContactAddToKey(sideShortKey.."_saved_land_contact",savedContacts)
-			--ScenEdit_SpecialMessage("Test1","observerActionUpdateLandContacts - "..printString)
         end
+		-- Set contact
+		setLandContacts(sideShortKey,savedContacts)
     end
 end
 
@@ -1729,11 +1766,10 @@ function observerActionUpdateWeaponContacts(args)
     -- Local Variables
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
+    local savedContacts = {}
     if canUpdateEveryTenSeconds() then
         local weaponContacts = side:contactsBy("6")
-        localMemoryContactRemoveFromKey(sideShortKey.."_saved_weap_contact")
         if weaponContacts then
-            local savedContacts = {}
             for k, v in pairs(weaponContacts) do
                 -- Local Values
                 local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
@@ -1761,14 +1797,51 @@ function observerActionUpdateWeaponContacts(args)
                     savedContacts[stringKey] = stringArray
                 end
             end
-            localMemoryContactAddToKey(sideShortKey.."_saved_weap_contact",savedContacts)
         end
+		-- Set Contact
+		setWeaponContacts(sideShortKey,savedContacts)
     end
 end
 
-function resetAllInventoriesAndContacts()
-    localMemoryInventoryResetAll()
-    localMemoryContactResetAll()
+function observerActionUpdateAlertDatums(args)
+    -- Local Variables
+    local sideShortKey = args.shortKey
+    local side = VP_GetSide({guid=args.guid})
+    local savedContacts = {}
+    if canUpdateEveryTwoMinutes() then
+        local weaponContacts = side:contactsBy("6")
+        if weaponContacts then
+            for k, v in pairs(weaponContacts) do
+                -- Local Values
+                local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
+                local unitType = "weap_con"
+                -- Filter Out By Weapon Speed
+                if contact.speed then
+                    if  contact.speed > 2000 then
+                        -- Add To Memory
+                        local stringKey = sideShortKey.."_"..unitType.."_"..contact.posture
+                        local stringArray = savedContacts[stringKey]
+                        if not stringArray then
+                            stringArray = {}
+                        end
+                        stringArray[#stringArray + 1] = contact.guid
+                        savedContacts[stringKey] = stringArray
+                    end
+                else 
+                    -- Add To Memory
+                    local stringKey = sideShortKey.."_"..unitType.."_"..contact.posture
+                    local stringArray = savedContacts[stringKey]
+                    if not stringArray then
+                        stringArray = {}
+                    end
+                    stringArray[#stringArray + 1] = contact.guid
+                    savedContacts[stringKey] = stringArray
+                end
+            end
+        end
+		-- Set Contacts
+		setDatumContacts(sideShortKey,savedContacts)
+    end
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
