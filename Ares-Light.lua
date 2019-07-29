@@ -1326,10 +1326,6 @@ function getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,uni
     if not unit and not canUpdateEverySixtySeconds() then
         return nil
     end
-	-- Check RTB
-	if determineUnitBingo(side.name,unitGuid) then
-		return nil
-	end
 	-- Find Shortest Range Missile
 	for k,v in pairs(hostileShipContacts) do
         local currentContact = ScenEdit_GetContact({side=side.name, guid=v})
@@ -1376,10 +1372,6 @@ function getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
     if not unit and not canUpdateEverySixtySeconds() then
         return nil
     end
-	-- Check RTB
-	if determineUnitBingo(side.name,unitGuid) then
-		return nil
-	end
 	-- Find Shortest Range Missile
 	for k,v in pairs(hostileSAMContacts) do
         local currentContact = ScenEdit_GetContact({side=side.name, guid=v})
@@ -1446,7 +1438,7 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
 	elseif distanceToMissile < 25 then
 		-- Emergency Evasion
 		local contactPoint = makeLatLong(contact.latitude,contact.longitude)
-		local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 1
+		local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 20
         local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
         return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,100,2000,true,true,true)}
 	elseif distanceToMissile < maxDesiredRange then
@@ -1465,13 +1457,13 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
 		if isFiringAt then
 			if distanceToMissile < 0.75 * isFiringAtRange then
 				local contactPoint = makeLatLong(contact.latitude,contact.longitude)
-				local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 1
+				local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 5
                 local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
                 return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,100,2000,true,true,true)}
 			end
 		else
 			local contactPoint = makeLatLong(contact.latitude,contact.longitude)
-			local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 1
+			local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 5
 			local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
             return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,100,2000,true,true,true)}
 		end
@@ -1750,7 +1742,7 @@ function observerActionUpdateWeaponContacts(args)
                 local unitType = "weap_con"
                 -- Filter Out By Weapon Speed
                 if contact.speed then
-                    if  contact.speed > 2000 then
+                    if  contact.speed > 1400 then
                         -- Add To Memory
                         local stringKey = sideShortKey.."_"..unitType.."_"..contact.posture
                         local stringArray = savedContacts[stringKey]
@@ -1784,25 +1776,33 @@ function observerActionUpdateDatumContacts(args)
 		-- Local Datums
 		local datumContacts = getDatumContacts(sideShortKey)
 		local weaponContacts = getHostileWeaponContacts(sideShortKey)
+		local savedContacts = {}
+		localMemoryContactRemoveFromKey(sideShortKey.."_saved_datum_contact")
 		-- Loop Alert Datums
 		for i = 1, #weaponContacts do
 			local contact = VP_GetContact({guid=weaponContacts[i]})
 			local inside = false
 			for j = 1, #datumContacts do 
-				if Tool_Range({latitude=contact.latitude, longitude=contact.longitude}, datumContacts[j]) <= 50 then
+				if Tool_Range({latitude=contact.latitude, longitude=contact.longitude}, datumContacts[j]) <= 100 then
+					-- Update Item
+					datumContacts[j] = {latitude=contact.latitude, longitude=contact.longitude, timeStamp=(ScenEdit_CurrentTime() + 6000)}
 					inside = true
 					break
 				end
 			end
 			if not inside then
-				--ScenEdit_SpecialMessage("Test1","Testing Outside Test Coordinates")
-				datumContacts[#datumContacts + 1] = ScenEdit_AddReferencePoint({side=side.name, name="Test", lat=contact.latitude, lon=contact.longitude, highlighted=true}).guid
-			else
-				--ScenEdit_SpecialMessage("Test1","Testing Inside Test Coordinates")
+				-- Add New Item
+				datumContacts[#datumContacts + 1] = {latitude=contact.latitude, longitude=contact.longitude, timeStamp=(ScenEdit_CurrentTime() + 6000)}
 			end
 		end
-        --localMemoryContactRemoveFromKey(sideShortKey.."_saved_datum_contact")
-        --localMemoryContactAddToKey(sideShortKey.."_saved_datum_contact",datumContacts)
+		-- Remove Outdated Timestamps
+		for i = 1, #datumContacts do
+			if ScenEdit_CurrentTime() <= datumContacts[i].timeStamp then
+				savedContacts[#savedContacts + 1] = datumContacts[i]
+			end
+		end
+		--ScenEdit_SpecialMessage("Test1","Coordinate Check 2 - "..#savedContacts)
+        localMemoryContactAddToKey(sideShortKey.."_saved_datum_contact",savedContacts)
     end
 end
 
@@ -1936,6 +1936,7 @@ function initializeAresAI(sideName)
     aresObserverBTMain:addChild(observerActionUpdateSubmarineContactsBT)
     aresObserverBTMain:addChild(observerActionUpdateLandContactsBT)
     aresObserverBTMain:addChild(observerActionUpdateWeaponContactsBT)
+    aresObserverBTMain:addChild(observerActionUpdateDatumContactsBT)
     ----------------------------------------------------------------------------------------------------------------------------
     -- Ares Actor
     ----------------------------------------------------------------------------------------------------------------------------
