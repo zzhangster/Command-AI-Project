@@ -373,6 +373,8 @@ function setTimeStampForKey(primaryKey,time)
 end
 
 function updateAITimes()
+    local timeStampEveryTwo = getTimeStampForKey("GlobalTimeEveryTwo")
+    local timeStampEveryFive = getTimeStampForKey("GlobalTimeEveryFive")
     local timeStampEveryTen = getTimeStampForKey("GlobalTimeEveryTen")
     local timeStampEveryTwenty = getTimeStampForKey("GlobalTimeEveryTwenty")
     local timeStampEveryThirty = getTimeStampForKey("GlobalTimeEveryThirty")
@@ -380,6 +382,12 @@ function updateAITimes()
     local timeStampEveryTwoMinutes = getTimeStampForKey("GlobalTimeEveryTwoMinutes")
     local timeStampEveryFiveMinutes = getTimeStampForKey("GlobalTimeEveryFiveMinutes")
     local currentTime = ScenEdit_CurrentTime()
+    if timeStampEveryTwo < currentTime then
+        setTimeStampForKey("GlobalTimeEveryTwo",tostring(currentTime + 2))
+    end
+    if timeStampEveryFive < currentTime then
+        setTimeStampForKey("GlobalTimeEveryFive",tostring(currentTime + 5))
+    end
     if timeStampEveryTen < currentTime then
         setTimeStampForKey("GlobalTimeEveryTen",tostring(currentTime + 10))
     end
@@ -397,6 +405,26 @@ function updateAITimes()
     end
     if timeStampEveryFiveMinutes < currentTime then
         setTimeStampForKey("GlobalTimeEveryFiveMinutes",tostring(currentTime + 300))
+    end
+end
+
+function canUpdateEveryTwoSecond()
+    local nextTime = getTimeStampForKey("GlobalTimeEveryTwo")
+    local currentTime = ScenEdit_CurrentTime()
+    if nextTime < currentTime then
+        return true
+    else
+        return false
+    end
+end
+
+function canUpdateEveryFiveSeconds()
+    local nextTime = getTimeStampForKey("GlobalTimeEveryFive")
+    local currentTime = ScenEdit_CurrentTime()
+    if nextTime < currentTime then
+        return true
+    else
+        return false
     end
 end
 
@@ -982,6 +1010,20 @@ function getAirSupportInventory(sideShortKey)
     end
 end
 
+function getAirRTBInventory(sideShortKey)
+    local savedInventory = localMemoryInventoryGetFromKey(sideShortKey.."_saved_air_inventory")
+    if #savedInventory > 0 then
+        savedInventory = savedInventory[1]
+        if savedInventory[sideShortKey.."_rtb"] then
+            return savedInventory[sideShortKey.."_rtb"]
+        else
+            return {}
+        end
+    else 
+        return {}
+    end
+end
+
 --------------------------------------------------------------------------------------------------------------------------------
 -- Get Contacts
 --------------------------------------------------------------------------------------------------------------------------------
@@ -1209,21 +1251,23 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
         local unitRetreatPointArray = {}
         -- Determine Retreat Type By Role
         if unitRole == "aaw" then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=60},{type="sams",range=25},{type="ships",range=30}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=60},{type="sams",range=30},{type="ships",range=30},{type="datum",range=30}})
         elseif unitRole == "ag-asuw" then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=80},{type="sams",range=25},{type="ships",range=0}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=80},{type="sams",range=25},{type="ships",range=0},{type="datum",range=30}})
         elseif unitRole == "ag" then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=60},{type="planes",range=60},{type="ships",range=60},{type="sams",range=0}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=60},{type="planes",range=60},{type="ships",range=60},{type="sams",range=0},{type="datum",range=30}})
         elseif unitRole == "asuw" then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=80},{type="planes",range=80},{type="sams",range=0},{type="ships",range=0}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=80},{type="planes",range=80},{type="sams",range=0},{type="ships",range=0},{type="datum",range=30}})
         elseif unitRole == "support" then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=200},{type="planes",range=200},{type="sams",range=100},{type="ships",range=100}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=200},{type="planes",range=200},{type="sams",range=100},{type="ships",range=100},{type="datum",range=30}})
         elseif unitRole == "asw" then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=80},{type="planes",range=80},{type="sams",range=40},{type="ships",range=40}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=80},{type="planes",range=80},{type="sams",range=30},{type="ships",range=30},{type="datum",range=30}})
         elseif unitRole == "recon" then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=60},{type="planes",range=60},{type="sams",range=30},{type="ships",range=30}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=60},{type="planes",range=60},{type="sams",range=30},{type="ships",range=30},{type="datum",range=30}})
         elseif unitRole == "sead" then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=60},{type="planes",range=60},{type="sams",range=0},{type="ships",range=0}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=60},{type="planes",range=60},{type="sams",range=0},{type="ships",range=0},{type="datum",range=30}})
+		elseif unitRole == "rtb" then
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=60},{type="planes",range=60},{type="sams",range=30},{type="ships",range=30},{type="datum",range=30}})
         else
             unitRetreatPointArray = nil
         end
@@ -1279,7 +1323,9 @@ function determineRetreatPoint(sideGuid,shortSideKey,sideAttributes,unitGuid,uni
             retreatPointArray = getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,avoidanceTypes[i].range)
         elseif avoidanceTypes[i].type == "missiles" then
             retreatPointArray = getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole)
-        else
+        elseif avoidanceTypes[i].type == "datum" then
+            retreatPointArray = getRetreatPathForDatumNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole)
+		else
             retreatPointArray = nil
         end
         -- Return First Valid One
@@ -1296,7 +1342,7 @@ function getRetreatPathForAirNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
     local hostileAirContacts = getHostileAirContacts(shortSideKey)
     local desiredRange = range
-    if not unit and not canUpdateEveryThirtySeconds() then
+    if not unit and not canUpdateEveryTwentySeconds() then
         return nil
     end
     for k,v in pairs(hostileAirContacts) do
@@ -1323,7 +1369,7 @@ function getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,uni
 	local distanceToShip = 10000
 	local contact = nil
 	-- Check Update
-    if not unit and not canUpdateEverySixtySeconds() then
+    if not unit and not canUpdateEveryThirtySeconds() then
         return nil
     end
 	-- Find Shortest Range Missile
@@ -1369,7 +1415,7 @@ function getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
 	local contact = nil
 	
 	-- Check Update
-    if not unit and not canUpdateEverySixtySeconds() then
+    if not unit and not canUpdateEveryThirtySeconds() then
         return nil
     end
 	-- Find Shortest Range Missile
@@ -1413,7 +1459,7 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
 	local distanceToMissile = 10000
 	local contact = nil
 	-- Check Update
-    if not unit and not canUpdateEveryTenSeconds() then
+    if not unit and not canUpdateEveryFiveSeconds() then
         return nil
     end
 	-- Check Fired on
@@ -1467,6 +1513,38 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
 			local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
             return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,100,2000,true,true,true)}
 		end
+    end
+    -- Catch All Return
+    return nil
+end
+
+function getRetreatPathForDatumNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole)
+    -- Variables
+    local side = VP_GetSide({guid=sideGuid})
+    local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
+    local datumContacts = getDatumContacts(shortSideKey)
+    local maxDesiredRange = 200
+	local distanceToDatum = 10000
+	
+	-- Check Update
+    if not unit and not canUpdateEverySixtySeconds() then
+        return nil
+    end
+	-- Find Shortest Range
+	for i = 1, #datumContacts do
+		local distanceToCurrentDatum = Tool_Range(datumContacts[i],unitGuid)
+		if distanceToCurrentDatum < distanceToDatum then
+			distanceToDatum = distanceToCurrentDatum
+		end
+	end
+	-- Find Checks
+	if distanceToDatum < maxDesiredRange then
+        if #unit.course > 0 then
+            local waypoint = unit.course[#unit.course]
+            return {makeWaypoint(waypoint.latitude,waypoint.longitude,heightToHorizon(distanceToDatum,unitRole,determineUnitOffensive(side.name,unitGuid)),unit.speed,false,true,false)}
+        else
+            return {makeWaypoint(unit.latitude,unit.longitude,heightToHorizon(distanceToDatum,unitRole,determineUnitOffensive(side.name,unitGuid)),unit.speed,false,true,false)}
+        end
     end
     -- Catch All Return
     return nil
@@ -1552,6 +1630,7 @@ function observerActionUpdateMissionInventories(args)
                     local unit = ScenEdit_GetUnit({side=side.name, guid=missionUnits[i]})
                     local unitRole = "support"
                     if unit and unit.type == "Aircraft" then
+						-- Check Airplane role
                         local loadout = ScenEdit_GetLoadout({UnitName=unit.guid, LoadoutID=0})
 						if loadout then
                             if loadout.roles["role"] == 2001 or loadout.roles["role"] == 2002 or loadout.roles["role"] == 2003 or loadout.roles["role"] == 2004 then
@@ -1573,7 +1652,9 @@ function observerActionUpdateMissionInventories(args)
                             end
                         end
 						-- Compare Mission Role Vs Unit Role (Mission Role Takes Precedent In Certain Conditions)
-						if missionRole == "AAW Patrol" or missionRole == "Air Intercept" then
+						if determineUnitRTB(side.name,unit.guid) or determineUnitBingo(side.name,unit.guid) then
+							unitRole = "rtb"
+						elseif missionRole == "AAW Patrol" or missionRole == "Air Intercept" then
 							-- No Override - Units Will Retain Their Respective Role
 						elseif missionRole == "ASuW Patrol (Naval)" or missionRole == "Sea Control Patrol" or missionRole == "ASuW Patrol Mixed" or missionRole == "Naval ASuW Strike" then
 							if unitRole == "ag-asuw" or unitRole == "ag" or unitRole == "asuw" or unitRole == "sead" then
@@ -1731,7 +1812,7 @@ function observerActionUpdateWeaponContacts(args)
     -- Local Variables
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
-    if canUpdateEveryTenSeconds() then
+    if canUpdateEveryFiveSeconds() then
         local weaponContacts = side:contactsBy("6")
         localMemoryContactRemoveFromKey(sideShortKey.."_saved_weap_contact")
         if weaponContacts then
@@ -1782,17 +1863,19 @@ function observerActionUpdateDatumContacts(args)
 		for i = 1, #weaponContacts do
 			local contact = VP_GetContact({guid=weaponContacts[i]})
 			local inside = false
-			for j = 1, #datumContacts do 
-				if Tool_Range({latitude=contact.latitude, longitude=contact.longitude}, datumContacts[j]) <= 100 then
-					-- Update Item
-					datumContacts[j] = {latitude=contact.latitude, longitude=contact.longitude, timeStamp=(ScenEdit_CurrentTime() + 6000)}
-					inside = true
-					break
+			if contact then
+				for j = 1, #datumContacts do 
+					if Tool_Range({latitude=contact.latitude, longitude=contact.longitude}, datumContacts[j]) <= 100 then
+						-- Update Item
+						datumContacts[j] = {latitude=contact.latitude, longitude=contact.longitude, timeStamp=(ScenEdit_CurrentTime() + 18000)}
+						inside = true
+						break
+					end
 				end
-			end
-			if not inside then
-				-- Add New Item
-				datumContacts[#datumContacts + 1] = {latitude=contact.latitude, longitude=contact.longitude, timeStamp=(ScenEdit_CurrentTime() + 6000)}
+				if not inside then
+					-- Add New Item
+					datumContacts[#datumContacts + 1] = {latitude=contact.latitude, longitude=contact.longitude, timeStamp=(ScenEdit_CurrentTime() + 18000)}
+				end
 			end
 		end
 		-- Remove Outdated Timestamps
@@ -1902,6 +1985,17 @@ function actorUpdateSupportUnits(args)
 	end
 end
 
+function actorUpdateRTBUnits(args)
+    -- Locals
+    local sideShortKey = args.shortKey
+    local side = VP_GetSide({guid=args.guid})
+    -- Get Support Units
+    local rtbUnits = getAirRTBInventory(sideShortKey)
+    for i = 1, #rtbUnits do
+		determineAirUnitToRetreatByRole(args.shortKey,args.guid,args.options,rtbUnits[i],"rtb")
+	end
+end
+
 --------------------------------------------------------------------------------------------------------------------------------
 -- Initialize AI
 --------------------------------------------------------------------------------------------------------------------------------
@@ -1948,6 +2042,7 @@ function initializeAresAI(sideName)
     local actorUpdateASWUnitsBT = BT:make(actorUpdateASWUnits,sideGuid,shortSideKey,attributes)
     local actorUpdateSeadUnitsBT = BT:make(actorUpdateSeadUnits,sideGuid,shortSideKey,attributes)
     local actorUpdateSupportUnitsBT = BT:make(actorUpdateSupportUnits,sideGuid,shortSideKey,attributes)
+	local actorUpdateRTBUnitsBT = BT:make(actorUpdateRTBUnits,sideGuid,shortSideKey,attributes)
     -- Add Actors
     aresActorBTMain:addChild(actorUpdateReconUnitsBT)
     aresActorBTMain:addChild(actorUpdateAAWUnitsBT)
@@ -1957,6 +2052,7 @@ function initializeAresAI(sideName)
     aresActorBTMain:addChild(actorUpdateASWUnitsBT)
     aresActorBTMain:addChild(actorUpdateSeadUnitsBT)
     aresActorBTMain:addChild(actorUpdateSupportUnitsBT)
+    aresActorBTMain:addChild(actorUpdateRTBUnitsBT)
     ----------------------------------------------------------------------------------------------------------------------------
     -- Save
     ----------------------------------------------------------------------------------------------------------------------------
