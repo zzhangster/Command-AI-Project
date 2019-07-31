@@ -523,14 +523,14 @@ function distanceToHorizon(height)
 end
 
 function heightToHorizon(distance,role,engaged)
-    if role == "aaw" then
-        return heightToHorizonAntiAirApproach(distance,engaged)
+    if role == "ag-asuw" or role == "asuw" or role == "sead" then
+        return heightToHorizonOverRadarApproach(distance,engaged)
     else
-        return heightToHorizonAntiLandApproach(distance,engaged)
+        return heightToHorizonUnderRadarApproach(distance,engaged)
     end
 end
 
-function heightToHorizonAntiLandApproach(distance,engaged)
+function heightToHorizonOverRadarApproach(distance,engaged)
 	-- Determine Height
 	local height = 0
 	if distance > 300 then
@@ -557,45 +557,52 @@ function heightToHorizonAntiLandApproach(distance,engaged)
 		height = 250
 	end
 	-- Check Engaged
-	if engaged then
-		-- If Higher Than 4000, return original height, else oscillate between "height" and 4000
-		if height > 4000 then
+	if engaged and height < 4000 then
+		if oscillateEveryTwoMinutesGate() then
 			return height
 		else
-			if oscillateEveryTwoMinutesGate() then
-				return height
-			else
-				return "OFF"
-			end
+			return "OFF"
 		end
 	else
 		return height
 	end
 end
 
-function heightToHorizonAntiAirApproach(distance,engaged)
+function heightToHorizonUnderRadarApproach(distance,engaged)
+	-- Determine Height
+	local height = 0
 	if distance > 300 then
 		return "OFF"
 	elseif distance > 200 then
-		return 9000
+		height = 10000
 	elseif distance > 180 then
-		return 6000
+		height = 7000
 	elseif distance > 160 then
-		return 5000
+		height = 6000
 	elseif distance > 140 then
-		return 4000
+		height = 5000
 	elseif distance > 120 then
-		return 3000
+		height = 4000
 	elseif distance > 100 then
-		return 2000
+		height = 2000
 	elseif distance > 80 then
-		return 1000
+		height = 1000
 	elseif distance > 60 then
-		return 500
+		height = 500
 	elseif distance > 40 then
-		return 100
+        height = 250
 	else
-		return 50
+		height = 250
+	end
+	-- Check Engaged
+	if engaged and height < 4000 then
+		if oscillateEveryTwoMinutesGate() then
+			return height
+		else
+			return "OFF"
+		end
+	else
+		return height
 	end
 end
 
@@ -1351,7 +1358,12 @@ function getRetreatPathForAirNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
             local currentRange = Tool_Range(contact.guid,unitGuid)
             if currentRange < desiredRange then
                 local bearing = Tool_Bearing(contact.guid,unitGuid)
-                local retreatLocation = projectLatLong(makeLatLong(unit.latitude,unit.longitude),bearing,20)
+                local retreatLocation = projectLatLong(makeLatLong(unit.latitude,unit.longitude),bearing,10)
+				-- Modify Retreat By Host
+				if unit.base then
+					bearing = Tool_Bearing({latitude=retreatLocation.latitude,longitude=retreatLocation.longitude},unit.base.guid)
+					retreatLocation = projectLatLong(makeLatLong(retreatLocation.latitude, retreatLocation.longitude),bearing,10)
+				end
                 return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,unit.altitude,2000,true,false,true)}
             end
         end
@@ -1390,7 +1402,12 @@ function getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,uni
         -- Emergency Evasion
         local contactPoint = makeLatLong(contact.latitude,contact.longitude)
         local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
-        local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
+        local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,10)
+		-- Modify Retreat By Host
+		if unit.base then
+			bearing = Tool_Bearing({latitude=retreatLocation.latitude,longitude=retreatLocation.longitude},unit.base.guid)
+			retreatLocation = projectLatLong(makeLatLong(retreatLocation.latitude, retreatLocation.longitude),bearing,10)
+		end
         return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,2000,true,true,true)}
     elseif distanceToShip < maxDesiredRange then
         if #unit.course > 0 then
@@ -1436,7 +1453,12 @@ function getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
         -- Emergency Evasion
         local contactPoint = makeLatLong(contact.latitude,contact.longitude)
         local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
-        local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
+        local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,10)
+		-- Modify Retreat By Host
+		if unit.base then
+			bearing = Tool_Bearing({latitude=retreatLocation.latitude,longitude=retreatLocation.longitude},unit.base.guid)
+			retreatLocation = projectLatLong(makeLatLong(retreatLocation.latitude, retreatLocation.longitude),bearing,10)
+		end
         return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,2000,true,true,true)}
     elseif distanceToSAM < maxDesiredRange then
         if #unit.course > 0 then
@@ -1485,8 +1507,8 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
 		-- Emergency Evasion
 		local contactPoint = makeLatLong(contact.latitude,contact.longitude)
 		local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 20
-        local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
-        return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,100,2000,true,true,true)}
+        local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,10)
+        return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,2000,true,true,true)}
 	elseif distanceToMissile < maxDesiredRange then
 		-- Check If Attacking Enemy And Break At Last Minute
 		local isFiringAt = false
@@ -1500,18 +1522,23 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
 				end
 			end
 		end
+		-- Retreat
+		--local contactPoint = makeLatLong(contact.latitude,contact.longitude)
+		--local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 10
+		--local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,10)
+        --return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,2000,true,true,true)}
 		if isFiringAt then
 			if distanceToMissile < 0.75 * isFiringAtRange then
 				local contactPoint = makeLatLong(contact.latitude,contact.longitude)
 				local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 5
-                local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
+				local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
                 return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,100,2000,true,true,true)}
 			end
 		else
 			local contactPoint = makeLatLong(contact.latitude,contact.longitude)
 			local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 5
 			local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
-            return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,100,2000,true,true,true)}
+			return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,100,2000,true,true,true)}
 		end
     end
     -- Catch All Return
