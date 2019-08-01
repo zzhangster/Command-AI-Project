@@ -488,6 +488,16 @@ function canUpdateEveryFiveMinutes()
     end
 end
 
+function oscillateEveryMinuteGate()
+    local averageTime = getTimeStampForKey("GlobalTimeEverySixty") - 30
+    local currentTime = ScenEdit_CurrentTime()
+	if  currentTime > averageTime then
+		return true
+	else
+		return false
+	end
+end
+
 function oscillateEveryTwoMinutesGate()
     local averageTime = getTimeStampForKey("GlobalTimeEveryTwoMinutes") - 45
     local currentTime = ScenEdit_CurrentTime()
@@ -560,7 +570,7 @@ function heightToHorizonOverRadarApproach(distance,engaged,popup)
 	end
 	-- Check Engaged
 	if popup and engaged and height < 4000 then
-		if oscillateEveryTwoMinutesGate() then
+		if oscillateEveryMinuteGate() then
 			return height
 		else
 			return "OFF"
@@ -598,7 +608,7 @@ function heightToHorizonUnderRadarApproach(distance,engaged,popup)
 	end
 	-- Check Engaged
 	if popup and engaged and height < 4000 then
-		if oscillateEveryTwoMinutesGate() then
+		if oscillateEveryMinuteGate() then
 			return height
 		else
 			return "OFF"
@@ -811,8 +821,7 @@ function determineRoleFromLoadOutDatabase(loudoutId,defaultRole)
     end
 end
 
-function determineUnitRTB(sideName,unitGuid)
-    local unit = ScenEdit_GetUnit({side=sideName, guid=unitGuid})
+function determineUnitRTB(unit)
     if unit then
         if unit.unitstate == "RTB" then
             return true
@@ -823,8 +832,7 @@ function determineUnitRTB(sideName,unitGuid)
 	return false
 end
 
-function determineUnitBingo(sideName,unitGuid)
-    local unit = ScenEdit_GetUnit({side=sideName, guid=unitGuid})
+function determineUnitBingo(unit)
     if unit then
         if unit.fuelstate == "IsBingo" then
             return true
@@ -835,8 +843,7 @@ function determineUnitBingo(sideName,unitGuid)
 	return false
 end
 
-function determineUnitOffensive(sideName,unitGuid)
-    local unit = ScenEdit_GetUnit({side=sideName, guid=unitGuid})
+function determineUnitOffensive(unit)
 	if unit.group and #unit.group.unitlist > 0 and unit.group.lead then
 		for k1,v1 in pairs(unit.group.unitlist) do
 			local subUnit = ScenEdit_GetUnit({side=sideName,guid=v1})
@@ -855,10 +862,9 @@ function determineUnitOffensive(sideName,unitGuid)
 	return false
 end
 
-function determineUnitToMissionTarget(sideName,unitGuid)
-    local unit = ScenEdit_GetUnit({side=sideName, guid=unitGuid})
+function determineUnitToMissionTarget(unit)
 	local range = 1000
-	if unit.mission then
+	if unit and unit.mission then
 		if #unit.mission.targetlist > 0 then
 			for k,v in pairs(unit.mission.targetlist) do
 				local targetRange = Tool_Range(unit.guid,v)
@@ -875,53 +881,22 @@ function determineUnitToMissionTarget(sideName,unitGuid)
 	end
 end
 
-function determineThreatRangeByUnitDatabaseId(sideShortKey,sideGuid,contactGuid)
-    local side = VP_GetSide({guid=sideGuid})
-    local contact = ScenEdit_GetContact({side=side.name, guid=contactGuid})
-    local threatRangeDecay = tonumber(ScenEdit_GetKeyValue(sideShortKey.."_threat_range_decay"))
-    local range = 0
-    if not contact then
-        return 5
+function determineUnitRetreatCoordinate(unit,contact,factorHost)
+    if unit and contact then
+        local bearing = Tool_Bearing(contact.guid,unit.guid)
+		if contact.heading and contact.latitude and contact.longitude then
+			local range = Tool_Range(contact.guid,unit.guid)
+			local headerLocation = projectLatLong(makeLatLong(contact.latitude,contact.longitude),contact.heading,range)
+			local headerBearing = Tool_Bearing({latitude=headerLocation.latitude,longitude=headerLocation.longitude},unit.guid)
+			local retreatLocation = projectLatLong(makeLatLong(unit.latitude,unit.longitude),headerBearing,20)
+			ScenEdit_SpecialMessage("Test1","determineUnitRetreatCoordinate")
+			return retreatLocation
+		else
+			return projectLatLong(makeLatLong(unit.latitude,unit.longitude),bearing,10)
+		end
+    else
+        return nil
     end
-    for k,v in pairs(contact.potentialmatches) do
-        local foundRange = ScenEdit_GetKeyValue("thr_"..tostring(v.DBID))
-        if foundRange ~= "" then
-            range = tonumber(foundRange)
-            break
-        end
-    end
-    if range == 0 and contact.actualunitdbid then
-        local foundRange = ScenEdit_GetKeyValue("thr_"..tostring(contact.actualunitdbid))
-        if foundRange ~= "" then
-            range = tonumber(foundRange)
-        end
-    end
-    if range == 0 and contact.side then
-        local unit = ScenEdit_GetUnit({side=contact.side.name, guid=contact.actualunitid})
-        if unit then
-            if unit.autodetectable then
-                local foundRange = ScenEdit_GetKeyValue("thr_"..tostring(unit.dbid))
-                if foundRange ~= "" then
-                    range = tonumber(foundRange)
-                end
-            end
-        end
-    end
-    if range == 0 then
-        if contact.missile_defence <= 2 then
-            range = 5
-        elseif contact.missile_defence <= 5 then
-            range = 20
-        elseif contact.missile_defence <= 7 then
-            range = 40
-        elseif contact.missile_defence <= 20 then
-            range = 80
-        else 
-            range = 130
-        end
-    end
-    -- Return Range
-    return range * threatRangeDecay
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
@@ -1381,7 +1356,7 @@ function getRetreatPathForAirNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
                 local bearing = Tool_Bearing(contact.guid,unitGuid)
                 local retreatLocation = projectLatLong(makeLatLong(unit.latitude,unit.longitude),bearing,10)
 				-- Modify Retreat By Host
-				if unit.base and determineUnitRTB(side.name,unit.guid) then
+				if unit.base and determineUnitRTB(unit) then
 					bearing = Tool_Bearing({latitude=retreatLocation.latitude,longitude=retreatLocation.longitude},unit.base.guid)
 					retreatLocation = projectLatLong(makeLatLong(retreatLocation.latitude, retreatLocation.longitude),bearing,30)
 				end
@@ -1406,7 +1381,7 @@ function getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,uni
         return nil
     end
 	-- Get To Mission Range
-	if determineUnitOffensive(side.name, unit.guid) and determineUnitToMissionTarget(side.name, unit.guid) < 40 then
+	if determineUnitOffensive(unit) and determineUnitToMissionTarget(unit) < 40 then
 		return nil
 	end
 	-- Find Shortest Range Missile
@@ -1429,7 +1404,7 @@ function getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,uni
         local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
         local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,10)
 		-- Modify Retreat By Host
-		if unit.base and determineUnitRTB(side.name,unit.guid) then
+		if unit.base and determineUnitRTB(unit) then
 			bearing = Tool_Bearing({latitude=retreatLocation.latitude,longitude=retreatLocation.longitude},unit.base.guid)
 			retreatLocation = projectLatLong(makeLatLong(retreatLocation.latitude, retreatLocation.longitude),bearing,30)
 		end
@@ -1437,9 +1412,9 @@ function getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,uni
     elseif distanceToShip < maxDesiredRange then
         if #unit.course > 0 then
             local waypoint = unit.course[#unit.course]
-            return {makeWaypoint(waypoint.latitude,waypoint.longitude,heightToHorizon(distanceToShip,unitRole,determineUnitOffensive(side.name,unitGuid)),unit.speed,false,true,false)}
+            return {makeWaypoint(waypoint.latitude,waypoint.longitude,heightToHorizon(distanceToShip,unitRole,determineUnitOffensive(unit)),unit.speed,false,true,false)}
         else
-            return {makeWaypoint(unit.latitude,unit.longitude,heightToHorizon(distanceToShip,unitRole,determineUnitOffensive(side.name,unitGuid)),unit.speed,false,true,false)}
+            return {makeWaypoint(unit.latitude,unit.longitude,heightToHorizon(distanceToShip,unitRole,determineUnitOffensive(unit)),unit.speed,false,true,false)}
         end
     end
     -- Catch All Return
@@ -1460,7 +1435,7 @@ function getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
         return nil
     end
 	-- Get To Mission Range
-	if determineUnitOffensive(side.name, unit.guid) and determineUnitToMissionTarget(side.name, unit.guid) < 40 then
+	if determineUnitOffensive(unit) and determineUnitToMissionTarget(unit) < 40 then
 		return nil
 	end
 	-- Find Shortest Range Missile
@@ -1483,7 +1458,7 @@ function getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
         local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
         local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,10)
 		-- Modify Retreat By Host
-		if unit.base and determineUnitRTB(side.name,unit.guid) then
+		if unit.base and determineUnitRTB(unit) then
 			bearing = Tool_Bearing({latitude=retreatLocation.latitude,longitude=retreatLocation.longitude},unit.base.guid)
 			retreatLocation = projectLatLong(makeLatLong(retreatLocation.latitude, retreatLocation.longitude),bearing,30)
 		end
@@ -1491,9 +1466,9 @@ function getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
     elseif distanceToSAM < maxDesiredRange then
         if #unit.course > 0 then
             local waypoint = unit.course[#unit.course]
-            return {makeWaypoint(waypoint.latitude,waypoint.longitude,heightToHorizon(distanceToSAM,unitRole,determineUnitOffensive(side.name,unitGuid)),unit.speed,false,true,false)}
+            return {makeWaypoint(waypoint.latitude,waypoint.longitude,heightToHorizon(distanceToSAM,unitRole,determineUnitOffensive(unit)),unit.speed,false,true,false)}
         else
-            return {makeWaypoint(unit.latitude,unit.longitude,heightToHorizon(distanceToSAM,unitRole,determineUnitOffensive(side.name,unitGuid)),unit.speed,false,true,false)}
+            return {makeWaypoint(unit.latitude,unit.longitude,heightToHorizon(distanceToSAM,unitRole,determineUnitOffensive(unit)),unit.speed,false,true,false)}
         end
     end
     -- Catch All Return
@@ -1517,7 +1492,7 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
 		return nil
 	end
 	-- Get To Mission Range
-	if determineUnitOffensive(side.name, unit.guid) and determineUnitToMissionTarget(side.name, unit.guid) < 40 then
+	if determineUnitOffensive(unit) and determineUnitToMissionTarget(unit) < 40 then
 		return nil
 	end
 	-- Find Shortest Range Missile
@@ -1536,9 +1511,10 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
 		return nil
 	elseif distanceToMissile < 25 then
 		-- Emergency Evasion
-		local contactPoint = makeLatLong(contact.latitude,contact.longitude)
-		local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 20
-        local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,10)
+		--local contactPoint = makeLatLong(contact.latitude,contact.longitude)
+		--local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 20
+        --local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,10)
+		local retreatLocation = determineUnitRetreatCoordinate(unit,contact,false)
         return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,2000,true,true,true)}
 	elseif distanceToMissile < maxDesiredRange then
 		-- Check If Attacking Enemy And Break At Last Minute
@@ -1554,24 +1530,26 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
 			end
 		end
 		if isFiringAt and distanceToMissile < 0.75 * isFiringAtRange then
-			local contactPoint = makeLatLong(contact.latitude,contact.longitude)
-			local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
-			if contact.heading and (unit.heading - contact.heading) > 0 then
-				bearing = bearing + 10
-			else
-				bearing = bearing - 10
-			end
-			local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
+			--local contactPoint = makeLatLong(contact.latitude,contact.longitude)
+			--local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
+			--if contact.heading and (unit.heading - contact.heading) > 0 then
+			--	bearing = bearing + 10
+			--else
+			--	bearing = bearing - 10
+			--end
+			--local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
+			local retreatLocation = determineUnitRetreatCoordinate(unit,contact,false)
 			return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,2000,true,true,true)}
 		else
-			local contactPoint = makeLatLong(contact.latitude,contact.longitude)
-			local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
-			if contact.heading and (unit.heading - contact.heading) > 0 then
-				bearing = bearing + 10
-			else
-				bearing = bearing - 10
-			end
-			local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
+			--local contactPoint = makeLatLong(contact.latitude,contact.longitude)
+			--local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
+			--if contact.heading and (unit.heading - contact.heading) > 0 then
+			--	bearing = bearing + 10
+			--else
+			--	bearing = bearing - 10
+			--end
+			--local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
+			local retreatLocation = determineUnitRetreatCoordinate(unit,contact,false)
 			return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,2000,true,true,true)}
 		end
     end
@@ -1589,7 +1567,7 @@ function getRetreatPathForDatumNoNavZone(sideGuid,shortSideKey,sideAttributes,un
         return nil
     end
 	-- Get To Mission Range
-	if determineUnitOffensive(side.name, unit.guid) and determineUnitToMissionTarget(side.name, unit.guid) < 40 then
+	if determineUnitOffensive(unit) and determineUnitToMissionTarget(unit) < 40 then
 		return nil
 	end
 	-- Find Shortest Range
@@ -1603,9 +1581,9 @@ function getRetreatPathForDatumNoNavZone(sideGuid,shortSideKey,sideAttributes,un
 	if distanceToDatum < maxDesiredRange then
         if #unit.course > 0 then
             local waypoint = unit.course[#unit.course]
-            return {makeWaypoint(waypoint.latitude,waypoint.longitude,heightToHorizon(distanceToDatum,unitRole,determineUnitOffensive(side.name,unitGuid)),unit.speed,false,true,false)}
+            return {makeWaypoint(waypoint.latitude,waypoint.longitude,heightToHorizon(distanceToDatum,unitRole,determineUnitOffensive(unit)),unit.speed,false,true,false)}
         else
-            return {makeWaypoint(unit.latitude,unit.longitude,heightToHorizon(distanceToDatum,unitRole,determineUnitOffensive(side.name,unitGuid)),unit.speed,false,true,false)}
+            return {makeWaypoint(unit.latitude,unit.longitude,heightToHorizon(distanceToDatum,unitRole,determineUnitOffensive(unit)),unit.speed,false,true,false)}
         end
     end
     -- Catch All Return
@@ -1714,7 +1692,7 @@ function observerActionUpdateMissionInventories(args)
                             end
                         end
 						-- Compare Mission Role Vs Unit Role (Mission Role Takes Precedent In Certain Conditions)
-						if determineUnitRTB(side.name,unit.guid) or determineUnitBingo(side.name,unit.guid) then
+						if determineUnitRTB(unit) or determineUnitBingo(unit) then
 							unitRole = "rtb"
 						elseif missionRole == "AAW Patrol" or missionRole == "Air Intercept" then
 							-- No Override - Units Will Retain Their Respective Role
