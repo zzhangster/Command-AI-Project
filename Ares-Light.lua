@@ -523,14 +523,16 @@ function distanceToHorizon(height)
 end
 
 function heightToHorizon(distance,role,engaged)
-    if role == "ag-asuw" or role == "asuw" or role == "sead" then
-        return heightToHorizonOverRadarApproach(distance,engaged)
+	if role == "aaw" then
+        return heightToHorizonUnderRadarApproach(distance,engaged,false)
+    elseif role == "ag-asuw" or role == "asuw" or role == "sead" then
+        return heightToHorizonOverRadarApproach(distance,engaged,true)
     else
-        return heightToHorizonUnderRadarApproach(distance,engaged)
+        return heightToHorizonUnderRadarApproach(distance,engaged,false)
     end
 end
 
-function heightToHorizonOverRadarApproach(distance,engaged)
+function heightToHorizonOverRadarApproach(distance,engaged,popup)
 	-- Determine Height
 	local height = 0
 	if distance > 300 then
@@ -557,7 +559,7 @@ function heightToHorizonOverRadarApproach(distance,engaged)
 		height = 250
 	end
 	-- Check Engaged
-	if engaged and height < 4000 then
+	if popup and engaged and height < 4000 then
 		if oscillateEveryTwoMinutesGate() then
 			return height
 		else
@@ -568,23 +570,23 @@ function heightToHorizonOverRadarApproach(distance,engaged)
 	end
 end
 
-function heightToHorizonUnderRadarApproach(distance,engaged)
+function heightToHorizonUnderRadarApproach(distance,engaged,popup)
 	-- Determine Height
 	local height = 0
 	if distance > 300 then
 		return "OFF"
 	elseif distance > 200 then
-		height = 10000
+		height = 9000
 	elseif distance > 180 then
-		height = 7000
-	elseif distance > 160 then
 		height = 6000
-	elseif distance > 140 then
+	elseif distance > 160 then
 		height = 5000
-	elseif distance > 120 then
+	elseif distance > 140 then
 		height = 4000
+	elseif distance > 120 then
+		height = 3000
 	elseif distance > 100 then
-		height = 2000
+		height = 1500
 	elseif distance > 80 then
 		height = 1000
 	elseif distance > 60 then
@@ -592,10 +594,10 @@ function heightToHorizonUnderRadarApproach(distance,engaged)
 	elseif distance > 40 then
         height = 250
 	else
-		height = 250
+		height = 100
 	end
 	-- Check Engaged
-	if engaged and height < 4000 then
+	if popup and engaged and height < 4000 then
 		if oscillateEveryTwoMinutesGate() then
 			return height
 		else
@@ -851,6 +853,26 @@ function determineUnitOffensive(sideName,unitGuid)
         end
 	end
 	return false
+end
+
+function determineUnitToMissionTarget(sideName,unitGuid)
+    local unit = ScenEdit_GetUnit({side=sideName, guid=unitGuid})
+	local range = 1000
+	if unit.mission then
+		if #unit.mission.targetlist > 0 then
+			for k,v in pairs(unit.mission.targetlist) do
+				local targetRange = Tool_Range(unit.guid,v)
+				if targetRange < range then
+					range = targetRange
+				end
+			end
+			return range
+		else
+			return range
+		end
+	else
+		return range
+	end
 end
 
 function determineThreatRangeByUnitDatabaseId(sideShortKey,sideGuid,contactGuid)
@@ -1319,7 +1341,6 @@ end
 function determineRetreatPoint(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,avoidanceTypes)
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
-    -- Loop Through Avoidance Types
     for i = 1, #avoidanceTypes do
         local retreatPointArray  = nil
         if avoidanceTypes[i].type == "planes" then
@@ -1360,9 +1381,9 @@ function getRetreatPathForAirNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
                 local bearing = Tool_Bearing(contact.guid,unitGuid)
                 local retreatLocation = projectLatLong(makeLatLong(unit.latitude,unit.longitude),bearing,10)
 				-- Modify Retreat By Host
-				if unit.base then
+				if unit.base and determineUnitRTB(side.name,unit.guid) then
 					bearing = Tool_Bearing({latitude=retreatLocation.latitude,longitude=retreatLocation.longitude},unit.base.guid)
-					retreatLocation = projectLatLong(makeLatLong(retreatLocation.latitude, retreatLocation.longitude),bearing,10)
+					retreatLocation = projectLatLong(makeLatLong(retreatLocation.latitude, retreatLocation.longitude),bearing,30)
 				end
                 return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,unit.altitude,2000,true,false,true)}
             end
@@ -1384,6 +1405,10 @@ function getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,uni
     if not unit and not canUpdateEveryThirtySeconds() then
         return nil
     end
+	-- Get To Mission Range
+	if determineUnitOffensive(side.name, unit.guid) and determineUnitToMissionTarget(side.name, unit.guid) < 40 then
+		return nil
+	end
 	-- Find Shortest Range Missile
 	for k,v in pairs(hostileShipContacts) do
         local currentContact = ScenEdit_GetContact({side=side.name, guid=v})
@@ -1404,9 +1429,9 @@ function getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,uni
         local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
         local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,10)
 		-- Modify Retreat By Host
-		if unit.base then
+		if unit.base and determineUnitRTB(side.name,unit.guid) then
 			bearing = Tool_Bearing({latitude=retreatLocation.latitude,longitude=retreatLocation.longitude},unit.base.guid)
-			retreatLocation = projectLatLong(makeLatLong(retreatLocation.latitude, retreatLocation.longitude),bearing,10)
+			retreatLocation = projectLatLong(makeLatLong(retreatLocation.latitude, retreatLocation.longitude),bearing,30)
 		end
         return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,2000,true,true,true)}
     elseif distanceToShip < maxDesiredRange then
@@ -1430,11 +1455,14 @@ function getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
     local maxDesiredRange = 200
 	local distanceToSAM = 10000
 	local contact = nil
-	
 	-- Check Update
     if not unit and not canUpdateEveryThirtySeconds() then
         return nil
     end
+	-- Get To Mission Range
+	if determineUnitOffensive(side.name, unit.guid) and determineUnitToMissionTarget(side.name, unit.guid) < 40 then
+		return nil
+	end
 	-- Find Shortest Range Missile
 	for k,v in pairs(hostileSAMContacts) do
         local currentContact = ScenEdit_GetContact({side=side.name, guid=v})
@@ -1455,9 +1483,9 @@ function getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
         local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
         local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,10)
 		-- Modify Retreat By Host
-		if unit.base then
+		if unit.base and determineUnitRTB(side.name,unit.guid) then
 			bearing = Tool_Bearing({latitude=retreatLocation.latitude,longitude=retreatLocation.longitude},unit.base.guid)
-			retreatLocation = projectLatLong(makeLatLong(retreatLocation.latitude, retreatLocation.longitude),bearing,10)
+			retreatLocation = projectLatLong(makeLatLong(retreatLocation.latitude, retreatLocation.longitude),bearing,30)
 		end
         return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,2000,true,true,true)}
     elseif distanceToSAM < maxDesiredRange then
@@ -1488,6 +1516,10 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
     if not unit.targetedBy or not unit.firedOn then
 		return nil
 	end
+	-- Get To Mission Range
+	if determineUnitOffensive(side.name, unit.guid) and determineUnitToMissionTarget(side.name, unit.guid) < 40 then
+		return nil
+	end
 	-- Find Shortest Range Missile
 	for k,v in pairs(hostileMissilesContacts) do
         local currentContact = ScenEdit_GetContact({side=side.name, guid=v})
@@ -1499,7 +1531,6 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
 			end
 		end
 	end
-	-- (latitude, longitude, altitude, speed, followPlottedPath, overrideAltitude)
 	-- Find Checks
 	if not contact then
 		return nil
@@ -1522,27 +1553,28 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
 				end
 			end
 		end
-		-- Retreat
-		--local contactPoint = makeLatLong(contact.latitude,contact.longitude)
-		--local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 10
-		--local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,10)
-        --return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,2000,true,true,true)}
-		if isFiringAt then
-			if distanceToMissile < 0.75 * isFiringAtRange then
-				local contactPoint = makeLatLong(contact.latitude,contact.longitude)
-				local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 5
-				local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
-                return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,100,2000,true,true,true)}
+		if isFiringAt and distanceToMissile < 0.75 * isFiringAtRange then
+			local contactPoint = makeLatLong(contact.latitude,contact.longitude)
+			local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
+			if contact.heading and (unit.heading - contact.heading) > 0 then
+				bearing = bearing + 10
+			else
+				bearing = bearing - 10
 			end
+			local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
+			return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,2000,true,true,true)}
 		else
 			local contactPoint = makeLatLong(contact.latitude,contact.longitude)
-			local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 5
+			local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
+			if contact.heading and (unit.heading - contact.heading) > 0 then
+				bearing = bearing + 10
+			else
+				bearing = bearing - 10
+			end
 			local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
-			return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,100,2000,true,true,true)}
+			return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,2000,true,true,true)}
 		end
     end
-    -- Catch All Return
-    return nil
 end
 
 function getRetreatPathForDatumNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole)
@@ -1552,11 +1584,14 @@ function getRetreatPathForDatumNoNavZone(sideGuid,shortSideKey,sideAttributes,un
     local datumContacts = getDatumContacts(shortSideKey)
     local maxDesiredRange = 200
 	local distanceToDatum = 10000
-	
 	-- Check Update
     if not unit and not canUpdateEverySixtySeconds() then
         return nil
     end
+	-- Get To Mission Range
+	if determineUnitOffensive(side.name, unit.guid) and determineUnitToMissionTarget(side.name, unit.guid) < 40 then
+		return nil
+	end
 	-- Find Shortest Range
 	for i = 1, #datumContacts do
 		local distanceToCurrentDatum = Tool_Range(datumContacts[i],unitGuid)
@@ -1816,7 +1851,6 @@ function observerActionUpdateLandContacts(args)
                 local unitType = "land_con"
                 -- Check
                 if string.find(contact.type_description,"SAM") or contact.emissions or string.find(contact.type_description,"Unknown mobile land unit") then 
-					--or string.find(contact.type_description,"HQ-") or string.find(contact.type_description,"SA-") or string.find(contact.type_description,"Unknown mobile land unit") then
                     unitType = "sam_con"
                     -- Add To Memory
                     local stringKey = sideShortKey.."_"..unitType.."_"..contact.posture
@@ -1826,11 +1860,9 @@ function observerActionUpdateLandContacts(args)
                     end
                     stringArray[#stringArray + 1] = contact.guid
                     savedContacts[stringKey] = stringArray
-					--printString = printString..contact.name.."-"..contact.type.."-"..contact.typed.."-"..contact.classificationlevel.."-"..contact.type_description.."- Count: "..#contact.emissions.."\n"
                 end
             end
             localMemoryContactAddToKey(sideShortKey.."_saved_land_contact",savedContacts)
-			--ScenEdit_SpecialMessage("Test1","observerActionUpdateLandContacts - "..printString)
         end
     end
 end
@@ -1911,7 +1943,6 @@ function observerActionUpdateDatumContacts(args)
 				savedContacts[#savedContacts + 1] = datumContacts[i]
 			end
 		end
-		--ScenEdit_SpecialMessage("Test1","Coordinate Check 2 - "..#savedContacts)
         localMemoryContactAddToKey(sideShortKey.."_saved_datum_contact",savedContacts)
     end
 end
