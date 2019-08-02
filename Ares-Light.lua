@@ -888,8 +888,11 @@ function determineUnitRetreatCoordinate(unit,contact,factorHost)
 			local range = Tool_Range(contact.guid,unit.guid)
 			local headerLocation = projectLatLong(makeLatLong(contact.latitude,contact.longitude),contact.heading,range)
 			local headerBearing = Tool_Bearing({latitude=headerLocation.latitude,longitude=headerLocation.longitude},unit.guid)
-			local retreatLocation = projectLatLong(makeLatLong(unit.latitude,unit.longitude),headerBearing,20)
-			ScenEdit_SpecialMessage("Test1","determineUnitRetreatCoordinate")
+			local retreatLocation = projectLatLong(makeLatLong(unit.latitude,unit.longitude),bearing,20)
+			retreatLocation = projectLatLong(makeLatLong(unit.latitude,unit.longitude),headerBearing,20)
+
+			--local retreatLocation = projectLatLong(makeLatLong(unit.latitude,unit.longitude),headerBearing,20)
+			--ScenEdit_SpecialMessage("Test1","determineUnitRetreatCoordinate")
 			return retreatLocation
 		else
 			return projectLatLong(makeLatLong(unit.latitude,unit.longitude),bearing,10)
