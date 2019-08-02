@@ -573,9 +573,9 @@ function distanceToHorizon(height)
 end
 
 function heightToHorizon(distance,role,engaged)
-	if role == "aaw" then
+	if role == GLOBAL_ROLE_AAW then
         return heightToHorizonUnderRadarApproach(distance,engaged,false)
-    elseif role == "ag-asuw" or role == "asuw" or role == "sead" then
+    elseif role == GLOBAL_ROLE_AG_ASUW or role == GLOBAL_ROLE_ASUW or role == GLOBAL_ROLE_SEAD then
         return heightToHorizonOverRadarApproach(distance,engaged,true)
     else
         return heightToHorizonUnderRadarApproach(distance,engaged,false)
@@ -1301,21 +1301,21 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
         -- Find Unit Retreat Point
         local unitRetreatPointArray = {}
         -- Determine Retreat Type By Role
-        if unitRole == "aaw" then
+        if unitRole == GLOBAL_ROLE_AAW then
             unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=60},{type="sams",range=30},{type="ships",range=30},{type="datum",range=30}})
-        elseif unitRole == "ag-asuw" then
+        elseif unitRole == GLOBAL_ROLE_AG_ASUW then
             unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=80},{type="sams",range=25},{type="ships",range=0},{type="datum",range=30}})
-        elseif unitRole == "ag" then
+        elseif unitRole == GLOBAL_ROLE_AG then
             unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=60},{type="planes",range=60},{type="ships",range=60},{type="sams",range=0},{type="datum",range=30}})
-        elseif unitRole == "asuw" then
+        elseif unitRole == GLOBAL_ROLE_ASUW then
             unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=80},{type="planes",range=80},{type="sams",range=0},{type="ships",range=0},{type="datum",range=30}})
-        elseif unitRole == "support" then
+        elseif unitRole == GLOBAL_ROLE_SUPPORT then
             unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=200},{type="planes",range=200},{type="sams",range=100},{type="ships",range=100},{type="datum",range=30}})
-        elseif unitRole == "asw" then
+        elseif unitRole == GLOBAL_ROLE_ASW then
             unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=80},{type="planes",range=80},{type="sams",range=30},{type="ships",range=30},{type="datum",range=30}})
-        elseif unitRole == "recon" then
+        elseif unitRole == GLOBAL_ROLE_RECON then
             unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=60},{type="planes",range=60},{type="sams",range=30},{type="ships",range=30},{type="datum",range=30}})
-        elseif unitRole == "sead" then
+        elseif unitRole == GLOBAL_ROLE_SEAD then
             unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=60},{type="planes",range=60},{type="sams",range=0},{type="ships",range=0},{type="datum",range=30}})
 		elseif unitRole == "rtb" then
             unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=60},{type="planes",range=60},{type="sams",range=30},{type="ships",range=30},{type="datum",range=30}})
@@ -1684,27 +1684,27 @@ function observerActionUpdateMissionInventories(args)
 				-- Loop Through Units And Determine Unit Role
 				for i = 1, #missionUnits do
                     local unit = ScenEdit_GetUnit({side=side.name, guid=missionUnits[i]})
-                    local unitRole = "support"
+                    local unitRole = GLOBAL_ROLE_SUPPORT
                     if unit and unit.type == "Aircraft" then
 						-- Check Airplane role
                         local loadout = ScenEdit_GetLoadout({UnitName=unit.guid, LoadoutID=0})
 						if loadout then
                             if loadout.roles["role"] == 2001 or loadout.roles["role"] == 2002 or loadout.roles["role"] == 2003 or loadout.roles["role"] == 2004 then
-                                unitRole = "aaw"
+                                unitRole = GLOBAL_ROLE_AAW
                             elseif loadout.roles["role"] == 3001 or loadout.roles["role"] == 3002 or loadout.roles["role"] == 3005 then
-                                unitRole = "ag-asuw"
+                                unitRole = GLOBAL_ROLE_AG_ASUW
                             elseif loadout.roles["role"] == 3101 or loadout.roles["role"] == 3102 or loadout.roles["role"] == 3105 then
-                                unitRole = "ag"
+                                unitRole = GLOBAL_ROLE_AG
                             elseif loadout.roles["role"] == 3201 or loadout.roles["role"] == 3202 or loadout.roles["role"] == 3205 then
-                                unitRole = "asuw"
+                                unitRole = GLOBAL_ROLE_ASUW
                             elseif loadout.roles["role"] == 4001 or loadout.roles["role"] == 4002 or loadout.roles["role"] == 4003 or loadout.roles["role"] == 4004 or loadout.roles["role"] == 4101 then
-                                unitRole = "support"
+                                unitRole = GLOBAL_ROLE_SUPPORT
                             elseif loadout.roles["role"] == 6001 or loadout.roles["role"] == 6002 then
-                                unitRole = "asw"
+                                unitRole = GLOBAL_ROLE_ASW
                             elseif loadout.roles["role"] == 7001 or loadout.roles["role"] == 7002 or loadout.roles["role"] == 7003 or loadout.roles["role"] == 7004 or loadout.roles["role"] == 7005 then
-                                unitRole = "recon"
+                                unitRole = GLOBAL_ROLE_RECON
                             elseif loadout.roles["role"] == 3003 or loadout.roles["role"] == 3004 or loadout.roles["role"] == 3103 or loadout.roles["role"] == 3104 or loadout.roles["role"] == 3203 or loadout.roles["role"] == 3204 then
-                                unitRole = "sead"
+                                unitRole = GLOBAL_ROLE_SEAD
                             end
                         end
 						-- Compare Mission Role Vs Unit Role (Mission Role Takes Precedent In Certain Conditions)
@@ -1713,21 +1713,21 @@ function observerActionUpdateMissionInventories(args)
 						elseif missionRole == "AAW Patrol" or missionRole == "Air Intercept" then
 							-- No Override - Units Will Retain Their Respective Role
 						elseif missionRole == "ASuW Patrol (Naval)" or missionRole == "Sea Control Patrol" or missionRole == "ASuW Patrol Mixed" or missionRole == "Naval ASuW Strike" then
-							if unitRole == "ag-asuw" or unitRole == "ag" or unitRole == "asuw" or unitRole == "sead" then
-								unitRole = "asuw"
+							if unitRole == GLOBAL_ROLE_AG_ASUW or unitRole == GLOBAL_ROLE_AG or unitRole == GLOBAL_ROLE_ASUW or unitRole == GLOBAL_ROLE_SEAD then
+								unitRole = GLOBAL_ROLE_ASUW
 							end
 						elseif missionRole == "ASW Patrol" or missionRole == "ASW Strike" then
 							-- No Override - Units Will Retain Their Respective Role
 						elseif missionRole == "ASuW Patrol Ground" or missionRole == "Land Strike" then
-							if unitRole == "ag-asuw" or unitRole == "ag" then
-								unitRole = "ag"
+							if unitRole == GLOBAL_ROLE_AG_ASUW or unitRole == GLOBAL_ROLE_AG then
+								unitRole = GLOBAL_ROLE_AG
 							end
 						elseif missionRole == "SEAD Patrol" then
-							if unitRole == "ag-asuw" or unitRole == "ag" then
-								unitRole = "sead"
+							if unitRole == GLOBAL_ROLE_AG_ASUW or unitRole == GLOBAL_ROLE_AG then
+								unitRole = GLOBAL_ROLE_SEAD
 							end
 						elseif missionRole == "Ferry" then
-							unitRole = "support"
+							unitRole = GLOBAL_ROLE_SUPPORT
 						end
 						-- Add To Memory
 						local stringKey = sideShortKey.."_"..unitRole
@@ -1956,7 +1956,7 @@ function actorUpdateReconUnits(args)
     -- Get Recon Units
     local reconUnits = getAirReconInventory(sideShortKey)
     for i = 1, #reconUnits do
-		determineAirUnitToRetreatByRole(args.shortKey,args.guid,args.options,reconUnits[i],"recon") 
+		determineAirUnitToRetreatByRole(args.shortKey,args.guid,args.options,reconUnits[i],GLOBAL_ROLE_RECON) 
 	end
 end
 
@@ -1967,7 +1967,7 @@ function actorUpdateAAWUnits(args)
     -- Get AAW Units
     local aawUnits = getAirAawInventory(sideShortKey)
     for i = 1, #aawUnits do
-		determineAirUnitToRetreatByRole(args.shortKey,args.guid,args.options,aawUnits[i],"aaw")
+		determineAirUnitToRetreatByRole(args.shortKey,args.guid,args.options,aawUnits[i],GLOBAL_ROLE_AAW)
 	end
 end
 
@@ -1978,7 +1978,7 @@ function actorUpdateAGUnits(args)
     -- Get AG Units
     local agUnits = getAirAgInventory(sideShortKey)
     for i = 1, #agUnits do
-		determineAirUnitToRetreatByRole(args.shortKey,args.guid,args.options,agUnits[i],"ag")
+		determineAirUnitToRetreatByRole(args.shortKey,args.guid,args.options,agUnits[i],GLOBAL_ROLE_AG)
 	end
 end
 
@@ -1989,7 +1989,7 @@ function actorUpdateAGAsuWUnits(args)
     -- Get AG-ASUW Units
     local agAsuwUnits = getAirAgAsuwInventory(sideShortKey)
     for i = 1, #agAsuwUnits do
-		determineAirUnitToRetreatByRole(args.shortKey,args.guid,args.options,agAsuwUnits[i],"ag-asuw")
+		determineAirUnitToRetreatByRole(args.shortKey,args.guid,args.options,agAsuwUnits[i],GLOBAL_ROLE_AG_ASUW)
 	end
 end
 
@@ -2000,7 +2000,7 @@ function actorUpdateAsuWUnits(args)
     -- Get ASUW Units
     local asuwUnits = getAirAsuwInventory(sideShortKey)
     for i = 1, #asuwUnits do
-		determineAirUnitToRetreatByRole(args.shortKey,args.guid,args.options,asuwUnits[i],"asuw")
+		determineAirUnitToRetreatByRole(args.shortKey,args.guid,args.options,asuwUnits[i],GLOBAL_ROLE_ASUW)
 	end
 end
 
@@ -2011,7 +2011,7 @@ function actorUpdateASWUnits(args)
     -- Get ASUW Units
     local asuwUnits = getAirAswInventory(sideShortKey)
     for i = 1, #asuwUnits do
-		determineAirUnitToRetreatByRole(args.shortKey,args.guid,args.options,asuwUnits[i],"asw")
+		determineAirUnitToRetreatByRole(args.shortKey,args.guid,args.options,asuwUnits[i],GLOBAL_ROLE_ASW)
 	end
 end
 
@@ -2033,7 +2033,7 @@ function actorUpdateSupportUnits(args)
     -- Get Support Units
     local supportUnits = getAirSupportInventory(sideShortKey)
     for i = 1, #supportUnits do
-		determineAirUnitToRetreatByRole(args.shortKey,args.guid,args.options,supportUnits[i],"support")
+		determineAirUnitToRetreatByRole(args.shortKey,args.guid,args.options,supportUnits[i],GLOBAL_ROLE_SUPPORT)
 	end
 end
 
