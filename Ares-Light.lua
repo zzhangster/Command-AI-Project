@@ -888,12 +888,13 @@ function determineUnitRetreatCoordinate(unit,contact,factorHost)
 			local range = Tool_Range(contact.guid,unit.guid)
 			local headerLocation = projectLatLong(makeLatLong(contact.latitude,contact.longitude),contact.heading,range)
 			local headerBearing = Tool_Bearing({latitude=headerLocation.latitude,longitude=headerLocation.longitude},unit.guid)
-			local retreatLocation = projectLatLong(makeLatLong(unit.latitude,unit.longitude),bearing,20)
-			retreatLocation = projectLatLong(makeLatLong(unit.latitude,unit.longitude),headerBearing,20)
-
-			--local retreatLocation = projectLatLong(makeLatLong(unit.latitude,unit.longitude),headerBearing,20)
-			--ScenEdit_SpecialMessage("Test1","determineUnitRetreatCoordinate")
-			return retreatLocation
+			local retreatLocation = projectLatLong(makeLatLong(unit.latitude,unit.longitude),bearing,25)
+			if factorHost and unit.base then
+				bearing = Tool_Bearing(unit.guid,unit.base.guid)
+				return projectLatLong(makeLatLong(retreatLocation.latitude,retreatLocation.longitude),bearing,30)
+			else
+				return projectLatLong(makeLatLong(retreatLocation.latitude,retreatLocation.longitude),headerBearing,10)
+			end
 		else
 			return projectLatLong(makeLatLong(unit.latitude,unit.longitude),bearing,10)
 		end
@@ -1513,10 +1514,6 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
 	if not contact then
 		return nil
 	elseif distanceToMissile < 25 then
-		-- Emergency Evasion
-		--local contactPoint = makeLatLong(contact.latitude,contact.longitude)
-		--local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid) - 20
-        --local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,10)
 		local retreatLocation = determineUnitRetreatCoordinate(unit,contact,false)
         return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,2000,true,true,true)}
 	elseif distanceToMissile < maxDesiredRange then
@@ -1533,25 +1530,9 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
 			end
 		end
 		if isFiringAt and distanceToMissile < 0.75 * isFiringAtRange then
-			--local contactPoint = makeLatLong(contact.latitude,contact.longitude)
-			--local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
-			--if contact.heading and (unit.heading - contact.heading) > 0 then
-			--	bearing = bearing + 10
-			--else
-			--	bearing = bearing - 10
-			--end
-			--local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
 			local retreatLocation = determineUnitRetreatCoordinate(unit,contact,false)
 			return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,2000,true,true,true)}
 		else
-			--local contactPoint = makeLatLong(contact.latitude,contact.longitude)
-			--local bearing = Tool_Bearing({latitude=contactPoint.latitude,longitude=contactPoint.longitude},unitGuid)
-			--if contact.heading and (unit.heading - contact.heading) > 0 then
-			--	bearing = bearing + 10
-			--else
-			--	bearing = bearing - 10
-			--end
-			--local retreatLocation = projectLatLong(makeLatLong(unit.latitude, unit.longitude),bearing,20)
 			local retreatLocation = determineUnitRetreatCoordinate(unit,contact,false)
 			return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,2000,true,true,true)}
 		end
