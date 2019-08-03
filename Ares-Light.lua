@@ -210,6 +210,12 @@ local GLOBAL_ROLE_ASW = "asw"
 local GLOBAL_ROLE_RECON = "recon"
 local GLOBAL_ROLE_SEAD = "sead"
 local GLOBAL_ROLE_RTB = "rtb"
+-- Types
+local GLOBAL_TYPE_MISSILES = "missiles"
+local GLOBAL_TYPE_PLANES = "planes"
+local GLOBAL_TYPE_SAMS = "sams"
+local GLOBAL_TYPE_SHIPS = "ships"
+local GLOBAL_TYPE_DATUM = "datum"
 -- Memory Keys
 local GLOBAL_ARES_GENERIC_KEY = "ares_generic_key"
 local GLOBAL_ARES_INVENTORY_KEY = "ares_inventory_key"
@@ -233,6 +239,7 @@ local GLOBAL_TIME_EVERY_TWO_MINUTES = "GlobalTimeEveryTwoMinutes"
 local GLOBAL_TIME_EVERY_FIVE_MINUTES = "GlobalTimeEveryFiveMinutes"
 -- Misc Values
 local GLOBAL_OFF = "OFF"
+local GLOBAL_ROLE = "role"
 -- Unit States
 local GLOBAL_UNIT_STATE_RTB = "RTB"
 local GLOBAL_UNIT_STATE_IS_BINGO = "IsBingo"
@@ -245,13 +252,13 @@ function localMemoryResetAll()
 end
 
 function localMemoryGetFromKey(primaryKey)
-    if not aresLocalMemory["ares_generic_key"] then
-        aresLocalMemory["ares_generic_key"] = {}
+    if not aresLocalMemory[GLOBAL_ARES_GENERIC_KEY] then
+        aresLocalMemory[GLOBAL_ARES_GENERIC_KEY] = {}
     end
-    if not (aresLocalMemory["ares_generic_key"])[primaryKey] then
-        (aresLocalMemory["ares_generic_key"])[primaryKey] = {}
+    if not (aresLocalMemory[GLOBAL_ARES_GENERIC_KEY])[primaryKey] then
+        (aresLocalMemory[GLOBAL_ARES_GENERIC_KEY])[primaryKey] = {}
     end
-    return (aresLocalMemory["ares_generic_key"])[primaryKey]
+    return (aresLocalMemory[GLOBAL_ARES_GENERIC_KEY])[primaryKey]
 end
 
 function localMemoryAddToKey(primaryKey,value)
@@ -260,9 +267,9 @@ function localMemoryAddToKey(primaryKey,value)
 end
 
 function localMemoryRemoveFromKey(primaryKey)
-    if aresLocalMemory["ares_generic_key"] then
-        if (aresLocalMemory["ares_generic_key"])[primaryKey] then
-            (aresLocalMemory["ares_generic_key"])[primaryKey] = {}
+    if aresLocalMemory[GLOBAL_ARES_GENERIC_KEY] then
+        if (aresLocalMemory[GLOBAL_ARES_GENERIC_KEY])[primaryKey] then
+            (aresLocalMemory[GLOBAL_ARES_GENERIC_KEY])[primaryKey] = {}
         end
     end
 end
@@ -281,17 +288,17 @@ end
 -- Local Inventory Memory
 --------------------------------------------------------------------------------------------------------------------------------
 function localMemoryInventoryResetAll()
-    aresLocalMemory["ares_inventory_key"] = {}
+    aresLocalMemory[GLOBAL_ARES_INVENTORY_KEY] = {}
 end
 
 function localMemoryInventoryGetFromKey(primaryKey)
-    if not aresLocalMemory["ares_inventory_key"] then
-        aresLocalMemory["ares_inventory_key"] = {}
+    if not aresLocalMemory[GLOBAL_ARES_INVENTORY_KEY] then
+        aresLocalMemory[GLOBAL_ARES_INVENTORY_KEY] = {}
     end
-    if not (aresLocalMemory["ares_inventory_key"])[primaryKey] then
-        (aresLocalMemory["ares_inventory_key"])[primaryKey] = {}
+    if not (aresLocalMemory[GLOBAL_ARES_INVENTORY_KEY])[primaryKey] then
+        (aresLocalMemory[GLOBAL_ARES_INVENTORY_KEY])[primaryKey] = {}
     end
-    return (aresLocalMemory["ares_inventory_key"])[primaryKey]
+    return (aresLocalMemory[GLOBAL_ARES_INVENTORY_KEY])[primaryKey]
 end
 
 function localMemoryInventoryAddToKey(primaryKey,value)
@@ -300,9 +307,9 @@ function localMemoryInventoryAddToKey(primaryKey,value)
 end
 
 function localMemoryInventoryRemoveFromKey(primaryKey)
-    if aresLocalMemory["ares_inventory_key"] then
-        if (aresLocalMemory["ares_inventory_key"])[primaryKey] then
-            (aresLocalMemory["ares_inventory_key"])[primaryKey] = {}
+    if aresLocalMemory[GLOBAL_ARES_INVENTORY_KEY] then
+        if (aresLocalMemory[GLOBAL_ARES_INVENTORY_KEY])[primaryKey] then
+            (aresLocalMemory[GLOBAL_ARES_INVENTORY_KEY])[primaryKey] = {}
         end
     end
 end
@@ -339,17 +346,17 @@ end
 -- Local Contact Memory
 --------------------------------------------------------------------------------------------------------------------------------
 function localMemoryContactResetAll()
-    aresLocalMemory["ares_contact_key"] = {}
+    aresLocalMemory[GLOBAL_ARES_CONTACT_KEY] = {}
 end
 
 function localMemoryContactGetFromKey(primaryKey)
-    if not aresLocalMemory["ares_contact_key"] then
-        aresLocalMemory["ares_contact_key"] = {}
+    if not aresLocalMemory[GLOBAL_ARES_CONTACT_KEY] then
+        aresLocalMemory[GLOBAL_ARES_CONTACT_KEY] = {}
     end
-    if not (aresLocalMemory["ares_contact_key"])[primaryKey] then
-        (aresLocalMemory["ares_contact_key"])[primaryKey] = {}
+    if not (aresLocalMemory[GLOBAL_ARES_CONTACT_KEY])[primaryKey] then
+        (aresLocalMemory[GLOBAL_ARES_CONTACT_KEY])[primaryKey] = {}
     end
-    return (aresLocalMemory["ares_contact_key"])[primaryKey]
+    return (aresLocalMemory[GLOBAL_ARES_CONTACT_KEY])[primaryKey]
 end
 
 function localMemoryContactAddToKey(primaryKey,value)
@@ -358,9 +365,9 @@ function localMemoryContactAddToKey(primaryKey,value)
 end
 
 function localMemoryContactRemoveFromKey(primaryKey)
-    if aresLocalMemory["ares_contact_key"] then
-        if (aresLocalMemory["ares_contact_key"])[primaryKey] then
-            (aresLocalMemory["ares_contact_key"])[primaryKey] = {}
+    if aresLocalMemory[GLOBAL_ARES_CONTACT_KEY] then
+        if (aresLocalMemory[GLOBAL_ARES_CONTACT_KEY])[primaryKey] then
+            (aresLocalMemory[GLOBAL_ARES_CONTACT_KEY])[primaryKey] = {}
         end
     end
 end
@@ -413,43 +420,43 @@ function setTimeStampForKey(primaryKey,time)
 end
 
 function updateAITimes()
-    local timeStampEveryTwo = getTimeStampForKey("GlobalTimeEveryTwo")
-    local timeStampEveryFive = getTimeStampForKey("GlobalTimeEveryFive")
-    local timeStampEveryTen = getTimeStampForKey("GlobalTimeEveryTen")
-    local timeStampEveryTwenty = getTimeStampForKey("GlobalTimeEveryTwenty")
-    local timeStampEveryThirty = getTimeStampForKey("GlobalTimeEveryThirty")
-    local timeStampEverySixty = getTimeStampForKey("GlobalTimeEverySixty")
-    local timeStampEveryTwoMinutes = getTimeStampForKey("GlobalTimeEveryTwoMinutes")
-    local timeStampEveryFiveMinutes = getTimeStampForKey("GlobalTimeEveryFiveMinutes")
+    local timeStampEveryTwo = getTimeStampForKey(GLOBAL_TIME_EVERY_TWO_SECONDS)
+    local timeStampEveryFive = getTimeStampForKey(GLOBAL_TIME_EVERY_FIVE_SECONDS)
+    local timeStampEveryTen = getTimeStampForKey(GLOBAL_TIME_EVERY_TEN_SECONDS)
+    local timeStampEveryTwenty = getTimeStampForKey(GLOBAL_TIME_EVERY_TWENTY_SECONDS)
+    local timeStampEveryThirty = getTimeStampForKey(GLOBAL_TIME_EVERY_THIRTY_SECONDS)
+    local timeStampEverySixty = getTimeStampForKey(GLOBAL_TIME_EVERY_SIXTY_SECONDS)
+    local timeStampEveryTwoMinutes = getTimeStampForKey(GLOBAL_TIME_EVERY_TWO_MINUTES)
+    local timeStampEveryFiveMinutes = getTimeStampForKey(GLOBAL_TIME_EVERY_FIVE_MINUTES)
     local currentTime = ScenEdit_CurrentTime()
     if timeStampEveryTwo < currentTime then
-        setTimeStampForKey("GlobalTimeEveryTwo",tostring(currentTime + 2))
+        setTimeStampForKey(GLOBAL_TIME_EVERY_TWO_SECONDS,tostring(currentTime + 2))
     end
     if timeStampEveryFive < currentTime then
-        setTimeStampForKey("GlobalTimeEveryFive",tostring(currentTime + 5))
+        setTimeStampForKey(GLOBAL_TIME_EVERY_FIVE_SECONDS,tostring(currentTime + 5))
     end
     if timeStampEveryTen < currentTime then
-        setTimeStampForKey("GlobalTimeEveryTen",tostring(currentTime + 10))
+        setTimeStampForKey(GLOBAL_TIME_EVERY_TEN_SECONDS,tostring(currentTime + 10))
     end
     if timeStampEveryTwenty < currentTime then
-        setTimeStampForKey("GlobalTimeEveryTwenty",tostring(currentTime + 20))
+        setTimeStampForKey(GLOBAL_TIME_EVERY_TWENTY_SECONDS,tostring(currentTime + 20))
     end
     if timeStampEveryThirty < currentTime then
-        setTimeStampForKey("GlobalTimeEveryThirty",tostring(currentTime + 30))
+        setTimeStampForKey(GLOBAL_TIME_EVERY_THIRTY_SECONDS,tostring(currentTime + 30))
     end
     if timeStampEverySixty < currentTime then
-        setTimeStampForKey("GlobalTimeEverySixty",tostring(currentTime + 60))
+        setTimeStampForKey(GLOBAL_TIME_EVERY_SIXTY_SECONDS,tostring(currentTime + 60))
     end
     if timeStampEveryTwoMinutes < currentTime then
-        setTimeStampForKey("GlobalTimeEveryTwoMinutes",tostring(currentTime + 120))
+        setTimeStampForKey(GLOBAL_TIME_EVERY_TWO_MINUTES,tostring(currentTime + 120))
     end
     if timeStampEveryFiveMinutes < currentTime then
-        setTimeStampForKey("GlobalTimeEveryFiveMinutes",tostring(currentTime + 300))
+        setTimeStampForKey(GLOBAL_TIME_EVERY_FIVE_MINUTES,tostring(currentTime + 300))
     end
 end
 
 function canUpdateEveryTwoSecond()
-    local nextTime = getTimeStampForKey("GlobalTimeEveryTwo")
+    local nextTime = getTimeStampForKey(GLOBAL_TIME_EVERY_TWO_SECONDS)
     local currentTime = ScenEdit_CurrentTime()
     if nextTime < currentTime then
         return true
@@ -459,7 +466,7 @@ function canUpdateEveryTwoSecond()
 end
 
 function canUpdateEveryFiveSeconds()
-    local nextTime = getTimeStampForKey("GlobalTimeEveryFive")
+    local nextTime = getTimeStampForKey(GLOBAL_TIME_EVERY_FIVE_SECONDS)
     local currentTime = ScenEdit_CurrentTime()
     if nextTime < currentTime then
         return true
@@ -479,7 +486,7 @@ function canUpdateEveryTenSeconds()
 end
 
 function canUpdateEveryTwentySeconds()
-    local nextTime = getTimeStampForKey("GlobalTimeEveryTwenty")
+    local nextTime = getTimeStampForKey(GLOBAL_TIME_EVERY_TWENTY_SECONDS)
     local currentTime = ScenEdit_CurrentTime()
     if nextTime < currentTime then
         return true
@@ -489,7 +496,7 @@ function canUpdateEveryTwentySeconds()
 end
 
 function canUpdateEveryThirtySeconds()
-    local nextTime = getTimeStampForKey("GlobalTimeEveryThirty")
+    local nextTime = getTimeStampForKey(GLOBAL_TIME_EVERY_THIRTY_SECONDS)
     local currentTime = ScenEdit_CurrentTime()
     if nextTime < currentTime then
         return true
@@ -499,7 +506,7 @@ function canUpdateEveryThirtySeconds()
 end
 
 function canUpdateEverySixtySeconds()
-    local nextTime = getTimeStampForKey("GlobalTimeEverySixty")
+    local nextTime = getTimeStampForKey(GLOBAL_TIME_EVERY_SIXTY_SECONDS)
     local currentTime = ScenEdit_CurrentTime()
     if nextTime < currentTime then
         return true
@@ -509,7 +516,7 @@ function canUpdateEverySixtySeconds()
 end
 
 function canUpdateEveryTwoMinutes()
-    local nextTime = getTimeStampForKey("GlobalTimeEveryTwoMinutes")
+    local nextTime = getTimeStampForKey(GLOBAL_TIME_EVERY_TWO_MINUTES)
     local currentTime = ScenEdit_CurrentTime()
     if nextTime < currentTime then
         return true
@@ -519,7 +526,7 @@ function canUpdateEveryTwoMinutes()
 end
 
 function canUpdateEveryFiveMinutes()
-    local nextTime = getTimeStampForKey("GlobalTimeEveryFiveMinutes")
+    local nextTime = getTimeStampForKey(GLOBAL_TIME_EVERY_FIVE_MINUTES)
     local currentTime = ScenEdit_CurrentTime()
     if nextTime < currentTime then
         return true
@@ -529,7 +536,7 @@ function canUpdateEveryFiveMinutes()
 end
 
 function oscillateEveryMinuteGate()
-    local averageTime = getTimeStampForKey("GlobalTimeEverySixty") - 30
+    local averageTime = getTimeStampForKey(GLOBAL_TIME_EVERY_SIXTY_SECONDS) - 30
     local currentTime = ScenEdit_CurrentTime()
 	if  currentTime > averageTime then
 		return true
@@ -539,7 +546,7 @@ function oscillateEveryMinuteGate()
 end
 
 function oscillateEveryTwoMinutesGate()
-    local averageTime = getTimeStampForKey("GlobalTimeEveryTwoMinutes") - 45
+    local averageTime = getTimeStampForKey(GLOBAL_TIME_EVERY_TWO_MINUTES) - 45
     local currentTime = ScenEdit_CurrentTime()
 	if  currentTime > averageTime then
 		return true
@@ -586,7 +593,7 @@ function heightToHorizonOverRadarApproach(distance,engaged,popup)
 	-- Determine Height
 	local height = 0
 	if distance > 300 then
-		return "OFF"
+		return GLOBAL_OFF
 	elseif distance > 200 then
 		height = 10000
 	elseif distance > 180 then
@@ -613,7 +620,7 @@ function heightToHorizonOverRadarApproach(distance,engaged,popup)
 		if oscillateEveryMinuteGate() then
 			return height
 		else
-			return "OFF"
+			return GLOBAL_OFF
 		end
 	else
 		return height
@@ -624,7 +631,7 @@ function heightToHorizonUnderRadarApproach(distance,engaged,popup)
 	-- Determine Height
 	local height = 0
 	if distance > 300 then
-		return "OFF"
+		return GLOBAL_OFF
 	elseif distance > 200 then
 		height = 9000
 	elseif distance > 180 then
@@ -651,7 +658,7 @@ function heightToHorizonUnderRadarApproach(distance,engaged,popup)
 		if oscillateEveryMinuteGate() then
 			return height
 		else
-			return "OFF"
+			return GLOBAL_OFF
 		end
 	else
 		return height
@@ -863,7 +870,7 @@ end
 
 function determineUnitRTB(unit)
     if unit then
-        if unit.unitstate == "RTB" then
+        if unit.unitstate == GLOBAL_UNIT_STATE_RTB then
             return true
         else
             return false
@@ -874,7 +881,7 @@ end
 
 function determineUnitBingo(unit)
     if unit then
-        if unit.fuelstate == "IsBingo" then
+        if unit.fuelstate == GLOBAL_UNIT_STATE_IS_BINGO then
             return true
         else
             return false
@@ -887,13 +894,13 @@ function determineUnitOffensive(unit)
 	if unit.group and #unit.group.unitlist > 0 and unit.group.lead then
 		for k1,v1 in pairs(unit.group.unitlist) do
 			local subUnit = ScenEdit_GetUnit({side=sideName,guid=v1})
-			if subUnit.unitstate == "EngagedOffensive" then
+			if subUnit.unitstate == GLOBAL_UNIT_STATE_ENGAGED_OFFENSIVE then
 				return true
 			end
         end
 		return false
 	else
-        if unit.unitstate == "EngagedOffensive" then
+        if unit.unitstate == GLOBAL_UNIT_STATE_ENGAGED_OFFENSIVE then
             return true
         else
             return false
@@ -950,7 +957,7 @@ end
 -- Get Air Inventory By Role
 --------------------------------------------------------------------------------------------------------------------------------
 function getAirReconInventory(sideShortKey)
-    local savedInventory = localMemoryInventoryGetFromKey(sideShortKey.."_saved_air_inventory")
+    local savedInventory = localMemoryInventoryGetFromKey(sideShortKey..GLOBAL_SAVED_AIR_INVENTORY_KEY)
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_recon"] then
@@ -964,7 +971,7 @@ function getAirReconInventory(sideShortKey)
 end
 
 function getAirAawInventory(sideShortKey)
-    local savedInventory = localMemoryInventoryGetFromKey(sideShortKey.."_saved_air_inventory")
+    local savedInventory = localMemoryInventoryGetFromKey(sideShortKey..GLOBAL_SAVED_AIR_INVENTORY_KEY)
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_aaw"] then
@@ -978,7 +985,7 @@ function getAirAawInventory(sideShortKey)
 end
 
 function getAirSeadInventory(sideShortKey)
-    local savedInventory = localMemoryInventoryGetFromKey(sideShortKey.."_saved_air_inventory")
+    local savedInventory = localMemoryInventoryGetFromKey(sideShortKey..GLOBAL_SAVED_AIR_INVENTORY_KEY)
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_sead"] then
@@ -992,7 +999,7 @@ function getAirSeadInventory(sideShortKey)
 end
 
 function getAirAsuwInventory(sideShortKey)
-    local savedInventory = localMemoryInventoryGetFromKey(sideShortKey.."_saved_air_inventory")
+    local savedInventory = localMemoryInventoryGetFromKey(sideShortKey..GLOBAL_SAVED_AIR_INVENTORY_KEY)
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_asuw"] then
@@ -1006,7 +1013,7 @@ function getAirAsuwInventory(sideShortKey)
 end
 
 function getAirAgInventory(sideShortKey)
-    local savedInventory = localMemoryInventoryGetFromKey(sideShortKey.."_saved_air_inventory")
+    local savedInventory = localMemoryInventoryGetFromKey(sideShortKey..GLOBAL_SAVED_AIR_INVENTORY_KEY)
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_ag"] then
@@ -1020,7 +1027,7 @@ function getAirAgInventory(sideShortKey)
 end
 
 function getAirAgAsuwInventory(sideShortKey)
-    local savedInventory = localMemoryInventoryGetFromKey(sideShortKey.."_saved_air_inventory")
+    local savedInventory = localMemoryInventoryGetFromKey(sideShortKey..GLOBAL_SAVED_AIR_INVENTORY_KEY)
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_ag-asuw"] then
@@ -1034,7 +1041,7 @@ function getAirAgAsuwInventory(sideShortKey)
 end
 
 function getAirAswInventory(sideShortKey)
-    local savedInventory = localMemoryInventoryGetFromKey(sideShortKey.."_saved_air_inventory")
+    local savedInventory = localMemoryInventoryGetFromKey(sideShortKey..GLOBAL_SAVED_AIR_INVENTORY_KEY)
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_asw"] then
@@ -1048,7 +1055,7 @@ function getAirAswInventory(sideShortKey)
 end
 
 function getAirSupportInventory(sideShortKey)
-    local savedInventory = localMemoryInventoryGetFromKey(sideShortKey.."_saved_air_inventory")
+    local savedInventory = localMemoryInventoryGetFromKey(sideShortKey..GLOBAL_SAVED_AIR_INVENTORY_KEY)
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_support"] then
@@ -1062,7 +1069,7 @@ function getAirSupportInventory(sideShortKey)
 end
 
 function getAirRTBInventory(sideShortKey)
-    local savedInventory = localMemoryInventoryGetFromKey(sideShortKey.."_saved_air_inventory")
+    local savedInventory = localMemoryInventoryGetFromKey(sideShortKey..GLOBAL_SAVED_AIR_INVENTORY_KEY)
     if #savedInventory > 0 then
         savedInventory = savedInventory[1]
         if savedInventory[sideShortKey.."_rtb"] then
@@ -1079,7 +1086,7 @@ end
 -- Get Contacts
 --------------------------------------------------------------------------------------------------------------------------------
 function getUnknownAirContacts(sideShortKey)
-    local savedContacts = localMemoryContactGetFromKey(sideShortKey.."_saved_air_contact")
+    local savedContacts = localMemoryContactGetFromKey(sideShortKey..GLOBAL_SAVED_AIR_CONTACT_KEY)
     if #savedContacts > 0 then
         savedContacts = savedContacts[1]
         if savedContacts[sideShortKey.."_air_con_X"] then
@@ -1093,7 +1100,7 @@ function getUnknownAirContacts(sideShortKey)
 end
 
 function getHostileAirContacts(sideShortKey)
-    local savedContacts = localMemoryContactGetFromKey(sideShortKey.."_saved_air_contact")
+    local savedContacts = localMemoryContactGetFromKey(sideShortKey..GLOBAL_SAVED_AIR_CONTACT_KEY)
     if #savedContacts > 0 then
         savedContacts = savedContacts[1]
         if savedContacts[sideShortKey.."_air_con_H"] then
@@ -1107,7 +1114,7 @@ function getHostileAirContacts(sideShortKey)
 end
 
 function getUnknownSurfaceShipContacts(sideShortKey)
-    local savedContacts = localMemoryContactGetFromKey(sideShortKey.."_saved_ship_contact")
+    local savedContacts = localMemoryContactGetFromKey(sideShortKey..GLOBAL_SAVED_SHIP_CONTACT_KEY)
     if #savedContacts > 0 then
         savedContacts = savedContacts[1]
         if savedContacts[sideShortKey.."_surf_con_X"] then
@@ -1121,7 +1128,7 @@ function getUnknownSurfaceShipContacts(sideShortKey)
 end
 
 function getHostileSurfaceShipContacts(sideShortKey)
-    local savedContacts = localMemoryContactGetFromKey(sideShortKey.."_saved_ship_contact")
+    local savedContacts = localMemoryContactGetFromKey(sideShortKey..GLOBAL_SAVED_SHIP_CONTACT_KEY)
     if #savedContacts > 0 then
         savedContacts = savedContacts[1]
         if savedContacts[sideShortKey.."_surf_con_H"] then
@@ -1135,7 +1142,7 @@ function getHostileSurfaceShipContacts(sideShortKey)
 end
 
 function getUnknownSubmarineContacts(sideShortKey)
-    local savedContacts = localMemoryContactGetFromKey(sideShortKey.."_saved_sub_contact")
+    local savedContacts = localMemoryContactGetFromKey(sideShortKey..GLOBAL_SAVED_SUB_CONTACT_KEY)
     if #savedContacts > 0 then
         savedContacts = savedContacts[1]
         if savedContacts[sideShortKey.."_sub_con_X"] then
@@ -1149,7 +1156,7 @@ function getUnknownSubmarineContacts(sideShortKey)
 end
 
 function getHostileSubmarineContacts(sideShortKey)
-    local savedContacts = localMemoryContactGetFromKey(sideShortKey.."_saved_sub_contact")
+    local savedContacts = localMemoryContactGetFromKey(sideShortKey..GLOBAL_SAVED_SUB_CONTACT_KEY)
     if #savedContacts > 0 then
         savedContacts = savedContacts[1]
         if savedContacts[sideShortKey.."_sub_con_H"] then
@@ -1163,7 +1170,7 @@ function getHostileSubmarineContacts(sideShortKey)
 end
 
 function getUnknownSAMContacts(sideShortKey)
-    local savedContacts = localMemoryContactGetFromKey(sideShortKey.."_saved_land_contact")
+    local savedContacts = localMemoryContactGetFromKey(sideShortKey..GLOBAL_SAVED_LAND_CONTACT_KEY)
     if #savedContacts > 0 then
         savedContacts = savedContacts[1]
         if savedContacts[sideShortKey.."_sam_con_X"] then
@@ -1177,7 +1184,7 @@ function getUnknownSAMContacts(sideShortKey)
 end
 
 function getHostileSAMContacts(sideShortKey)
-    local savedContacts = localMemoryContactGetFromKey(sideShortKey.."_saved_land_contact")
+    local savedContacts = localMemoryContactGetFromKey(sideShortKey..GLOBAL_SAVED_LAND_CONTACT_KEY)
     if #savedContacts > 0 then
         savedContacts = savedContacts[1]
         if savedContacts[sideShortKey.."_sam_con_H"] then
@@ -1191,7 +1198,7 @@ function getHostileSAMContacts(sideShortKey)
 end
 
 function getUnknownLandContacts(sideShortKey)
-    local savedContacts = localMemoryContactGetFromKey(sideShortKey.."_saved_land_contact")
+    local savedContacts = localMemoryContactGetFromKey(sideShortKey..GLOBAL_SAVED_LAND_CONTACT_KEY)
     if #savedContacts > 0 then
         savedContacts = savedContacts[1]
         if savedContacts[sideShortKey.."_land_con_X"] then
@@ -1205,7 +1212,7 @@ function getUnknownLandContacts(sideShortKey)
 end
 
 function getHostileLandContacts(sideShortKey)
-    local savedContacts = localMemoryContactGetFromKey(sideShortKey.."_saved_land_contact")
+    local savedContacts = localMemoryContactGetFromKey(sideShortKey..GLOBAL_SAVED_LAND_CONTACT_KEY)
     if #savedContacts > 0 then
         savedContacts = savedContacts[1]
         if savedContacts[sideShortKey.."_land_con_H"] then
@@ -1219,7 +1226,7 @@ function getHostileLandContacts(sideShortKey)
 end
 
 function getUnknownWeaponContacts(sideShortKey)
-    local savedContacts = localMemoryContactGetFromKey(sideShortKey.."_saved_weap_contact")
+    local savedContacts = localMemoryContactGetFromKey(sideShortKey..GLOBAL_SAVED_WEAP_CONTACT_KEY)
     if #savedContacts > 0 then
         savedContacts = savedContacts[1]
         if savedContacts[sideShortKey.."_weap_con_X"] then
@@ -1233,7 +1240,7 @@ function getUnknownWeaponContacts(sideShortKey)
 end
 
 function getHostileWeaponContacts(sideShortKey)
-    local savedContacts = localMemoryContactGetFromKey(sideShortKey.."_saved_weap_contact")
+    local savedContacts = localMemoryContactGetFromKey(sideShortKey..GLOBAL_SAVED_WEAP_CONTACT_KEY)
     if #savedContacts > 0 then
         savedContacts = savedContacts[1]
         if savedContacts[sideShortKey.."_weap_con_H"] then
@@ -1247,7 +1254,7 @@ function getHostileWeaponContacts(sideShortKey)
 end
 
 function getDatumContacts(sideShortKey)
-    local savedContacts = localMemoryContactGetFromKey(sideShortKey.."_saved_datum_contact")
+    local savedContacts = localMemoryContactGetFromKey(sideShortKey..GLOBAL_SAVED_DATUM_CONTACT_KEY)
 	if #savedContacts > 0 then
         savedContacts = savedContacts[1]
         return savedContacts
@@ -1302,23 +1309,23 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
         local unitRetreatPointArray = {}
         -- Determine Retreat Type By Role
         if unitRole == GLOBAL_ROLE_AAW then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=60},{type="sams",range=30},{type="ships",range=30},{type="datum",range=30}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_SAMS,range=30},{type=GLOBAL_TYPE_SHIPS,range=30},{type=GLOBAL_TYPE_DATUM,range=30}})
         elseif unitRole == GLOBAL_ROLE_AG_ASUW then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=80},{type="sams",range=25},{type="ships",range=0},{type="datum",range=30}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=80},{type=GLOBAL_TYPE_SAMS,range=25},{type=GLOBAL_TYPE_SHIPS,range=0},{type=GLOBAL_TYPE_DATUM,range=30}})
         elseif unitRole == GLOBAL_ROLE_AG then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=60},{type="planes",range=60},{type="ships",range=60},{type="sams",range=0},{type="datum",range=30}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_PLANES,range=60},{type=GLOBAL_TYPE_SHIPS,range=60},{type=GLOBAL_TYPE_SAMS,range=0},{type=GLOBAL_TYPE_DATUM,range=30}})
         elseif unitRole == GLOBAL_ROLE_ASUW then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=80},{type="planes",range=80},{type="sams",range=0},{type="ships",range=0},{type="datum",range=30}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=80},{type=GLOBAL_TYPE_PLANES,range=80},{type=GLOBAL_TYPE_SAMS,range=0},{type=GLOBAL_TYPE_SHIPS,range=0},{type=GLOBAL_TYPE_DATUM,range=30}})
         elseif unitRole == GLOBAL_ROLE_SUPPORT then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=200},{type="planes",range=200},{type="sams",range=100},{type="ships",range=100},{type="datum",range=30}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=200},{type=GLOBAL_TYPE_PLANES,range=200},{type=GLOBAL_TYPE_SAMS,range=100},{type=GLOBAL_TYPE_SHIPS,range=100},{type=GLOBAL_TYPE_DATUM,range=30}})
         elseif unitRole == GLOBAL_ROLE_ASW then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=80},{type="planes",range=80},{type="sams",range=30},{type="ships",range=30},{type="datum",range=30}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=80},{type=GLOBAL_TYPE_PLANES,range=80},{type=GLOBAL_TYPE_SAMS,range=30},{type=GLOBAL_TYPE_SHIPS,range=30},{type=GLOBAL_TYPE_DATUM,range=30}})
         elseif unitRole == GLOBAL_ROLE_RECON then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=60},{type="planes",range=60},{type="sams",range=30},{type="ships",range=30},{type="datum",range=30}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_PLANES,range=60},{type=GLOBAL_TYPE_SAMS,range=30},{type=GLOBAL_TYPE_SHIPS,range=30},{type=GLOBAL_TYPE_DATUM,range=30}})
         elseif unitRole == GLOBAL_ROLE_SEAD then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=60},{type="planes",range=60},{type="sams",range=0},{type="ships",range=0},{type="datum",range=30}})
-		elseif unitRole == "rtb" then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type="missiles",range=60},{type="planes",range=60},{type="sams",range=30},{type="ships",range=30},{type="datum",range=30}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_PLANES,range=60},{type=GLOBAL_TYPE_SAMS,range=0},{type=GLOBAL_TYPE_SHIPS,range=0},{type=GLOBAL_TYPE_DATUM,range=30}})
+		elseif unitRole == GLOBAL_ROLE_RTB then
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_PLANES,range=60},{type=GLOBAL_TYPE_SAMS,range=30},{type=GLOBAL_TYPE_SHIPS,range=30},{type=GLOBAL_TYPE_DATUM,range=30}})
         else
             unitRetreatPointArray = nil
         end
@@ -1347,14 +1354,14 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
             if unit.group and unit.group.unitlist then
                for k1,v1 in pairs(unit.group.unitlist) do
                     local subUnit = ScenEdit_GetUnit({side=side.name,guid=v1})
-					subUnit.manualAltitude = "OFF"
+					subUnit.manualAltitude = GLOBAL_OFF
 					ScenEdit_SetDoctrine({side=side.name,guid=subUnit.guid},{ignore_plotted_course = true })
-					subUnit.manualSpeed = "OFF"
+					subUnit.manualSpeed = GLOBAL_OFF
                 end
             else 
-				unit.manualAltitude = "OFF"
+				unit.manualAltitude = GLOBAL_OFF
 				ScenEdit_SetDoctrine({side=side.name,guid=unit.guid},{ignore_plotted_course = true })
-				unit.manualSpeed = "OFF"
+				unit.manualSpeed = GLOBAL_OFF
             end
         end
     end
@@ -1365,15 +1372,15 @@ function determineRetreatPoint(sideGuid,shortSideKey,sideAttributes,unitGuid,uni
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
     for i = 1, #avoidanceTypes do
         local retreatPointArray  = nil
-        if avoidanceTypes[i].type == "planes" then
+        if avoidanceTypes[i].type == GLOBAL_TYPE_PLANES then
             retreatPointArray = getRetreatPathForAirNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,avoidanceTypes[i].range)
-        elseif avoidanceTypes[i].type == "ships" then
+        elseif avoidanceTypes[i].type == GLOBAL_TYPE_SHIPS then
             retreatPointArray = getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,avoidanceTypes[i].range)
-        elseif avoidanceTypes[i].type == "sams" then
+        elseif avoidanceTypes[i].type == GLOBAL_TYPE_SAMS then
             retreatPointArray = getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,avoidanceTypes[i].range)
-        elseif avoidanceTypes[i].type == "missiles" then
+        elseif avoidanceTypes[i].type == GLOBAL_TYPE_MISSILES then
             retreatPointArray = getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole)
-        elseif avoidanceTypes[i].type == "datum" then
+        elseif avoidanceTypes[i].type == GLOBAL_TYPE_DATUM then
             retreatPointArray = getRetreatPathForDatumNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole)
 		else
             retreatPointArray = nil
@@ -1647,7 +1654,7 @@ function observerActionUpdateMissions(args)
         local aircraftInventory = side:unitsBy("1")
         if aircraftInventory then
             local savedMissions = {}
-            localMemoryRemoveFromKey(sideShortKey.."_saved_missions")
+            localMemoryRemoveFromKey(sideShortKey..GLOBAL_SAVED_MISSIONS_KEY)
             for k, v in pairs(aircraftInventory) do
                 -- Local Values
                 local unit = ScenEdit_GetUnit({side=side.name, guid=v.guid})
@@ -1656,7 +1663,7 @@ function observerActionUpdateMissions(args)
 					if not savedMissions[unit.mission.guid] then
 						savedMissions[unit.mission.guid] = unit.mission.guid
 						-- Save Missions And Time Stamp
-						localMemoryAddToKey(sideShortKey.."_saved_missions",unit.mission.guid)
+						localMemoryAddToKey(sideShortKey..GLOBAL_SAVED_MISSIONS_KEY,unit.mission.guid)
 					end
                 end
             end
@@ -1671,9 +1678,9 @@ function observerActionUpdateMissionInventories(args)
 	local sideUnitDuplicateKey = {}
     -- Check Every Five Minutes To Update Inventories
     if canUpdateEverySixtySeconds() then
-        local savedMissions = localMemoryGetFromKey(sideShortKey.."_saved_missions")
+        local savedMissions = localMemoryGetFromKey(sideShortKey..GLOBAL_SAVED_MISSIONS_KEY)
         local savedInventory = {}
-        localMemoryInventoryRemoveFromKey(sideShortKey.."_saved_air_inventory")
+        localMemoryInventoryRemoveFromKey(sideShortKey..GLOBAL_SAVED_AIR_INVENTORY_KEY)
         -- Loop Through Missions
         for k, v in pairs(savedMissions) do
             local mission = ScenEdit_GetMission(side.name,v)
@@ -1689,27 +1696,27 @@ function observerActionUpdateMissionInventories(args)
 						-- Check Airplane role
                         local loadout = ScenEdit_GetLoadout({UnitName=unit.guid, LoadoutID=0})
 						if loadout then
-                            if loadout.roles["role"] == 2001 or loadout.roles["role"] == 2002 or loadout.roles["role"] == 2003 or loadout.roles["role"] == 2004 then
+                            if loadout.roles[GLOBAL_ROLE] == 2001 or loadout.roles[GLOBAL_ROLE] == 2002 or loadout.roles[GLOBAL_ROLE] == 2003 or loadout.roles[GLOBAL_ROLE] == 2004 then
                                 unitRole = GLOBAL_ROLE_AAW
-                            elseif loadout.roles["role"] == 3001 or loadout.roles["role"] == 3002 or loadout.roles["role"] == 3005 then
+                            elseif loadout.roles[GLOBAL_ROLE] == 3001 or loadout.roles[GLOBAL_ROLE] == 3002 or loadout.roles[GLOBAL_ROLE] == 3005 then
                                 unitRole = GLOBAL_ROLE_AG_ASUW
-                            elseif loadout.roles["role"] == 3101 or loadout.roles["role"] == 3102 or loadout.roles["role"] == 3105 then
+                            elseif loadout.roles[GLOBAL_ROLE] == 3101 or loadout.roles[GLOBAL_ROLE] == 3102 or loadout.roles[GLOBAL_ROLE] == 3105 then
                                 unitRole = GLOBAL_ROLE_AG
-                            elseif loadout.roles["role"] == 3201 or loadout.roles["role"] == 3202 or loadout.roles["role"] == 3205 then
+                            elseif loadout.roles[GLOBAL_ROLE] == 3201 or loadout.roles[GLOBAL_ROLE] == 3202 or loadout.roles[GLOBAL_ROLE] == 3205 then
                                 unitRole = GLOBAL_ROLE_ASUW
-                            elseif loadout.roles["role"] == 4001 or loadout.roles["role"] == 4002 or loadout.roles["role"] == 4003 or loadout.roles["role"] == 4004 or loadout.roles["role"] == 4101 then
+                            elseif loadout.roles[GLOBAL_ROLE] == 4001 or loadout.roles[GLOBAL_ROLE] == 4002 or loadout.roles[GLOBAL_ROLE] == 4003 or loadout.roles[GLOBAL_ROLE] == 4004 or loadout.roles[GLOBAL_ROLE] == 4101 then
                                 unitRole = GLOBAL_ROLE_SUPPORT
-                            elseif loadout.roles["role"] == 6001 or loadout.roles["role"] == 6002 then
+                            elseif loadout.roles[GLOBAL_ROLE] == 6001 or loadout.roles[GLOBAL_ROLE] == 6002 then
                                 unitRole = GLOBAL_ROLE_ASW
-                            elseif loadout.roles["role"] == 7001 or loadout.roles["role"] == 7002 or loadout.roles["role"] == 7003 or loadout.roles["role"] == 7004 or loadout.roles["role"] == 7005 then
+                            elseif loadout.roles[GLOBAL_ROLE] == 7001 or loadout.roles[GLOBAL_ROLE] == 7002 or loadout.roles[GLOBAL_ROLE] == 7003 or loadout.roles[GLOBAL_ROLE] == 7004 or loadout.roles[GLOBAL_ROLE] == 7005 then
                                 unitRole = GLOBAL_ROLE_RECON
-                            elseif loadout.roles["role"] == 3003 or loadout.roles["role"] == 3004 or loadout.roles["role"] == 3103 or loadout.roles["role"] == 3104 or loadout.roles["role"] == 3203 or loadout.roles["role"] == 3204 then
+                            elseif loadout.roles[GLOBAL_ROLE] == 3003 or loadout.roles[GLOBAL_ROLE] == 3004 or loadout.roles[GLOBAL_ROLE] == 3103 or loadout.roles[GLOBAL_ROLE] == 3104 or loadout.roles[GLOBAL_ROLE] == 3203 or loadout.roles[GLOBAL_ROLE] == 3204 then
                                 unitRole = GLOBAL_ROLE_SEAD
                             end
                         end
 						-- Compare Mission Role Vs Unit Role (Mission Role Takes Precedent In Certain Conditions)
 						if determineUnitRTB(unit) or determineUnitBingo(unit) then
-							unitRole = "rtb"
+							unitRole = GLOBAL_ROLE_RTB
 						elseif missionRole == "AAW Patrol" or missionRole == "Air Intercept" then
 							-- No Override - Units Will Retain Their Respective Role
 						elseif missionRole == "ASuW Patrol (Naval)" or missionRole == "Sea Control Patrol" or missionRole == "ASuW Patrol Mixed" or missionRole == "Naval ASuW Strike" then
@@ -1743,7 +1750,7 @@ function observerActionUpdateMissionInventories(args)
             end
         end
         -- Save Memory Inventory And Time Stamp
-        localMemoryInventoryAddToKey(sideShortKey.."_saved_air_inventory",savedInventory)
+        localMemoryInventoryAddToKey(sideShortKey..GLOBAL_SAVED_AIR_INVENTORY_KEY,savedInventory)
     end
 end
 
@@ -1754,7 +1761,7 @@ function observerActionUpdateAirContacts(args)
     -- Check Time
     if canUpdateEverySixtySeconds() then
         local aircraftContacts = side:contactsBy("1")
-        localMemoryContactRemoveFromKey(sideShortKey.."_saved_air_contact")
+        localMemoryContactRemoveFromKey(sideShortKey..GLOBAL_SAVED_AIR_CONTACT_KEY)
         if aircraftContacts then
             local savedContacts = {}
             for k, v in pairs(aircraftContacts) do
@@ -1770,7 +1777,7 @@ function observerActionUpdateAirContacts(args)
                 stringArray[#stringArray + 1] = contact.guid
                 savedContacts[stringKey] = stringArray
             end
-            localMemoryContactAddToKey(sideShortKey.."_saved_air_contact",savedContacts)
+            localMemoryContactAddToKey(sideShortKey..GLOBAL_SAVED_AIR_CONTACT_KEY,savedContacts)
         end
     end
 end
@@ -1781,7 +1788,7 @@ function observerActionUpdateSurfaceContacts(args)
     local side = VP_GetSide({guid=args.guid})
     if canUpdateEverySixtySeconds() then
         local shipContacts = side:contactsBy("2")
-        localMemoryContactRemoveFromKey(sideShortKey.."_saved_ship_contact")
+        localMemoryContactRemoveFromKey(sideShortKey..GLOBAL_SAVED_SHIP_CONTACT_KEY)
         if shipContacts then
             local savedContacts = {}
             for k, v in pairs(shipContacts) do
@@ -1797,7 +1804,7 @@ function observerActionUpdateSurfaceContacts(args)
                 stringArray[#stringArray + 1] = contact.guid
                 savedContacts[stringKey] = stringArray
             end
-            localMemoryContactAddToKey(sideShortKey.."_saved_ship_contact",savedContacts)
+            localMemoryContactAddToKey(sideShortKey..GLOBAL_SAVED_SHIP_CONTACT_KEY,savedContacts)
         end
     end
 end
@@ -1808,7 +1815,7 @@ function observerActionUpdateSubmarineContacts(args)
     local side = VP_GetSide({guid=args.guid})
     if canUpdateEverySixtySeconds() then
         local submarineContacts = side:contactsBy("3")
-        localMemoryContactRemoveFromKey(sideShortKey.."_saved_sub_contact")
+        localMemoryContactRemoveFromKey(sideShortKey..GLOBAL_SAVED_SUB_CONTACT_KEY)
         if submarineContacts then
             local savedContacts = {}
             for k, v in pairs(submarineContacts) do
@@ -1824,7 +1831,7 @@ function observerActionUpdateSubmarineContacts(args)
                 stringArray[#stringArray + 1] = contact.guid
                 savedContacts[stringKey] = stringArray
             end
-            localMemoryContactAddToKey(sideShortKey.."_saved_sub_contact",savedContacts)
+            localMemoryContactAddToKey(sideShortKey..GLOBAL_SAVED_SUB_CONTACT_KEY,savedContacts)
         end
     end
 end
@@ -1835,7 +1842,7 @@ function observerActionUpdateLandContacts(args)
     local side = VP_GetSide({guid=args.guid})
     if canUpdateEverySixtySeconds() then
         local landContacts = side:contactsBy("4")
-        localMemoryContactRemoveFromKey(sideShortKey.."_saved_land_contact")
+        localMemoryContactRemoveFromKey(sideShortKey..GLOBAL_SAVED_LAND_CONTACT_KEY)
 		--local printString = ""
         if landContacts then
             local savedContacts = {}
@@ -1856,7 +1863,7 @@ function observerActionUpdateLandContacts(args)
                     savedContacts[stringKey] = stringArray
                 end
             end
-            localMemoryContactAddToKey(sideShortKey.."_saved_land_contact",savedContacts)
+            localMemoryContactAddToKey(sideShortKey..GLOBAL_SAVED_LAND_CONTACT_KEY,savedContacts)
         end
     end
 end
@@ -1867,7 +1874,7 @@ function observerActionUpdateWeaponContacts(args)
     local side = VP_GetSide({guid=args.guid})
     if canUpdateEveryFiveSeconds() then
         local weaponContacts = side:contactsBy("6")
-        localMemoryContactRemoveFromKey(sideShortKey.."_saved_weap_contact")
+        localMemoryContactRemoveFromKey(sideShortKey..GLOBAL_SAVED_WEAP_CONTACT_KEY)
         if weaponContacts then
             local savedContacts = {}
             for k, v in pairs(weaponContacts) do
@@ -1897,7 +1904,7 @@ function observerActionUpdateWeaponContacts(args)
                     savedContacts[stringKey] = stringArray
                 end
             end
-            localMemoryContactAddToKey(sideShortKey.."_saved_weap_contact",savedContacts)
+            localMemoryContactAddToKey(sideShortKey..GLOBAL_SAVED_WEAP_CONTACT_KEY,savedContacts)
         end
     end
 end
@@ -1911,7 +1918,7 @@ function observerActionUpdateDatumContacts(args)
 		local datumContacts = getDatumContacts(sideShortKey)
 		local weaponContacts = getHostileWeaponContacts(sideShortKey)
 		local savedContacts = {}
-		localMemoryContactRemoveFromKey(sideShortKey.."_saved_datum_contact")
+		localMemoryContactRemoveFromKey(sideShortKey..GLOBAL_SAVED_DATUM_CONTACT_KEY)
 		-- Loop Alert Datums
 		for i = 1, #weaponContacts do
 			local contact = VP_GetContact({guid=weaponContacts[i]})
@@ -1937,7 +1944,7 @@ function observerActionUpdateDatumContacts(args)
 				savedContacts[#savedContacts + 1] = datumContacts[i]
 			end
 		end
-        localMemoryContactAddToKey(sideShortKey.."_saved_datum_contact",savedContacts)
+        localMemoryContactAddToKey(sideShortKey..GLOBAL_SAVED_DATUM_CONTACT_KEY,savedContacts)
     end
 end
 
@@ -2022,7 +2029,7 @@ function actorUpdateSeadUnits(args)
     -- Get SEAD Units
     local seadUnits = getAirSeadInventory(sideShortKey)
     for i = 1, #seadUnits do
-		determineAirUnitToRetreatByRole(args.shortKey,args.guid,args.options,seadUnits[i],"sead")
+		determineAirUnitToRetreatByRole(args.shortKey,args.guid,args.options,seadUnits[i],GLOBAL_ROLE_SEAD)
 	end
 end
 
@@ -2044,7 +2051,7 @@ function actorUpdateRTBUnits(args)
     -- Get Support Units
     local rtbUnits = getAirRTBInventory(sideShortKey)
     for i = 1, #rtbUnits do
-		determineAirUnitToRetreatByRole(args.shortKey,args.guid,args.options,rtbUnits[i],"rtb")
+		determineAirUnitToRetreatByRole(args.shortKey,args.guid,args.options,rtbUnits[i],GLOBAL_ROLE_RTB)
 	end
 end
 
