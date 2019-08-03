@@ -1113,6 +1113,10 @@ function getHostileAirContacts(sideShortKey)
     end
 end
 
+function getAllAirContacts(sideShortKey) 
+	return combineTablesNew(getHostileAirContacts(sideShortKey),getUnknownAirContacts(sideShortKey))
+end
+
 function getUnknownSurfaceShipContacts(sideShortKey)
     local savedContacts = localMemoryContactGetFromKey(sideShortKey..GLOBAL_SAVED_SHIP_CONTACT_KEY)
     if #savedContacts > 0 then
@@ -1139,6 +1143,10 @@ function getHostileSurfaceShipContacts(sideShortKey)
     else 
         return {}
     end
+end
+
+function getAllSurfaceShipContacts(sideShortKey) 
+	return combineTablesNew(getHostileSurfaceShipContacts(sideShortKey),getUnknownSurfaceShipContacts(sideShortKey))
 end
 
 function getUnknownSubmarineContacts(sideShortKey)
@@ -1169,6 +1177,10 @@ function getHostileSubmarineContacts(sideShortKey)
     end
 end
 
+function getAllSubmarineContacts(sideShortKey) 
+	return combineTablesNew(getHostileSubmarineContacts(sideShortKey),getUnknownSubmarineContacts(sideShortKey))
+end
+
 function getUnknownSAMContacts(sideShortKey)
     local savedContacts = localMemoryContactGetFromKey(sideShortKey..GLOBAL_SAVED_LAND_CONTACT_KEY)
     if #savedContacts > 0 then
@@ -1195,6 +1207,10 @@ function getHostileSAMContacts(sideShortKey)
     else 
         return {}
     end
+end
+
+function getAllSAMContacts(sideShortKey) 
+	return combineTablesNew(getHostileSAMContacts(sideShortKey),getUnknownSAMContacts(sideShortKey))
 end
 
 function getUnknownLandContacts(sideShortKey)
@@ -1317,7 +1333,7 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
         elseif unitRole == GLOBAL_ROLE_ASUW then
             unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=80},{type=GLOBAL_TYPE_PLANES,range=80},{type=GLOBAL_TYPE_SAMS,range=0},{type=GLOBAL_TYPE_SHIPS,range=0},{type=GLOBAL_TYPE_DATUM,range=30}})
         elseif unitRole == GLOBAL_ROLE_SUPPORT then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=200},{type=GLOBAL_TYPE_PLANES,range=200},{type=GLOBAL_TYPE_SAMS,range=100},{type=GLOBAL_TYPE_SHIPS,range=100},{type=GLOBAL_TYPE_DATUM,range=30}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=150},{type=GLOBAL_TYPE_PLANES,range=150},{type=GLOBAL_TYPE_SAMS,range=100},{type=GLOBAL_TYPE_SHIPS,range=100},{type=GLOBAL_TYPE_DATUM,range=30}})
         elseif unitRole == GLOBAL_ROLE_ASW then
             unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=80},{type=GLOBAL_TYPE_PLANES,range=80},{type=GLOBAL_TYPE_SAMS,range=30},{type=GLOBAL_TYPE_SHIPS,range=30},{type=GLOBAL_TYPE_DATUM,range=30}})
         elseif unitRole == GLOBAL_ROLE_RECON then
@@ -1397,7 +1413,7 @@ end
 function getRetreatPathForAirNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,range)
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
-    local hostileAirContacts = getHostileAirContacts(shortSideKey)
+    local hostileAirContacts = getAllAirContacts(shortSideKey)
     local desiredRange = range
     if not unit and not canUpdateEveryTwentySeconds() then
         return nil
@@ -1419,7 +1435,7 @@ function getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,uni
     -- Variables
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
-    local hostileShipContacts = getHostileSurfaceShipContacts(shortSideKey)
+    local hostileShipContacts = getAllSurfaceShipContacts(shortSideKey)
     local minDesiredRange = range
     local maxDesiredRange = 200
 	local distanceToShip = 10000
@@ -1466,7 +1482,7 @@ function getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
     -- Variables
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
-    local hostileSAMContacts = getHostileSAMContacts(shortSideKey)
+    local hostileSAMContacts = getAllSAMContacts(shortSideKey)
     local minDesiredRange = minRange
     local maxDesiredRange = 200
 	local distanceToSAM = 10000
