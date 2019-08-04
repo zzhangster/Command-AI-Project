@@ -1358,7 +1358,7 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
         local unitRetreatPointArray = nil
         -- Determine Retreat Type By Role
         if unitRole == GLOBAL_ROLE_AAW then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_SAMS,range=35},{type=GLOBAL_TYPE_SHIPS,range=35},{type=GLOBAL_TYPE_DATUM,range=30}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_SHIPS,range=30},{type=GLOBAL_TYPE_SAMS,range=30},{type=GLOBAL_TYPE_DATUM,range=30}})
         elseif unitRole == GLOBAL_ROLE_AG_ASUW then
             unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=80},{type=GLOBAL_TYPE_SAMS,range=25},{type=GLOBAL_TYPE_SHIPS,range=0},{type=GLOBAL_TYPE_DATUM,range=30}})
         elseif unitRole == GLOBAL_ROLE_AG then
@@ -1381,12 +1381,6 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
 
         -- Set Unit Retreat Point
         if unitRetreatPointArray then
-			--[[unit.manualAltitude = unitRetreatPointArray[1].alt
-			ScenEdit_SetDoctrine({side=side.name,guid=unit.guid},{ignore_plotted_course = unitRetreatPointArray[1].ignorePlottedPath})
-			unit.manualThrottle = unitRetreatPointArray[1].manualThrottle
-			if unitRetreatPointArray[1].overrideCoordinates then
-				unit.course = unitRetreatPointArray
-			end]]--
             if unit.group and unit.group.unitlist then
                for k1,v1 in pairs(unit.group.unitlist) do
                     local subUnit = ScenEdit_GetUnit({side=side.name,guid=v1})
@@ -1409,25 +1403,6 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
 			ScenEdit_SetDoctrine({side=side.name,guid=unit.guid},{ignore_plotted_course = true })
 			unit.manualAltitude = GLOBAL_OFF
 			unit.manualThrottle = GLOBAL_OFF
-            --[[if unit.group and unit.group.unitlist then
-               for k1,v1 in pairs(unit.group.unitlist) do
-                    local subUnit = ScenEdit_GetUnit({side=side.name,guid=v1})
-					if subUnit.guid == unit.guid then
-						ScenEdit_SetDoctrine({side=side.name,guid=subUnit.guid},{ignore_plotted_course = true })
-						subUnit.manualAltitude = GLOBAL_OFF
-						subUnit.manualThrottle = GLOBAL_OFF
-					else
-						ScenEdit_SetDoctrine({side=side.name,guid=subUnit.guid},{ignore_plotted_course = true })
-						subUnit.course = {}
-						subUnit.manualAltitude = GLOBAL_OFF
-						subUnit.manualThrottle = GLOBAL_OFF
-					end
-                end
-            else 
-				ScenEdit_SetDoctrine({side=side.name,guid=unit.guid},{ignore_plotted_course = true })
-				unit.manualAltitude = GLOBAL_OFF
-				unit.manualThrottle = GLOBAL_OFF
-            end]]--
         end
     end
 end
