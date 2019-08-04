@@ -1358,23 +1358,23 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
         local unitRetreatPointArray = nil
         -- Determine Retreat Type By Role
         if unitRole == GLOBAL_ROLE_AAW then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_SHIPS,range=30},{type=GLOBAL_TYPE_SAMS,range=30},{type=GLOBAL_TYPE_DATUM,range=30}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_SHIPS,range=30},{type=GLOBAL_TYPE_SAMS,range=30},{type=GLOBAL_TYPE_DATUM,range=0}})
         elseif unitRole == GLOBAL_ROLE_AG_ASUW then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=80},{type=GLOBAL_TYPE_SAMS,range=25},{type=GLOBAL_TYPE_SHIPS,range=0},{type=GLOBAL_TYPE_DATUM,range=30}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_SAMS,range=25},{type=GLOBAL_TYPE_SHIPS,range=0},{type=GLOBAL_TYPE_DATUM,range=0}})
         elseif unitRole == GLOBAL_ROLE_AG then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_PLANES,range=60},{type=GLOBAL_TYPE_SHIPS,range=60},{type=GLOBAL_TYPE_SAMS,range=0},{type=GLOBAL_TYPE_DATUM,range=30}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_PLANES,range=40},{type=GLOBAL_TYPE_SHIPS,range=30},{type=GLOBAL_TYPE_SAMS,range=0},{type=GLOBAL_TYPE_DATUM,range=0}})
         elseif unitRole == GLOBAL_ROLE_ASUW then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=80},{type=GLOBAL_TYPE_PLANES,range=80},{type=GLOBAL_TYPE_SAMS,range=0},{type=GLOBAL_TYPE_SHIPS,range=0},{type=GLOBAL_TYPE_DATUM,range=30}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=80},{type=GLOBAL_TYPE_PLANES,range=40},{type=GLOBAL_TYPE_SAMS,range=30},{type=GLOBAL_TYPE_SHIPS,range=0},{type=GLOBAL_TYPE_DATUM,range=0}})
         elseif unitRole == GLOBAL_ROLE_SUPPORT then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=150},{type=GLOBAL_TYPE_PLANES,range=150},{type=GLOBAL_TYPE_SAMS,range=100},{type=GLOBAL_TYPE_SHIPS,range=100},{type=GLOBAL_TYPE_DATUM,range=30}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=150},{type=GLOBAL_TYPE_PLANES,range=150},{type=GLOBAL_TYPE_SAMS,range=100},{type=GLOBAL_TYPE_SHIPS,range=100},{type=GLOBAL_TYPE_DATUM,range=0}})
         elseif unitRole == GLOBAL_ROLE_ASW then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=80},{type=GLOBAL_TYPE_PLANES,range=80},{type=GLOBAL_TYPE_SAMS,range=30},{type=GLOBAL_TYPE_SHIPS,range=30},{type=GLOBAL_TYPE_DATUM,range=30}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_PLANES,range=40},{type=GLOBAL_TYPE_SAMS,range=30},{type=GLOBAL_TYPE_SHIPS,range=30},{type=GLOBAL_TYPE_DATUM,range=0}})
         elseif unitRole == GLOBAL_ROLE_RECON then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_PLANES,range=60},{type=GLOBAL_TYPE_SAMS,range=30},{type=GLOBAL_TYPE_SHIPS,range=30},{type=GLOBAL_TYPE_DATUM,range=30}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_PLANES,range=40},{type=GLOBAL_TYPE_SAMS,range=30},{type=GLOBAL_TYPE_SHIPS,range=30},{type=GLOBAL_TYPE_DATUM,range=0}})
         elseif unitRole == GLOBAL_ROLE_SEAD then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_PLANES,range=60},{type=GLOBAL_TYPE_SAMS,range=0},{type=GLOBAL_TYPE_SHIPS,range=0},{type=GLOBAL_TYPE_DATUM,range=30}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_PLANES,range=40},{type=GLOBAL_TYPE_SAMS,range=0},{type=GLOBAL_TYPE_SHIPS,range=0},{type=GLOBAL_TYPE_DATUM,range=0}})
 		elseif unitRole == GLOBAL_ROLE_RTB then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_PLANES,range=60},{type=GLOBAL_TYPE_SAMS,range=30},{type=GLOBAL_TYPE_SHIPS,range=30},{type=GLOBAL_TYPE_DATUM,range=30}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_PLANES,range=40},{type=GLOBAL_TYPE_SAMS,range=30},{type=GLOBAL_TYPE_SHIPS,range=30},{type=GLOBAL_TYPE_DATUM,range=0}})
         else
             unitRetreatPointArray = nil
         end
@@ -1976,14 +1976,14 @@ function observerActionUpdateDatumContacts(args)
 				for j = 1, #datumContacts do 
 					if Tool_Range({latitude=contact.latitude, longitude=contact.longitude}, datumContacts[j]) <= 100 then
 						-- Update Item
-						datumContacts[j] = {latitude=contact.latitude, longitude=contact.longitude, timeStamp=(ScenEdit_CurrentTime() + 18000)}
+						datumContacts[j] = {latitude=contact.latitude, longitude=contact.longitude, timeStamp=(ScenEdit_CurrentTime() + 1800)}
 						inside = true
 						break
 					end
 				end
 				if not inside then
 					-- Add New Item
-					datumContacts[#datumContacts + 1] = {latitude=contact.latitude, longitude=contact.longitude, timeStamp=(ScenEdit_CurrentTime() + 18000)}
+					datumContacts[#datumContacts + 1] = {latitude=contact.latitude, longitude=contact.longitude, timeStamp=(ScenEdit_CurrentTime() + 1800)}
 				end
 			end
 		end
