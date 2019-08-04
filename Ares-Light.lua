@@ -246,9 +246,9 @@ local GLOBAL_THROTTLE_CREEP = "Creep"
 local GLOBAL_THROTTLE_CRUISE = "Cruise"
 local GLOBAL_THROTTLE_FULL = "Full"
 local GLOBAL_THROTTLE_FLANK = "Flank"
-local GLOBAL_THROTTLE_LOITER = "Loiter"
-local GLOBAL_THROTTLE_MILITARY = "Military"
-local GLOBAL_THROTTLE_AFTERBURNER = "Afterburner"
+local GLOBAL_THROTTLE_LOITER = "Cruise"
+local GLOBAL_THROTTLE_MILITARY = "Full"
+local GLOBAL_THROTTLE_AFTERBURNER = "Flank"
 -- Unit States
 local GLOBAL_UNIT_STATE_RTB = "RTB"
 local GLOBAL_UNIT_STATE_IS_BINGO = "IsBingo"
@@ -620,9 +620,9 @@ function heightToHorizonOverRadarApproach(distance,engaged,popup)
 	elseif distance > 60 then
 		height = 500
 	elseif distance > 40 then
-        height = 250
+        height = 120
 	else
-		height = 200
+		height = 30
 	end
 	-- Check Engaged
 	if popup and engaged and height < 4000 then
@@ -654,13 +654,13 @@ function heightToHorizonUnderRadarApproach(distance,engaged,popup)
 	elseif distance > 100 then
 		height = 1500
 	elseif distance > 80 then
-		height = 800
+		height = 750
 	elseif distance > 60 then
-		height = 400
+		height = 300
 	elseif distance > 40 then
-        height = 200
+        height = 100
 	else
-		height = 100
+		height = 30
 	end
 	-- Check Engaged
 	if popup and engaged and height < 4000 then
@@ -941,7 +941,7 @@ function determineUnitRetreatCoordinate(unit,contact,allowPivot,factorBase)
     if contact then
         -- Get Generic Bearing And Retreat Position
         local bearing = Tool_Bearing(contact.guid,unit.guid)
-        local retreatLocation = projectLatLong(makeLatLong(unit.latitude,unit.longitude),bearing,20)
+        local retreatLocation = projectLatLong(makeLatLong(unit.latitude,unit.longitude),bearing,15)
         local range = Tool_Range(contact.guid,unit.guid)
         -- Allow Pivot
         if allowPivot and contact.heading and contact.latitude and contact.longitude then
@@ -958,7 +958,7 @@ function determineUnitRetreatCoordinate(unit,contact,allowPivot,factorBase)
         return retreatLocation
     else
         -- Default Return
-        return projectLatLong(makeLatLong(unit.latitude,unit.longitude),unit.heading,5)
+        return projectLatLong(makeLatLong(unit.latitude,unit.longitude),unit.heading,20)
     end
 end
 
@@ -1333,10 +1333,10 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
 	--ScenEdit_SpecialMessage("Test1", unit.throttle)
     if unit and (unit.targetedBy or unit.firedOn or #unit.ascontact > 0) then
         -- Find Unit Retreat Point
-        local unitRetreatPointArray = {}
+        local unitRetreatPointArray = nil
         -- Determine Retreat Type By Role
         if unitRole == GLOBAL_ROLE_AAW then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_SAMS,range=30},{type=GLOBAL_TYPE_SHIPS,range=30},{type=GLOBAL_TYPE_DATUM,range=30}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_SAMS,range=35},{type=GLOBAL_TYPE_SHIPS,range=35},{type=GLOBAL_TYPE_DATUM,range=30}})
         elseif unitRole == GLOBAL_ROLE_AG_ASUW then
             unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=80},{type=GLOBAL_TYPE_SAMS,range=25},{type=GLOBAL_TYPE_SHIPS,range=0},{type=GLOBAL_TYPE_DATUM,range=30}})
         elseif unitRole == GLOBAL_ROLE_AG then
@@ -1480,9 +1480,10 @@ function getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,uni
     elseif distanceToShip < maxDesiredRange then
         if #unit.course > 0 then
             local waypoint = unit.course[#unit.course]
-            return {makeWaypoint(waypoint.latitude,waypoint.longitude,heightToHorizon(distanceToShip,unitRole,determineUnitOffensive(unit)),unit.throttle,false,true,false)}
+			--ScenEdit_SpecialMessage("Test1", deepPrint(unit.throttle))
+            return {makeWaypoint(waypoint.latitude,waypoint.longitude,heightToHorizon(distanceToShip,unitRole,determineUnitOffensive(unit)),GLOBAL_THROTTLE_CRUISE,false,true,false)}
         else
-            return {makeWaypoint(unit.latitude,unit.longitude,heightToHorizon(distanceToShip,unitRole,determineUnitOffensive(unit)),unit.throttle,false,true,false)}
+            return {makeWaypoint(unit.latitude,unit.longitude,heightToHorizon(distanceToShip,unitRole,determineUnitOffensive(unit)),GLOBAL_THROTTLE_CRUISE,false,true,false)}
         end
     end
     -- Catch All Return
@@ -1527,9 +1528,9 @@ function getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
     elseif distanceToSAM < maxDesiredRange then
         if #unit.course > 0 then
             local waypoint = unit.course[#unit.course]
-            return {makeWaypoint(waypoint.latitude,waypoint.longitude,heightToHorizon(distanceToSAM,unitRole,determineUnitOffensive(unit)),unit.throttle,false,true,false)}
+            return {makeWaypoint(waypoint.latitude,waypoint.longitude,heightToHorizon(distanceToSAM,unitRole,determineUnitOffensive(unit)),GLOBAL_THROTTLE_CRUISE,false,true,false)}
         else
-            return {makeWaypoint(unit.latitude,unit.longitude,heightToHorizon(distanceToSAM,unitRole,determineUnitOffensive(unit)),unit.throttle,false,true,false)}
+            return {makeWaypoint(unit.latitude,unit.longitude,heightToHorizon(distanceToSAM,unitRole,determineUnitOffensive(unit)),GLOBAL_THROTTLE_CRUISE,false,true,false)}
         end
     end
     -- Catch All Return
@@ -1574,12 +1575,14 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
 	-- Find Checks
 	if not contact then
 		return nil
-	elseif distanceToMissile < 25 then
+	elseif distanceToMissile < 20 then
 		local retreatLocation = determineUnitRetreatCoordinate(unit,contact,true,false)
-        return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,GLOBAL_OFF,GLOBAL_THROTTLE_AFTERBURNER,true,true,true)}
+        return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,GLOBAL_THROTTLE_AFTERBURNER,true,true,true)}
 	elseif distanceToMissile < 100 then
 		local retreatLocation = determineUnitRetreatCoordinate(unit,contact,false,false)
-        return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,heightToHorizon(distanceToMissile,unitRole,determineUnitOffensive(unit)),GLOBAL_THROTTLE_AFTERBURNER,true,true,true)}
+		local testing = {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,heightToHorizon(distanceToMissile,unitRole,determineUnitOffensive(unit)),GLOBAL_THROTTLE_AFTERBURNER,true,true,true)}
+		--ScenEdit_SpecialMessage("Test1", testing[1].manualThrottle)
+		return testing
 	else
 		return nil
 	end
