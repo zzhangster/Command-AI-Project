@@ -657,6 +657,8 @@ function heightToHorizonUnderRadarApproach(distance,engaged,popup)
 		height = 750
 	elseif distance > 60 then
 		height = 300
+	elseif distance > 50 then
+		height = 200
 	elseif distance > 40 then
         height = 100
 	else
@@ -937,28 +939,48 @@ function determineUnitToMissionTarget(unit)
 	end
 end
 
+function determineUnitIsTargtedOrFiredOn(unit)
+	local targetedOrFiredOn = false
+	if unit.group and #unit.group.unitlist > 0 then
+		for k1,v1 in pairs(unit.group.unitlist) do
+			local subUnit = ScenEdit_GetUnit({side=sideName,guid=v1})
+			targetedOrFiredOn = targetedOrFiredOn or (unit.targetedBy or unit.firedOn)
+        end
+		return targetedOrFiredOn
+	else
+		return (unit.targetedBy or unit.firedOn)
+	end
+end
+
 function determineUnitRetreatCoordinate(unit,contact,allowPivot,factorBase)
     if contact then
         -- Get Generic Bearing And Retreat Position
+		local retreatRange = 15
         local bearing = Tool_Bearing(contact.guid,unit.guid)
-        local retreatLocation = projectLatLong(makeLatLong(unit.latitude,unit.longitude),bearing,15)
+        local retreatLocation = projectLatLong(makeLatLong(unit.latitude,unit.longitude),bearing,retreatRange)
         local range = Tool_Range(contact.guid,unit.guid)
         -- Allow Pivot
         if allowPivot and contact.heading and contact.latitude and contact.longitude then
             local headerLocation = projectLatLong(makeLatLong(contact.latitude,contact.longitude),contact.heading,range)
             local headerBearing = Tool_Bearing({latitude=headerLocation.latitude,longitude=headerLocation.longitude},unit.guid)
-            retreatLocation = projectLatLong(makeLatLong(retreatLocation.latitude,retreatLocation.longitude),headerBearing,30)
+			local pivotRange = 0
+			if range < 100 then
+				pivotRange = 5
+			elseif range < 30 then
+				pivotRange = 30
+			end
+            retreatLocation = projectLatLong(makeLatLong(retreatLocation.latitude,retreatLocation.longitude),headerBearing,pivotRange)
         end
         -- Factor Base
         if factorBase and unit.base then
             local baseBearing = Tool_Bearing(unit.guid,unit.base.guid)
-            retreatLocation = projectLatLong(makeLatLong(retreatLocation.latitude,retreatLocation.longitude),baseBearing,30)
+            retreatLocation = projectLatLong(makeLatLong(retreatLocation.latitude,retreatLocation.longitude),baseBearing,retreatRange*2)
         end
         -- Return
         return retreatLocation
     else
         -- Default Return
-        return projectLatLong(makeLatLong(unit.latitude,unit.longitude),unit.heading,20)
+        return projectLatLong(makeLatLong(unit.latitude,unit.longitude),unit.heading,retreatRange)
     end
 end
 
@@ -1331,7 +1353,7 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
     local unit = ScenEdit_GetUnit({side=side.name,guid=unitGuid})
 	--ScenEdit_SpecialMessage("Test1",deepPrint(unit))
 	--ScenEdit_SpecialMessage("Test1", unit.throttle)
-    if unit and (unit.targetedBy or unit.firedOn or #unit.ascontact > 0) then
+    if unit and determineUnitIsTargtedOrFiredOn(unit) then
         -- Find Unit Retreat Point
         local unitRetreatPointArray = nil
         -- Determine Retreat Type By Role
@@ -1359,37 +1381,53 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
 
         -- Set Unit Retreat Point
         if unitRetreatPointArray then
+			--[[unit.manualAltitude = unitRetreatPointArray[1].alt
+			ScenEdit_SetDoctrine({side=side.name,guid=unit.guid},{ignore_plotted_course = unitRetreatPointArray[1].ignorePlottedPath})
+			unit.manualThrottle = unitRetreatPointArray[1].manualThrottle
+			if unitRetreatPointArray[1].overrideCoordinates then
+				unit.course = unitRetreatPointArray
+			end]]--
             if unit.group and unit.group.unitlist then
                for k1,v1 in pairs(unit.group.unitlist) do
                     local subUnit = ScenEdit_GetUnit({side=side.name,guid=v1})
-					subUnit.manualAltitude = unitRetreatPointArray[1].alt
 					ScenEdit_SetDoctrine({side=side.name,guid=subUnit.guid},{ignore_plotted_course = unitRetreatPointArray[1].ignorePlottedPath})
+					subUnit.manualAltitude = unitRetreatPointArray[1].alt
 					subUnit.manualThrottle = unitRetreatPointArray[1].manualThrottle
 					if unitRetreatPointArray[1].overrideCoordinates then
 						subUnit.course = unitRetreatPointArray
 					end
-                end
+               end
             else 
-				unit.manualAltitude = unitRetreatPointArray[1].alt
 				ScenEdit_SetDoctrine({side=side.name,guid=unit.guid},{ignore_plotted_course = unitRetreatPointArray[1].ignorePlottedPath})
+				unit.manualAltitude = unitRetreatPointArray[1].alt
 				unit.manualThrottle = unitRetreatPointArray[1].manualThrottle
 				if unitRetreatPointArray[1].overrideCoordinates then
 					unit.course = unitRetreatPointArray
 				end
             end
         else
-            if unit.group and unit.group.unitlist then
+			ScenEdit_SetDoctrine({side=side.name,guid=unit.guid},{ignore_plotted_course = true })
+			unit.manualAltitude = GLOBAL_OFF
+			unit.manualThrottle = GLOBAL_OFF
+            --[[if unit.group and unit.group.unitlist then
                for k1,v1 in pairs(unit.group.unitlist) do
                     local subUnit = ScenEdit_GetUnit({side=side.name,guid=v1})
-					subUnit.manualAltitude = GLOBAL_OFF
-					ScenEdit_SetDoctrine({side=side.name,guid=subUnit.guid},{ignore_plotted_course = true })
-					subUnit.manualThrottle = GLOBAL_OFF
+					if subUnit.guid == unit.guid then
+						ScenEdit_SetDoctrine({side=side.name,guid=subUnit.guid},{ignore_plotted_course = true })
+						subUnit.manualAltitude = GLOBAL_OFF
+						subUnit.manualThrottle = GLOBAL_OFF
+					else
+						ScenEdit_SetDoctrine({side=side.name,guid=subUnit.guid},{ignore_plotted_course = true })
+						subUnit.course = {}
+						subUnit.manualAltitude = GLOBAL_OFF
+						subUnit.manualThrottle = GLOBAL_OFF
+					end
                 end
             else 
-				unit.manualAltitude = GLOBAL_OFF
 				ScenEdit_SetDoctrine({side=side.name,guid=unit.guid},{ignore_plotted_course = true })
+				unit.manualAltitude = GLOBAL_OFF
 				unit.manualThrottle = GLOBAL_OFF
-            end
+            end]]--
         end
     end
 end
@@ -1452,7 +1490,7 @@ function getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,uni
 	local distanceToShip = 10000
 	local contact = nil
 	-- Check Update
-    if not unit and not canUpdateEveryThirtySeconds() then
+    if not unit and not canUpdateEveryTwentySeconds() then
         return nil
     end
 	-- Get To Mission Range
@@ -1500,7 +1538,7 @@ function getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
 	local distanceToSAM = 10000
 	local contact = nil
 	-- Check Update
-    if not unit and not canUpdateEveryThirtySeconds() then
+    if not unit and not canUpdateEveryTwentySeconds() then
         return nil
     end
 	-- Get To Mission Range
@@ -1546,12 +1584,12 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
 	local distanceToMissile = 10000
 	local contact = nil
 	-- Check Update
-    if not unit and not canUpdateEveryFiveSeconds() then
+    if not unit and not canUpdateEveryTwoSecond() then
         return nil
     end
 
 	-- Check Fired on
-    if not unit.targetedBy or not unit.firedOn then
+    if not determineUnitIsTargtedOrFiredOn(unit) then
 		return nil
     end
     
