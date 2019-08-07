@@ -1,0 +1,29 @@
+Ares-Lite is a more practical redesign of the original Ares AI. Instead of creating its own missions sets, Ares-Lite will work with existing user defined missions and parameters. Ares-Light seeks to improve the survivability and effectiveness of preassigned units while respecting the mission boundaries set by the user. Features include:
+
+1.) Categorize units by roles (AAW, AG, ASUW) by their payload and assigned mission. No more reference files. (NEW)
+2.) Units will avoid missiles on first detection instead of last possible moment. (OLD)
+3.) Updated avoidance to factor in ARH seeker heads. Units will attempt to dive and retreat outside the FOV of ARH missiles. (NEW)
+4.) Avoidance behavior based on roles (AAW will avoid SAMS and Ships) (OLD)
+5.) Avoidance behavior is divided into two methods. (NEW)
+    a.) Line of Sight avoidance - Units will attempt to fly under the radar and still approach threat.
+    b.) Hard avoidance - When line of sight can no longer mask a unit approach, the unit will attempt to avoid the threat altogether.
+6.) Units under Strike Missions will attempt fly under radar to avoid any detected SAMs or ships. They will "Pop-up" only when close to the target. (NEW)
+7.) Units under Patrols (SEAD, Land, Anti-ship) will occasionally "Pop-up" to detect and engage targets. (NEW)
+8.) Unit avoidance will only trigger on contact detection. The better the ELINT, the better the unit will perform. (NEW)
+9.) Missiles will generate "Threat Datum" that acts like no-go zones. Units under AI command will act accordingly to avoid them. (NEW)
+10.) Ares will command missions containing the tag "<Ares>" and will ignore other missions without the tag. (NEW)
+
+Installation Guide:
+1.) Open your scenario
+2.) Create Event => "Event - Load AI"
+    a.) Set repeatable and active
+    b.) Set Trigger as Load On Scenario
+    c.) Set Lua Script Action => "Load AI"
+        i.) Copy contents of Ares-Light.lua
+	ii.) On last line => initializeAresAI("Test1"), replace "Test1" with the name of side you want to apply the AI to.
+3.) Create Event => "Event - Update AI"
+    a.) Set repeatable and active
+    b.) Set Trigger to 1 second regular time
+    c.) Set Lua Script Action => "Update AI"
+        i.) Script should have content => updateAresAI()
+4.) Ares-Lite will take over any mission with name containing "<Ares>"
