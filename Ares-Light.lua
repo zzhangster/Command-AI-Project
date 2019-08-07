@@ -952,10 +952,24 @@ function determineUnitIsTargtedOrFiredOn(unit)
 	end
 end
 
+function determineUnitIsFiredOn(unit)
+	local firedOn = false
+	if unit.group and #unit.group.unitlist > 0 then
+		for k1,v1 in pairs(unit.group.unitlist) do
+			local subUnit = ScenEdit_GetUnit({side=sideName,guid=v1})
+			firedOn = firedOn or subUnit.firedOn
+        end
+		return firedOn
+	else
+		return firedOn or unit.firedOn
+	end
+end
+
 function determineUnitRetreatCoordinate(unit,contact,allowPivot,factorBase)
     if contact then
         -- Get Generic Bearing And Retreat Position
 		local retreatRange = 15
+		local normalizeRange = 10
         local bearing = Tool_Bearing(contact.guid,unit.guid)
         local retreatLocation = projectLatLong(makeLatLong(unit.latitude,unit.longitude),bearing,retreatRange)
         local range = Tool_Range(contact.guid,unit.guid)
@@ -976,11 +990,14 @@ function determineUnitRetreatCoordinate(unit,contact,allowPivot,factorBase)
             local baseBearing = Tool_Bearing(unit.guid,unit.base.guid)
             retreatLocation = projectLatLong(makeLatLong(retreatLocation.latitude,retreatLocation.longitude),baseBearing,retreatRange*2)
         end
+		-- Normalize range
+		bearing = Tool_Bearing(unit.guid,{latitude=retreatLocation.latitude,longitude=retreatLocation.longitude})
+		retreatLocation = projectLatLong(makeLatLong(unit.latitude,unit.longitude),bearing,normalizeRange)
         -- Return
         return retreatLocation
     else
         -- Default Return
-        return projectLatLong(makeLatLong(unit.latitude,unit.longitude),unit.heading,retreatRange)
+        return projectLatLong(makeLatLong(unit.latitude,unit.longitude),unit.heading,normalizeRange)
     end
 end
 
@@ -1564,7 +1581,7 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
     end
 
 	-- Check Fired on
-    if not determineUnitIsTargtedOrFiredOn(unit) then
+    if not determineUnitIsFiredOn(unit) then
 		return nil
     end
     
