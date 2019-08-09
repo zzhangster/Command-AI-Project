@@ -2155,7 +2155,7 @@ function initializeAresAI(sideName)
     aresObserverBTMain:addChild(observerActionUpdateSubmarineContactsBT)
     aresObserverBTMain:addChild(observerActionUpdateLandContactsBT)
     aresObserverBTMain:addChild(observerActionUpdateWeaponContactsBT)
-    aresObserverBTMain:addChild(observerActionUpdateDatumContactsBT)
+    --aresObserverBTMain:addChild(observerActionUpdateDatumContactsBT)
     ----------------------------------------------------------------------------------------------------------------------------
     -- Ares Actor
     ----------------------------------------------------------------------------------------------------------------------------
