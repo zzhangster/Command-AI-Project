@@ -8,7 +8,7 @@ Features:
 3.) Updated avoidance to factor in ARH seeker heads. Units will attempt to dive and retreat outside the FOV of ARH missiles. (NEW)
 4.) Avoidance behavior based on roles (EX: AAW will avoid SAMS and Ships) (OLD)
 5.) Avoidance behavior is divided into two methods. (NEW)
-    a.) Line of Sight avoidance - Units will attempt to fly under the radar and still approach threats. To improve fuel efficiency, units will fly at the maximum height possible while avoiding radar. Height values are pre-determined by the distance to height equation => http://www.ringbell.co.uk/info/hdist.htm
+    a.) Line of Sight avoidance - Units will attempt to fly under the radar and still approach threats. To improve fuel efficiency, units will fly at the maximum height possible while avoiding radar. Height values are pre-determined by the distance to horizon equation.
     b.) Hard avoidance - When line of sight avoidance can no longer mask a unit's approach, the unit will attempt to avoid the threat altogether.
 6.) Units under Strike Missions will attempt fly under radar to avoid any detected SAMs or ships. They will "Pop-up" only when close to the target. (NEW)
 7.) Units under Patrols (SEAD, Land, Anti-ship) will occasionally "Pop-up" to detect and engage targets. (NEW)

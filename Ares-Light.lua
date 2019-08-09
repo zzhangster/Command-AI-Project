@@ -215,6 +215,7 @@ local GLOBAL_TYPE_MISSILES = "missiles"
 local GLOBAL_TYPE_PLANES = "planes"
 local GLOBAL_TYPE_SAMS = "sams"
 local GLOBAL_TYPE_SHIPS = "ships"
+local GLOBAL_TYPE_SHIPS_AND_SAMS = "ships_sams"
 local GLOBAL_TYPE_DATUM = "datum"
 -- Memory Keys
 local GLOBAL_ARES_GENERIC_KEY = "ares_generic_key"
@@ -228,6 +229,7 @@ local GLOBAL_SAVED_LAND_CONTACT_KEY = "_saved_land_contact"
 local GLOBAL_SAVED_WEAP_CONTACT_KEY = "_saved_weap_contact"
 local GLOBAL_SAVED_DATUM_CONTACT_KEY = "_saved_datum_contact"
 local GLOBAL_SAVED_MISSIONS_KEY = "_saved_missions"
+local GLOBAL_SAVED_MISSIONS_TARGET_ZONES_KEY = "_saved_missions_target_zones"
 -- Time Values
 local GLOBAL_TIME_EVERY_TWO_SECONDS = "GlobalTimeEveryTwo"
 local GLOBAL_TIME_EVERY_FIVE_SECONDS = "GlobalTimeEveryFive"
@@ -621,6 +623,8 @@ function heightToHorizonOverRadarApproach(distance,engaged,popup)
 		height = 500
 	elseif distance > 40 then
         height = 120
+	elseif distance > 20 then
+		height = 65
 	else
 		height = 30
 	end
@@ -661,6 +665,8 @@ function heightToHorizonUnderRadarApproach(distance,engaged,popup)
 		height = 200
 	elseif distance > 40 then
         height = 100
+	elseif distance > 20 then
+		height = 65
 	else
 		height = 30
 	end
@@ -750,9 +756,9 @@ function findBoundingBoxForGivenLocations(coordinates,padding)
     return {makeLatLong(north,west),makeLatLong(north,east),makeLatLong(south,east),makeLatLong(south,west)}
 end
 
-function findBoundingBoxForGivenContacts(sideName,contacts,defaults,padding)
-    local contactBoundingBox = findBoundingBoxForGivenLocations({makeLatLong(defaults[1].latitude,defaults[1].longitude),makeLatLong(defaults[2].latitude,defaults[2].longitude),makeLatLong(defaults[3].latitude,defaults[3].longitude),makeLatLong(defaults[4].latitude,defaults[4].longitude)},padding)
-    local contactCoordinates = {}
+function findBoundingBoxForGivenContacts(sideName,contacts,padding)
+    local contactBoundingBox = {}
+	local contactCoordinates = {}
     -- Looping
     for k, v in pairs(contacts) do
         local contact = ScenEdit_GetContact({side=sideName, guid=v})
@@ -768,9 +774,9 @@ function findBoundingBoxForGivenContacts(sideName,contacts,defaults,padding)
     return contactBoundingBox
 end
 
-function findBoundingBoxForGivenUnits(sideName,units,defaults,padding)
-    local unitBoundingBox = findBoundingBoxForGivenLocations({makeLatLong(defaults[1].latitude,defaults[1].longitude),makeLatLong(defaults[2].latitude,defaults[2].longitude),makeLatLong(defaults[3].latitude,defaults[3].longitude),makeLatLong(defaults[4].latitude,defaults[4].longitude)},padding)
-    local unitCoordinates = {}
+function findBoundingBoxForGivenUnits(sideName,units,padding)
+    local unitBoundingBox = {}
+	local unitCoordinates = {}
     -- Looping
     for k, v in pairs(units) do
         local unit = ScenEdit_GetUnit({side=sideName, guid=v})
@@ -920,25 +926,6 @@ function determineUnitOffensive(unit)
 	return false
 end
 
-function determineUnitToMissionTarget(unit)
-	local range = 1000
-	if unit and unit.mission then
-		if #unit.mission.targetlist > 0 then
-			for k,v in pairs(unit.mission.targetlist) do
-				local targetRange = Tool_Range(unit.guid,v)
-				if targetRange < range then
-					range = targetRange
-				end
-			end
-			return range
-		else
-			return range
-		end
-	else
-		return range
-	end
-end
-
 function determineUnitIsTargtedOrFiredOn(unit)
 	local targetedOrFiredOn = false
 	if unit.group and #unit.group.unitlist > 0 then
@@ -999,6 +986,53 @@ function determineUnitRetreatCoordinate(unit,contact,allowPivot,factorBase)
         -- Default Return
         return projectLatLong(makeLatLong(unit.latitude,unit.longitude),unit.heading,normalizeRange)
     end
+end
+
+function determineUnitInMissionTarget(sideShortKey,unit)
+	if unit and unit.mission then
+		local targetZone = getMissionTargetZone(sideShortKey,unit.mission.guid)
+		if targetZone then
+			--ScenEdit_SpecialMessage("Blue Force", "determineUnitInMissionTarget - "..targetZone.latitude.." "..targetZone.longitude.." "..targetZone.range)
+			local targetRange = Tool_Range(unit.guid,{latitude=targetZone.latitude,longitude=targetZone.longitude})
+			if targetRange <= targetZone.range then
+				return true
+			else
+				return false
+			end
+		else
+			return false
+		end
+	else
+		return false
+	end
+end
+
+function determineUnitToMissionTarget(unit)
+	local range = 1000
+	if unit and unit.mission then
+		if #unit.mission.targetlist > 0 then
+			for k,v in pairs(unit.mission.targetlist) do
+				local targetRange = Tool_Range(unit.guid,v)
+				if targetRange < range then
+					range = targetRange
+				end
+			end
+			return range
+		else
+			return range
+		end
+	else
+		return range
+	end
+end
+
+function getMissionTargetZone(sideShortKey,missionGuid)
+    local targetZones = localMemoryGetFromKey(sideShortKey..GLOBAL_SAVED_MISSIONS_TARGET_ZONES_KEY)
+	if targetZones and #targetZones > 0 then
+		return (targetZones[1])[missionGuid]
+	else
+		return nil
+	end
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
@@ -1162,7 +1196,17 @@ function getHostileAirContacts(sideShortKey)
 end
 
 function getAllAirContacts(sideShortKey) 
-	return combineTablesNew(getHostileAirContacts(sideShortKey),getUnknownAirContacts(sideShortKey))
+    local savedContacts = localMemoryContactGetFromKey(sideShortKey..GLOBAL_SAVED_AIR_CONTACT_KEY)
+    if #savedContacts > 0 then
+        savedContacts = savedContacts[1]
+        if savedContacts[sideShortKey.."_air_con_H_X"] then
+            return savedContacts[sideShortKey.."_air_con_H_X"]
+        else
+            return {}
+        end
+    else 
+        return {}
+    end
 end
 
 function getUnknownSurfaceShipContacts(sideShortKey)
@@ -1193,8 +1237,18 @@ function getHostileSurfaceShipContacts(sideShortKey)
     end
 end
 
-function getAllSurfaceShipContacts(sideShortKey) 
-	return combineTablesNew(getHostileSurfaceShipContacts(sideShortKey),getUnknownSurfaceShipContacts(sideShortKey))
+function getAllSurfaceShipContacts(sideShortKey)
+    local savedContacts = localMemoryContactGetFromKey(sideShortKey..GLOBAL_SAVED_SHIP_CONTACT_KEY)
+    if #savedContacts > 0 then
+        savedContacts = savedContacts[1]
+        if savedContacts[sideShortKey.."_surf_con_H_X"] then
+            return savedContacts[sideShortKey.."_surf_con_H_X"]
+        else
+            return {}
+        end
+    else 
+        return {}
+    end
 end
 
 function getUnknownSubmarineContacts(sideShortKey)
@@ -1226,7 +1280,17 @@ function getHostileSubmarineContacts(sideShortKey)
 end
 
 function getAllSubmarineContacts(sideShortKey) 
-	return combineTablesNew(getHostileSubmarineContacts(sideShortKey),getUnknownSubmarineContacts(sideShortKey))
+    local savedContacts = localMemoryContactGetFromKey(sideShortKey..GLOBAL_SAVED_SUB_CONTACT_KEY)
+    if #savedContacts > 0 then
+        savedContacts = savedContacts[1]
+        if savedContacts[sideShortKey.."_sub_con_H_X"] then
+            return savedContacts[sideShortKey.."_sub_con_H_X"]
+        else
+            return {}
+        end
+    else 
+        return {}
+    end
 end
 
 function getUnknownSAMContacts(sideShortKey)
@@ -1257,8 +1321,18 @@ function getHostileSAMContacts(sideShortKey)
     end
 end
 
-function getAllSAMContacts(sideShortKey) 
-	return combineTablesNew(getHostileSAMContacts(sideShortKey),getUnknownSAMContacts(sideShortKey))
+function getAllSAMContacts(sideShortKey)
+    local savedContacts = localMemoryContactGetFromKey(sideShortKey..GLOBAL_SAVED_LAND_CONTACT_KEY)
+    if #savedContacts > 0 then
+        savedContacts = savedContacts[1]
+        if savedContacts[sideShortKey.."_sam_con_H_X"] then
+            return savedContacts[sideShortKey.."_sam_con_H_X"]
+        else
+            return {}
+        end
+    else 
+        return {}
+    end
 end
 
 function getUnknownLandContacts(sideShortKey)
@@ -1327,6 +1401,10 @@ function getDatumContacts(sideShortKey)
     end
 end
 
+function getAllSurfaceShipAndSAMContacts(sideShortKey)
+    return combineTablesNew(getAllSubmarineContacts(sideShortKey),getAllSAMContacts(sideShortKey))
+end
+
 --------------------------------------------------------------------------------------------------------------------------------
 -- Determine Emcon Functions
 --------------------------------------------------------------------------------------------------------------------------------
@@ -1368,30 +1446,28 @@ end
 function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,unitGuid,unitRole) 
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name,guid=unitGuid})
-	--ScenEdit_SpecialMessage("Test1",deepPrint(unit))
-	--ScenEdit_SpecialMessage("Test1", unit.throttle)
     if unit and determineUnitIsTargtedOrFiredOn(unit) then
         -- Find Unit Retreat Point
         local unitRetreatPointArray = nil
         -- Determine Retreat Type By Role
         if unitRole == GLOBAL_ROLE_AAW then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_SHIPS,range=30},{type=GLOBAL_TYPE_SAMS,range=30},{type=GLOBAL_TYPE_DATUM,range=0}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_SHIPS_AND_SAMS,range=30},{type=GLOBAL_TYPE_DATUM,range=0}})
         elseif unitRole == GLOBAL_ROLE_AG_ASUW then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_SAMS,range=25},{type=GLOBAL_TYPE_SHIPS,range=0},{type=GLOBAL_TYPE_DATUM,range=0}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_SHIPS_AND_SAMS,range=0},{type=GLOBAL_TYPE_DATUM,range=0}})
         elseif unitRole == GLOBAL_ROLE_AG then
             unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_PLANES,range=40},{type=GLOBAL_TYPE_SHIPS,range=30},{type=GLOBAL_TYPE_SAMS,range=0},{type=GLOBAL_TYPE_DATUM,range=0}})
         elseif unitRole == GLOBAL_ROLE_ASUW then
             unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=80},{type=GLOBAL_TYPE_PLANES,range=40},{type=GLOBAL_TYPE_SAMS,range=30},{type=GLOBAL_TYPE_SHIPS,range=0},{type=GLOBAL_TYPE_DATUM,range=0}})
         elseif unitRole == GLOBAL_ROLE_SUPPORT then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=150},{type=GLOBAL_TYPE_PLANES,range=150},{type=GLOBAL_TYPE_SAMS,range=100},{type=GLOBAL_TYPE_SHIPS,range=100},{type=GLOBAL_TYPE_DATUM,range=0}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=150},{type=GLOBAL_TYPE_PLANES,range=150},{type=GLOBAL_TYPE_SHIPS_AND_SAMS,range=100},{type=GLOBAL_TYPE_DATUM,range=0}})
         elseif unitRole == GLOBAL_ROLE_ASW then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_PLANES,range=40},{type=GLOBAL_TYPE_SAMS,range=30},{type=GLOBAL_TYPE_SHIPS,range=30},{type=GLOBAL_TYPE_DATUM,range=0}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_PLANES,range=40},{type=GLOBAL_TYPE_SHIPS_AND_SAMS,range=30},{type=GLOBAL_TYPE_DATUM,range=0}})
         elseif unitRole == GLOBAL_ROLE_RECON then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_PLANES,range=40},{type=GLOBAL_TYPE_SAMS,range=30},{type=GLOBAL_TYPE_SHIPS,range=30},{type=GLOBAL_TYPE_DATUM,range=0}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_PLANES,range=40},{type=GLOBAL_TYPE_SHIPS_AND_SAMS,range=30},{type=GLOBAL_TYPE_DATUM,range=0}})
         elseif unitRole == GLOBAL_ROLE_SEAD then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_PLANES,range=40},{type=GLOBAL_TYPE_SAMS,range=0},{type=GLOBAL_TYPE_SHIPS,range=0},{type=GLOBAL_TYPE_DATUM,range=0}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_PLANES,range=40},{type=GLOBAL_TYPE_SHIPS_AND_SAMS,range=0},{type=GLOBAL_TYPE_DATUM,range=0}})
 		elseif unitRole == GLOBAL_ROLE_RTB then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_PLANES,range=40},{type=GLOBAL_TYPE_SAMS,range=30},{type=GLOBAL_TYPE_SHIPS,range=30},{type=GLOBAL_TYPE_DATUM,range=0}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_PLANES,range=40},{type=GLOBAL_TYPE_SHIPS_AND_SAMS,range=30},{type=GLOBAL_TYPE_DATUM,range=0}})
         else
             unitRetreatPointArray = nil
         end
@@ -1432,9 +1508,11 @@ function determineRetreatPoint(sideGuid,shortSideKey,sideAttributes,unitGuid,uni
         if avoidanceTypes[i].type == GLOBAL_TYPE_PLANES then
             retreatPointArray = getRetreatPathForAirNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,avoidanceTypes[i].range)
         elseif avoidanceTypes[i].type == GLOBAL_TYPE_SHIPS then
-            retreatPointArray = getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,avoidanceTypes[i].range)
+            retreatPointArray = getRetreatPathForGenericNoNavZone(sideGuid,shortSideKey,sideAttributes,getAllSurfaceShipContacts(shortSideKey),unitGuid,unitRole,avoidanceTypes[i].range)
         elseif avoidanceTypes[i].type == GLOBAL_TYPE_SAMS then
-            retreatPointArray = getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,avoidanceTypes[i].range)
+            retreatPointArray = getRetreatPathForGenericNoNavZone(sideGuid,shortSideKey,sideAttributes,getAllSAMContacts(shortSideKey),unitGuid,unitRole,avoidanceTypes[i].range)
+        elseif avoidanceTypes[i].type == GLOBAL_TYPE_SHIPS_AND_SAMS then
+            retreatPointArray = getRetreatPathForGenericNoNavZone(sideGuid,shortSideKey,sideAttributes,getAllSurfaceShipAndSAMContacts(shortSideKey),unitGuid,unitRole,avoidanceTypes[i].range)
         elseif avoidanceTypes[i].type == GLOBAL_TYPE_MISSILES then
             retreatPointArray = getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole)
         elseif avoidanceTypes[i].type == GLOBAL_TYPE_DATUM then
@@ -1472,30 +1550,30 @@ function getRetreatPathForAirNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
     return nil
 end
 
-function getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,range)
+function getRetreatPathForGenericNoNavZone(sideGuid,shortSideKey,sideAttributes,contacts,unitGuid,unitRole,range)
     -- Variables
     local side = VP_GetSide({guid=sideGuid})
     local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
-    local hostileShipContacts = getAllSurfaceShipContacts(shortSideKey)
+    local hostileContacts = contacts
     local minDesiredRange = range
     local maxDesiredRange = 200
-	local distanceToShip = 10000
+	local distanceToContact = 10000
 	local contact = nil
 	-- Check Update
     if not unit and not canUpdateEveryTwentySeconds() then
         return nil
     end
 	-- Get To Mission Range
-	if determineUnitOffensive(unit) and determineUnitToMissionTarget(unit) < 40 then
+	if determineUnitOffensive(unit) and determineUnitInMissionTarget(shortSideKey,unit) then
 		return nil
 	end
 	-- Find Shortest Range Missile
-	for k,v in pairs(hostileShipContacts) do
+	for k,v in pairs(hostileContacts) do
         local currentContact = ScenEdit_GetContact({side=side.name, guid=v})
 		if currentContact then
-			local distanceToCurrentShip = Tool_Range(v,unitGuid)
-			if distanceToCurrentShip < distanceToShip then
-                distanceToShip = distanceToCurrentShip
+			local distanceToCurrentContact = Tool_Range(v,unitGuid)
+			if distanceToCurrentContact < distanceToContact then
+                distanceToContact = distanceToCurrentContact
 				contact = currentContact
 			end
 		end
@@ -1503,64 +1581,16 @@ function getRetreatPathForShipNoNavZone(sideGuid,shortSideKey,sideAttributes,uni
 	-- Find Checks
 	if not contact then
         return nil
-    elseif distanceToShip < minDesiredRange then
+    elseif distanceToContact < minDesiredRange then
         -- Emergency Evasion
         local retreatLocation = determineUnitRetreatCoordinate(unit,contact,false,determineUnitRTB(unit))
         return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,GLOBAL_THROTTLE_AFTERBURNER,true,true,true)}
-    elseif distanceToShip < maxDesiredRange then
+    elseif distanceToContact < maxDesiredRange then
         if #unit.course > 0 then
             local waypoint = unit.course[#unit.course]
-			--ScenEdit_SpecialMessage("Test1", deepPrint(unit.throttle))
-            return {makeWaypoint(waypoint.latitude,waypoint.longitude,heightToHorizon(distanceToShip,unitRole,determineUnitOffensive(unit)),GLOBAL_THROTTLE_CRUISE,false,true,false)}
+            return {makeWaypoint(waypoint.latitude,waypoint.longitude,heightToHorizon(distanceToContact,unitRole,determineUnitOffensive(unit)),GLOBAL_THROTTLE_CRUISE,false,true,false)}
         else
-            return {makeWaypoint(unit.latitude,unit.longitude,heightToHorizon(distanceToShip,unitRole,determineUnitOffensive(unit)),GLOBAL_THROTTLE_CRUISE,false,true,false)}
-        end
-    end
-    -- Catch All Return
-    return nil
-end
-
-function getRetreatPathForSAMNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,minRange)
-    -- Variables
-    local side = VP_GetSide({guid=sideGuid})
-    local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
-    local hostileSAMContacts = getAllSAMContacts(shortSideKey)
-    local minDesiredRange = minRange
-    local maxDesiredRange = 200
-	local distanceToSAM = 10000
-	local contact = nil
-	-- Check Update
-    if not unit and not canUpdateEveryTwentySeconds() then
-        return nil
-    end
-	-- Get To Mission Range
-	if determineUnitOffensive(unit) and determineUnitToMissionTarget(unit) < 40 then
-		return nil
-	end
-	-- Find Shortest Range Missile
-	for k,v in pairs(hostileSAMContacts) do
-        local currentContact = ScenEdit_GetContact({side=side.name, guid=v})
-		if currentContact then
-			local distanceToCurrentSAM = Tool_Range(v,unitGuid)
-			if distanceToCurrentSAM < distanceToSAM then
-                distanceToSAM = distanceToCurrentSAM
-				contact = currentContact
-			end
-		end
-	end
-	-- Find Checks
-	if not contact then
-        return nil
-    elseif distanceToSAM < minDesiredRange then
-        -- Emergency Evasion
-        local retreatLocation = determineUnitRetreatCoordinate(unit,contact,false,determineUnitRTB(unit))
-        return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,GLOBAL_THROTTLE_AFTERBURNER,true,true,true)}
-    elseif distanceToSAM < maxDesiredRange then
-        if #unit.course > 0 then
-            local waypoint = unit.course[#unit.course]
-            return {makeWaypoint(waypoint.latitude,waypoint.longitude,heightToHorizon(distanceToSAM,unitRole,determineUnitOffensive(unit)),GLOBAL_THROTTLE_CRUISE,false,true,false)}
-        else
-            return {makeWaypoint(unit.latitude,unit.longitude,heightToHorizon(distanceToSAM,unitRole,determineUnitOffensive(unit)),GLOBAL_THROTTLE_CRUISE,false,true,false)}
+            return {makeWaypoint(unit.latitude,unit.longitude,heightToHorizon(distanceToContact,unitRole,determineUnitOffensive(unit)),GLOBAL_THROTTLE_CRUISE,false,true,false)}
         end
     end
     -- Catch All Return
@@ -1586,7 +1616,7 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
     end
     
 	-- Get To Mission Range
-	if determineUnitOffensive(unit) and determineUnitToMissionTarget(unit) < 40 then
+	if determineUnitOffensive(unit) and determineUnitInMissionTarget(shortSideKey,unit) then
 		return nil
     end
     
@@ -1611,32 +1641,10 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
 	elseif distanceToMissile < 100 then
 		local retreatLocation = determineUnitRetreatCoordinate(unit,contact,false,false)
 		local testing = {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,heightToHorizon(distanceToMissile,unitRole,determineUnitOffensive(unit)),GLOBAL_THROTTLE_AFTERBURNER,true,true,true)}
-		--ScenEdit_SpecialMessage("Test1", testing[1].manualThrottle)
 		return testing
 	else
 		return nil
 	end
-	--elseif distanceToMissile < maxDesiredRange then
-		-- Check If Attacking Enemy And Break At Last Minute
-	--	local isFiringAt = false
-	--	local isFiringAtRange = 100000
-	--	if unit.firingAt then
-	--		for k1,v1 in pairs(unit.firingAt) do
-	--			local targetRange = Tool_Range(v1,unitGuid)
-	--			if targetRange < isFiringAtRange then
-	--				isFiringAt = true
-	--				isFiringAtRange = targetRange
-	--			end
-	--		end
-	--	end
-	--	if isFiringAt and distanceToMissile < 0.75 * isFiringAtRange then
-	--		local retreatLocation = determineUnitRetreatCoordinate(unit,contact,true,false)
-	--		return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,2000,true,true,true)}
-	--	else
-	--		local retreatLocation = determineUnitRetreatCoordinate(unit,contact,true,false)
-	--		return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,2000,true,true,true)}
-	--	end
-    --end
 end
 
 function getRetreatPathForDatumNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole)
@@ -1653,7 +1661,7 @@ function getRetreatPathForDatumNoNavZone(sideGuid,shortSideKey,sideAttributes,un
     end
 
 	-- Get To Mission Range
-	if determineUnitOffensive(unit) and determineUnitToMissionTarget(unit) < 40 then
+	if determineUnitOffensive(unit) and determineUnitInMissionTarget(shortSideKey,unit) then
 		return nil
     end
     
@@ -1820,6 +1828,40 @@ function observerActionUpdateMissionInventories(args)
     end
 end
 
+function observerActionUpdateMissionTargetZones(args)
+-- Local Variables
+    local sideShortKey = args.shortKey
+    local side = VP_GetSide({guid=args.guid})
+	local sideUnitDuplicateKey = {}
+    -- Check Every Five Minutes To Update Inventories
+    if canUpdateEveryTwoMinutes() then
+        local savedMissions = localMemoryGetFromKey(sideShortKey..GLOBAL_SAVED_MISSIONS_KEY)
+        local targetZonesInventory = {}
+        localMemoryRemoveFromKey(sideShortKey..GLOBAL_SAVED_MISSIONS_TARGET_ZONES_KEY)
+        -- Loop Through Missions
+        for k, v in pairs(savedMissions) do
+            local mission = ScenEdit_GetMission(side.name,v)
+            if mission.isactive and #mission.targetlist > 0 then
+				-- Update Mission Targetlist Zone
+				local missionTargetBox = findBoundingBoxForGivenUnits(side.name,mission.targetlist,0)
+				local midPointCoordinate = midPointCoordinate(missionTargetBox[1].latitude,missionTargetBox[1].longitude,missionTargetBox[3].latitude,missionTargetBox[3].longitude)
+				local range = 0
+				-- Loop
+				for i = 1, #missionTargetBox do
+					local currentRange = Tool_Range({latitude=midPointCoordinate.latitude, longitude=midPointCoordinate.longitude}, {latitude=missionTargetBox[i].latitude, longitude=missionTargetBox[i].longitude})
+					if currentRange > range then
+						range = currentRange
+					end
+				end
+				-- Target Zone
+				targetZonesInventory[mission.guid] = {latitude=midPointCoordinate.latitude, longitude=midPointCoordinate.longitude, range=(range + 40)}
+            end
+        end
+        -- Save Memory Inventory And Time Stamp
+        localMemoryAddToKey(sideShortKey..GLOBAL_SAVED_MISSIONS_TARGET_ZONES_KEY,targetZonesInventory)
+    end
+end
+
 function observerActionUpdateAirContacts(args)
     -- Local Variables
     local sideShortKey = args.shortKey
@@ -1842,6 +1884,16 @@ function observerActionUpdateAirContacts(args)
                 end
                 stringArray[#stringArray + 1] = contact.guid
                 savedContacts[stringKey] = stringArray
+                -- Add Hostile And Unknown Together In Memory
+                if contact.posture == "X" or contact.posture == "H" then
+                    stringKey = sideShortKey.."_"..unitType.."_H_X"
+                    stringArray = savedContacts[stringKey]
+                    if not stringArray then
+                        stringArray = {}
+                    end
+                    stringArray[#stringArray + 1] = contact.guid
+                    savedContacts[stringKey] = stringArray
+                end
             end
             localMemoryContactAddToKey(sideShortKey..GLOBAL_SAVED_AIR_CONTACT_KEY,savedContacts)
         end
@@ -1869,6 +1921,16 @@ function observerActionUpdateSurfaceContacts(args)
                 end
                 stringArray[#stringArray + 1] = contact.guid
                 savedContacts[stringKey] = stringArray
+                -- Add Hostile And Unknown Together In Memory
+                if contact.posture == "X" or contact.posture == "H" then
+                    stringKey = sideShortKey.."_"..unitType.."_H_X"
+                    stringArray = savedContacts[stringKey]
+                    if not stringArray then
+                        stringArray = {}
+                    end
+                    stringArray[#stringArray + 1] = contact.guid
+                    savedContacts[stringKey] = stringArray
+                end
             end
             localMemoryContactAddToKey(sideShortKey..GLOBAL_SAVED_SHIP_CONTACT_KEY,savedContacts)
         end
@@ -1896,6 +1958,16 @@ function observerActionUpdateSubmarineContacts(args)
                 end
                 stringArray[#stringArray + 1] = contact.guid
                 savedContacts[stringKey] = stringArray
+                -- Add Hostile And Unknown Together In Memory
+                if contact.posture == "X" or contact.posture == "H" then
+                    stringKey = sideShortKey.."_"..unitType.."_H_X"
+                    stringArray = savedContacts[stringKey]
+                    if not stringArray then
+                        stringArray = {}
+                    end
+                    stringArray[#stringArray + 1] = contact.guid
+                    savedContacts[stringKey] = stringArray
+                end
             end
             localMemoryContactAddToKey(sideShortKey..GLOBAL_SAVED_SUB_CONTACT_KEY,savedContacts)
         end
@@ -1927,6 +1999,16 @@ function observerActionUpdateLandContacts(args)
                     end
                     stringArray[#stringArray + 1] = contact.guid
                     savedContacts[stringKey] = stringArray
+                    -- Add Hostile And Unknown Together In Memory
+                    if contact.posture == "X" or contact.posture == "H" then
+                        stringKey = sideShortKey.."_"..unitType.."_H_X"
+                        stringArray = savedContacts[stringKey]
+                        if not stringArray then
+                            stringArray = {}
+                        end
+                        stringArray[#stringArray + 1] = contact.guid
+                        savedContacts[stringKey] = stringArray
+                    end
                 end
             end
             localMemoryContactAddToKey(sideShortKey..GLOBAL_SAVED_LAND_CONTACT_KEY,savedContacts)
@@ -2138,6 +2220,7 @@ function initializeAresAI(sideName)
     ----------------------------------------------------------------------------------------------------------------------------
     local observerActionUpdateAIVariablesBT = BT:make(observerActionUpdateAIVariables,sideGuid,shortSideKey,attributes)
     local observerActionUpdateMissionsBT = BT:make(observerActionUpdateMissions,sideGuid,shortSideKey,attributes)
+	local observerActionUpdateMissionTargetZonesBT = BT:make(observerActionUpdateMissionTargetZones,sideGuid,shortSideKey,attributes)
     local observerActionUpdateMissionInventoriesBT = BT:make(observerActionUpdateMissionInventories,sideGuid,shortSideKey,attributes)
     local observerActionUpdateAirContactsBT = BT:make(observerActionUpdateAirContacts,sideGuid,shortSideKey,attributes)
     local observerActionUpdateSurfaceContactsBT = BT:make(observerActionUpdateSurfaceContacts,sideGuid,shortSideKey,attributes)
@@ -2149,6 +2232,7 @@ function initializeAresAI(sideName)
     -- Add Observers
     aresObserverBTMain:addChild(observerActionUpdateAIVariablesBT)
     aresObserverBTMain:addChild(observerActionUpdateMissionsBT)
+	aresObserverBTMain:addChild(observerActionUpdateMissionTargetZonesBT)
     aresObserverBTMain:addChild(observerActionUpdateMissionInventoriesBT)
     aresObserverBTMain:addChild(observerActionUpdateAirContactsBT)
     aresObserverBTMain:addChild(observerActionUpdateSurfaceContactsBT)
@@ -2201,4 +2285,4 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 -- Global Call
 --------------------------------------------------------------------------------------------------------------------------------
-initializeAresAI("Test1")
+initializeAresAI("Blue Force")
