@@ -1,0 +1,16 @@
+------------------------------
+Installation Guide:
+------------------------------
+1.) Open your scenario
+2.) Create Event => "Event - Load AI"
+    a.) Set repeatable and active
+    b.) Set Trigger as Load On Scenario
+    c.) Set Lua Script Action => "Load AI"
+        i.) Copy and paste the entire content of Ares-Lite.lua
+	ii.) On last line => initializeAresAI("Blue Force"), replace "Blue Force" with the name of side you want the AI to control.
+3.) Create Event => "Event - Update AI"
+    a.) Set repeatable and active
+    b.) Set Trigger to 1 second regular time
+    c.) Set Lua Script Action => "Update AI"
+        i.) Script should have content => updateAresAI()
+4.) Ares-Lite will take over any mission with name containing "<Ares>" in any order.

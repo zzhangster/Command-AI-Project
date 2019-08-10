@@ -1578,6 +1578,8 @@ function getRetreatPathForGenericNoNavZone(sideGuid,shortSideKey,sideAttributes,
 			end
 		end
 	end
+
+	
 	--ScenEdit_SpecialMessage("Blue Force", "getRetreatPathForGenericNoNavZone - "..#hostileContacts.." "..distanceToContact)
 
 	-- Find Checks
