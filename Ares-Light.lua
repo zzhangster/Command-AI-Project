@@ -965,10 +965,10 @@ function determineUnitRetreatCoordinate(unit,contact,allowPivot,factorBase)
             local headerLocation = projectLatLong(makeLatLong(contact.latitude,contact.longitude),contact.heading,range)
             local headerBearing = Tool_Bearing({latitude=headerLocation.latitude,longitude=headerLocation.longitude},unit.guid)
 			local pivotRange = 0
-			if range < 100 then
-				pivotRange = 5
-			elseif range < 30 then
+			if range < 30 then
 				pivotRange = 30
+			elseif range < 100 then
+				pivotRange = 5
 			end
             retreatLocation = projectLatLong(makeLatLong(retreatLocation.latitude,retreatLocation.longitude),headerBearing,pivotRange)
         end
@@ -992,7 +992,6 @@ function determineUnitInMissionTarget(sideShortKey,unit)
 	if unit and unit.mission then
 		local targetZone = getMissionTargetZone(sideShortKey,unit.mission.guid)
 		if targetZone then
-			--ScenEdit_SpecialMessage("Blue Force", "determineUnitInMissionTarget - "..targetZone.latitude.." "..targetZone.longitude.." "..targetZone.range)
 			local targetRange = Tool_Range(unit.guid,{latitude=targetZone.latitude,longitude=targetZone.longitude})
 			if targetRange <= targetZone.range then
 				return true
@@ -1559,6 +1558,7 @@ function getRetreatPathForGenericNoNavZone(sideGuid,shortSideKey,sideAttributes,
     local maxDesiredRange = 200
 	local distanceToContact = 10000
 	local contact = nil
+	
 	-- Check Update
     if not unit and not canUpdateEveryTwentySeconds() then
         return nil
@@ -1578,6 +1578,10 @@ function getRetreatPathForGenericNoNavZone(sideGuid,shortSideKey,sideAttributes,
 			end
 		end
 	end
+
+	
+	--ScenEdit_SpecialMessage("Blue Force", "getRetreatPathForGenericNoNavZone - "..#hostileContacts.." "..distanceToContact)
+
 	-- Find Checks
 	if not contact then
         return nil
@@ -1904,6 +1908,7 @@ function observerActionUpdateSurfaceContacts(args)
     -- Local Variables
     local sideShortKey = args.shortKey
     local side = VP_GetSide({guid=args.guid})
+	local testing = 0
     if canUpdateEverySixtySeconds() then
         local shipContacts = side:contactsBy("2")
         localMemoryContactRemoveFromKey(sideShortKey..GLOBAL_SAVED_SHIP_CONTACT_KEY)
@@ -1923,6 +1928,7 @@ function observerActionUpdateSurfaceContacts(args)
                 savedContacts[stringKey] = stringArray
                 -- Add Hostile And Unknown Together In Memory
                 if contact.posture == "X" or contact.posture == "H" then
+					testing = testing + 1
                     stringKey = sideShortKey.."_"..unitType.."_H_X"
                     stringArray = savedContacts[stringKey]
                     if not stringArray then
@@ -2227,7 +2233,7 @@ function initializeAresAI(sideName)
     local observerActionUpdateSubmarineContactsBT = BT:make(observerActionUpdateSubmarineContacts,sideGuid,shortSideKey,attributes)
     local observerActionUpdateLandContactsBT = BT:make(observerActionUpdateLandContacts,sideGuid,shortSideKey,attributes)
     local observerActionUpdateWeaponContactsBT = BT:make(observerActionUpdateWeaponContacts,sideGuid,shortSideKey,attributes)
-	local observerActionUpdateDatumContactsBT = BT:make(observerActionUpdateDatumContacts,sideGuid,shortSideKey,attributes)
+	--local observerActionUpdateDatumContactsBT = BT:make(observerActionUpdateDatumContacts,sideGuid,shortSideKey,attributes)
 	
     -- Add Observers
     aresObserverBTMain:addChild(observerActionUpdateAIVariablesBT)
