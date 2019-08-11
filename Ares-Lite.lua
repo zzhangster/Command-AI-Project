@@ -1694,34 +1694,6 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 -- Observer Functions
 --------------------------------------------------------------------------------------------------------------------------------
-function observerActionUpdateAIVariables(args)
-    local sideShortKey = args.shortKey
-    local hostileWeaponContacts = getHostileWeaponContacts(args.shortKey)
-    if canUpdateEveryThirtySeconds() then
-        -- Update Emcon Change State
-        local emconChangeState = ScenEdit_GetKeyValue(sideShortKey.."_emcon_chg_state")
-        if emconChangeState == "Active" then
-            emconChangeState = "Passive"
-        else 
-            emconChangeState = "Active"
-        end
-        ScenEdit_SetKeyValue(sideShortKey.."_emcon_chg_state",emconChangeState)
-
-        -- Update Threat Decay
-        local threatRangeDecay = ScenEdit_GetKeyValue(sideShortKey.."_threat_range_decay")
-        if threatRangeDecay == "" or #hostileWeaponContacts > 0 then
-            threatRangeDecay = "1"
-        else
-            if threatRangeDecay == "0.04" then
-                threatRangeDecay = "0.05"
-            else
-                threatRangeDecay = tostring(tonumber(threatRangeDecay) - 0.01)
-            end
-        end
-        ScenEdit_SetKeyValue(sideShortKey.."_threat_range_decay",threatRangeDecay)
-    end
-end
-
 function observerActionUpdateMissions(args)
     -- Local Variables
     local sideShortKey = args.shortKey
@@ -1759,6 +1731,8 @@ function observerActionUpdateMissionInventories(args)
         local savedMissions = localMemoryGetFromKey(sideShortKey..GLOBAL_SAVED_MISSIONS_KEY)
         local savedInventory = {}
         localMemoryInventoryRemoveFromKey(sideShortKey..GLOBAL_SAVED_AIR_INVENTORY_KEY)
+
+		ScenEdit_SpecialMessage("Blue Force", "observerActionUpdateMissionInventories - "..#savedMissions)
         -- Loop Through Missions
         for k, v in pairs(savedMissions) do
             local mission = ScenEdit_GetMission(side.name,v)
@@ -2224,7 +2198,6 @@ function initializeAresAI(sideName)
     ----------------------------------------------------------------------------------------------------------------------------
     -- Ares Observer
     ----------------------------------------------------------------------------------------------------------------------------
-    local observerActionUpdateAIVariablesBT = BT:make(observerActionUpdateAIVariables,sideGuid,shortSideKey,attributes)
     local observerActionUpdateMissionsBT = BT:make(observerActionUpdateMissions,sideGuid,shortSideKey,attributes)
 	local observerActionUpdateMissionTargetZonesBT = BT:make(observerActionUpdateMissionTargetZones,sideGuid,shortSideKey,attributes)
     local observerActionUpdateMissionInventoriesBT = BT:make(observerActionUpdateMissionInventories,sideGuid,shortSideKey,attributes)
@@ -2236,7 +2209,6 @@ function initializeAresAI(sideName)
 	--local observerActionUpdateDatumContactsBT = BT:make(observerActionUpdateDatumContacts,sideGuid,shortSideKey,attributes)
 	
     -- Add Observers
-    aresObserverBTMain:addChild(observerActionUpdateAIVariablesBT)
     aresObserverBTMain:addChild(observerActionUpdateMissionsBT)
 	aresObserverBTMain:addChild(observerActionUpdateMissionTargetZonesBT)
     aresObserverBTMain:addChild(observerActionUpdateMissionInventoriesBT)
