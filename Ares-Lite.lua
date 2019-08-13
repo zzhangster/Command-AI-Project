@@ -280,9 +280,11 @@ end
 function localMemoryRemoveFromKey(primaryKey)
     if aresLocalMemory[GLOBAL_ARES_GENERIC_KEY] then
         if (aresLocalMemory[GLOBAL_ARES_GENERIC_KEY])[primaryKey] then
-            (aresLocalMemory[GLOBAL_ARES_GENERIC_KEY])[primaryKey] = {}
+            (aresLocalMemory[GLOBAL_ARES_GENERIC_KEY])[primaryKey] = nil
         end
     end
+	collectgarbage("collect")
+	ScenEdit_SpecialMessage("Blue Force", ""..collectgarbage("count"))
 end
 
 function localMemoryExistForKey(primaryKey,value)
@@ -333,6 +335,57 @@ function localMemoryInventoryExistForKey(primaryKey,value)
         end
     end
     return false
+end
+
+--------------------------------------------------------------------------------------------------------------------------------
+-- Local Memory Tracker
+--------------------------------------------------------------------------------------------------------------------------------
+function AresGetSide(guid)
+	local key = guid
+    if aresLocalMemory[key] then
+		ScenEdit_SpecialMessage("Blue Force", "AresGetSide - Local")
+        return aresLocalMemory[key]
+    else
+        local side = VP_GetSide({guid=guid})
+        aresLocalMemory[key] = side
+        return side
+    end
+end
+
+function AresGetUnit(sideName,guid)
+	local key = guid
+    if aresLocalMemory[key] then
+		ScenEdit_SpecialMessage("Blue Force", "AresGetUnit - Local")
+        return aresLocalMemory[key]
+    else
+        local unit = ScenEdit_GetUnit({side=sideName, guid=guid})
+        aresLocalMemory[key] = unit
+        return unit
+    end
+end
+
+function AresGetMission(sideName,guid)
+	local key = guid
+    if aresLocalMemory[key] then
+		ScenEdit_SpecialMessage("Blue Force", "AresGetMission - Local")
+        return aresLocalMemory[key]
+    else
+        local mission = ScenEdit_GetMission(sideName,guid)
+        aresLocalMemory[key] = mission
+        return mission
+    end
+end
+
+function AresGetLoadout(guid,loadout)
+	local key = guid.."_loadout_"..loadout
+    if aresLocalMemory[key] then
+		ScenEdit_SpecialMessage("Blue Force", "AresGetLoadout - Local")
+        return aresLocalMemory[key]
+    else
+        local loadout = ScenEdit_GetLoadout({UnitName=guid, LoadoutID=loadout})
+        aresLocalMemory[key] = loadout
+        return loadout
+    end
 end
 
 function localMemoryPrintAll()
@@ -804,7 +857,7 @@ function findBoundingBoxForGivenUnits(sideName,units,padding)
 	local unitCoordinates = {}
     -- Looping
     for k, v in pairs(units) do
-        local unit = ScenEdit_GetUnit({side=sideName, guid=v})
+        local unit = AresGetUnit(sideName,v)
         if unit then
             unitCoordinates[#unitCoordinates + 1] = makeLatLong(unit.latitude,unit.longitude)
         end
@@ -826,12 +879,12 @@ function split(s, sep)
 end
 
 function getUnitsFromMission(sideName,missionGuid)
-    local mission = ScenEdit_GetMission(sideName,missionGuid)
+    local mission = AresGetMission(sideName,missionGuid)
     local unitKeyValue = {}
     local missionUnits = {}
     if mission then
         for k,v in pairs(mission.unitlist) do
-            local unit = ScenEdit_GetUnit({side=sideName, guid=v})
+            local unit = AresGetUnit(sideName,v)
             if unit then
                 if unitKeyValue[unit.guid] == nil then
                     missionUnits[#missionUnits + 1] = unit.guid
@@ -844,13 +897,13 @@ function getUnitsFromMission(sideName,missionGuid)
 end
 
 function getGroupLeadsFromMission(sideName,missionGuid,unitType,activeUnits)
-    local mission = ScenEdit_GetMission(sideName,missionGuid)
+    local mission = AresGetMission(sideName,missionGuid)
     local unitKeyValue = {}
     local missionUnits = {}
     local groupGuids = {}
     if mission then
         for k,v in pairs(mission.unitlist) do
-            local unit = ScenEdit_GetUnit({side=sideName, guid=v})
+            local unit = AresGetUnit(sideName,v)
             -- Filter By Type
 			if unit and unit.type == unitType then
 				-- Check Only Active
@@ -935,7 +988,7 @@ end
 function determineUnitOffensive(unit)
 	if unit.group and #unit.group.unitlist > 0 and unit.group.lead then
 		for k1,v1 in pairs(unit.group.unitlist) do
-			local subUnit = ScenEdit_GetUnit({side=sideName,guid=v1})
+			local subUnit = AresGetUnit(sideName,v1)
 			if subUnit.unitstate == GLOBAL_UNIT_STATE_ENGAGED_OFFENSIVE then
 				return true
 			end
@@ -955,7 +1008,7 @@ function determineUnitIsTargtedOrFiredOn(unit)
 	local targetedOrFiredOn = false
 	if unit.group and #unit.group.unitlist > 0 then
 		for k1,v1 in pairs(unit.group.unitlist) do
-			local subUnit = ScenEdit_GetUnit({side=sideName,guid=v1})
+			local subUnit = AresGetUnit(sideName,v1)
 			targetedOrFiredOn = targetedOrFiredOn or (unit.targetedBy or unit.firedOn)
         end
 		return targetedOrFiredOn
@@ -968,7 +1021,7 @@ function determineUnitIsFiredOn(unit)
 	local firedOn = false
 	if unit.group and #unit.group.unitlist > 0 then
 		for k1,v1 in pairs(unit.group.unitlist) do
-			local subUnit = ScenEdit_GetUnit({side=sideName,guid=v1})
+			local subUnit = AresGetUnit(sideName,v1)
 			firedOn = firedOn or subUnit.firedOn
         end
 		return firedOn
@@ -1430,46 +1483,11 @@ function getAllSurfaceShipAndSAMContacts(sideShortKey)
 end
 
 --------------------------------------------------------------------------------------------------------------------------------
--- Determine Emcon Functions
---------------------------------------------------------------------------------------------------------------------------------
-function determineEmconToAirUnits(sideShortKey,sideAttributes,sideName,unitGuidList)
-    local busyAEWInventory = getBusyAirAEWInventory(sideShortKey)
-    local emconChangeState = ScenEdit_GetKeyValue(sideShortKey.."_emcon_chg_state")
-    if not canUpdateEveryThirtySeconds() then
-        return
-    end
-    for k,v in pairs(unitGuidList) do
-        local unit = ScenEdit_GetUnit({side=sideName, guid=v})
-        -- Radar Emission Control
-        if unit and unit.speed > 0 and not unit.firingAt then
-            ScenEdit_SetEMCON("Unit",unit.guid,"Radar="..emconChangeState)
-            for k1,v1 in pairs(busyAEWInventory) do
-                local aewUnit = ScenEdit_GetUnit({side=sideName, guid=v1})
-                if aewUnit and aewUnit.speed > 0 then
-                    if Tool_Range(v1,v) < 160 then
-                        ScenEdit_SetEMCON("Unit",unit.guid,"Radar=Passive")
-                        break
-                    end
-                end
-            end
-        end
-        -- Jammer Emission Control
-        if unit then
-            if unit.targetedBy and unit.firedOn then
-                ScenEdit_SetEMCON("Unit",unit.guid,"OECM=Active")
-            else
-                ScenEdit_SetEMCON("Unit",unit.guid,"OECM=Passive")
-            end
-        end
-    end
-end
-
---------------------------------------------------------------------------------------------------------------------------------
 -- Determine Unit Retreat Functions
 --------------------------------------------------------------------------------------------------------------------------------
 function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,unitGuid,unitRole) 
-    local side = VP_GetSide({guid=sideGuid})
-    local unit = ScenEdit_GetUnit({side=side.name,guid=unitGuid})
+    local side = AresGetSide(sideGuid)
+    local unit = AresGetUnit(side.name,unitGuid)
     if unit and determineUnitIsTargtedOrFiredOn(unit) then
         -- Find Unit Retreat Point
         local unitRetreatPointArray = nil
@@ -1500,7 +1518,7 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
         if unitRetreatPointArray then
             if unit.group and unit.group.unitlist then
                for k1,v1 in pairs(unit.group.unitlist) do
-                    local subUnit = ScenEdit_GetUnit({side=side.name,guid=v1})
+                    local subUnit = AresGetUnit(side.name,v1)
 					ScenEdit_SetDoctrine({side=side.name,guid=subUnit.guid},{ignore_plotted_course = unitRetreatPointArray[1].ignorePlottedPath})
 					subUnit.manualAltitude = unitRetreatPointArray[1].alt
 					subUnit.manualThrottle = unitRetreatPointArray[1].manualThrottle
@@ -1525,8 +1543,8 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
 end
 
 function determineRetreatPoint(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,avoidanceTypes)
-    local side = VP_GetSide({guid=sideGuid})
-    local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
+    local side = AresGetSide(sideGuid)
+    local unit = AresGetUnit(side.name,unitGuid)
     for i = 1, #avoidanceTypes do
         local retreatPointArray  = nil
         if avoidanceTypes[i].type == GLOBAL_TYPE_PLANES then
@@ -1554,8 +1572,8 @@ function determineRetreatPoint(sideGuid,shortSideKey,sideAttributes,unitGuid,uni
 end
 
 function getRetreatPathForAirNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,range)
-    local side = VP_GetSide({guid=sideGuid})
-    local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
+    local side = AresGetSide(sideGuid)
+    local unit = AresGetUnit(side.name,unitGuid)
     local hostileAirContacts = getAllAirContacts(shortSideKey)
     local desiredRange = range
     if not unit and not canUpdateEveryTwentySeconds() then
@@ -1576,8 +1594,8 @@ end
 
 function getRetreatPathForGenericNoNavZone(sideGuid,shortSideKey,sideAttributes,contacts,unitGuid,unitRole,range)
     -- Variables
-    local side = VP_GetSide({guid=sideGuid})
-    local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
+    local side = AresGetSide(sideGuid)
+    local unit = AresGetUnit(side.name,unitGuid)
     local hostileContacts = contacts
     local minDesiredRange = range
     local maxDesiredRange = 200
@@ -1627,8 +1645,8 @@ function getRetreatPathForGenericNoNavZone(sideGuid,shortSideKey,sideAttributes,
 end
 
 function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole)
-    local side = VP_GetSide({guid=sideGuid})
-    local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
+    local side = AresGetSide(sideGuid)
+    local unit = AresGetUnit(side.name,unitGuid)
     local hostileMissilesContacts = getHostileWeaponContacts(shortSideKey)
     local minDesiredRange = 8
     local maxDesiredRange = 60
@@ -1678,8 +1696,8 @@ end
 
 function getRetreatPathForDatumNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole)
     -- Variables
-    local side = VP_GetSide({guid=sideGuid})
-    local unit = ScenEdit_GetUnit({side=side.name, guid=unitGuid})
+    local side = AresGetSide(sideGuid)
+    local unit = AresGetUnit(side.name,unitGuid)
     local datumContacts = getDatumContacts(shortSideKey)
     local maxDesiredRange = 200
     local distanceToDatum = 10000
@@ -1722,17 +1740,17 @@ end
 function observerActionUpdateMissions(args)
     -- Local Variables
     local sideShortKey = args.shortKey
-    local side = VP_GetSide({guid=args.guid})
+    local side = AresGetSide(args.guid)
     -- Check Every Five Minutes For New Missions
     if canUpdateEveryFiveMinutes() then
         -- Loop Through Aircraft Inventory And Then Find Their Missions (Can't Get List Of Missions Currently)
-        local aircraftInventory = side:unitsBy("1")
+		local aircraftInventory = side:unitsBy("1")
         if aircraftInventory then
             local savedMissions = {}
             localMemoryRemoveFromKey(sideShortKey..GLOBAL_SAVED_MISSIONS_KEY)
             for k, v in pairs(aircraftInventory) do
                 -- Local Values
-                local unit = ScenEdit_GetUnit({side=side.name, guid=v.guid})
+                local unit = AresGetUnit(side.name,v.guid)
                 -- Check Mission Exits And Save In Key Value Pairs (Remove Duplication)
                 if unit.mission and unit.mission.isactive and unit.speed > 0 and string.match(unit.mission.name, "<Ares>") then
 					if not savedMissions[unit.mission.guid] then
@@ -1749,29 +1767,27 @@ end
 function observerActionUpdateMissionInventories(args)
     -- Local Variables
     local sideShortKey = args.shortKey
-    local side = VP_GetSide({guid=args.guid})
+    local side = AresGetSide(args.guid)
 	local sideUnitDuplicateKey = {}
     -- Check Every Five Minutes To Update Inventories
     if canUpdateEverySixtySeconds() then
         local savedMissions = localMemoryGetFromKey(sideShortKey..GLOBAL_SAVED_MISSIONS_KEY)
         local savedInventory = {}
         localMemoryInventoryRemoveFromKey(sideShortKey..GLOBAL_SAVED_AIR_INVENTORY_KEY)
-
-		ScenEdit_SpecialMessage("Blue Force", "observerActionUpdateMissionInventories - "..#savedMissions)
         -- Loop Through Missions
         for k, v in pairs(savedMissions) do
-            local mission = ScenEdit_GetMission(side.name,v)
+            local mission = AresGetMission(side.name,v)
             if mission.isactive then
 				-- Get Group Lead And Individual Units
                 local missionRole = mission.subtype
 				local missionUnits = getGroupLeadsFromMission(side.name,mission.guid,"Aircraft",true)
 				-- Loop Through Units And Determine Unit Role
 				for i = 1, #missionUnits do
-                    local unit = ScenEdit_GetUnit({side=side.name, guid=missionUnits[i]})
+                    local unit = AresGetUnit(side.name,missionUnits[i])
                     local unitRole = GLOBAL_ROLE_SUPPORT
                     if unit and unit.type == "Aircraft" then
 						-- Check Airplane role
-                        local loadout = ScenEdit_GetLoadout({UnitName=unit.guid, LoadoutID=0})
+                        local loadout = AresGetLoadout(unit.guid,0)
 						if loadout then
                             if loadout.roles[GLOBAL_ROLE] == 2001 or loadout.roles[GLOBAL_ROLE] == 2002 or loadout.roles[GLOBAL_ROLE] == 2003 or loadout.roles[GLOBAL_ROLE] == 2004 then
                                 unitRole = GLOBAL_ROLE_AAW
@@ -1834,7 +1850,7 @@ end
 function observerActionUpdateMissionTargetZones(args)
 -- Local Variables
     local sideShortKey = args.shortKey
-    local side = VP_GetSide({guid=args.guid})
+    local side = AresGetSide(args.guid)
 	local sideUnitDuplicateKey = {}
     -- Check Every Five Minutes To Update Inventories
     if canUpdateEveryTwoMinutes() then
@@ -1843,7 +1859,7 @@ function observerActionUpdateMissionTargetZones(args)
         localMemoryRemoveFromKey(sideShortKey..GLOBAL_SAVED_MISSIONS_TARGET_ZONES_KEY)
         -- Loop Through Missions
         for k, v in pairs(savedMissions) do
-            local mission = ScenEdit_GetMission(side.name,v)
+            local mission = AresGetMission(side.name,v)
             if mission.isactive and #mission.targetlist > 0 then
 				-- Update Mission Targetlist Zone
 				local missionTargetBox = findBoundingBoxForGivenUnits(side.name,mission.targetlist,0)
@@ -1868,7 +1884,7 @@ end
 function observerActionUpdateAirContacts(args)
     -- Local Variables
     local sideShortKey = args.shortKey
-    local side = VP_GetSide({guid=args.guid})
+    local side = AresGetSide(args.guid)
     -- Check Time
     if canUpdateEverySixtySeconds() then
         local aircraftContacts = side:contactsBy("1")
@@ -1906,7 +1922,7 @@ end
 function observerActionUpdateSurfaceContacts(args)
     -- Local Variables
     local sideShortKey = args.shortKey
-    local side = VP_GetSide({guid=args.guid})
+    local side = AresGetSide(args.guid)
 	local testing = 0
     if canUpdateEveryThirtySeconds() then
         local shipContacts = side:contactsBy("2")
@@ -1945,7 +1961,7 @@ end
 function observerActionUpdateSubmarineContacts(args)
     -- Local Variables
     local sideShortKey = args.shortKey
-    local side = VP_GetSide({guid=args.guid})
+    local side = AresGetSide(args.guid)
     if canUpdateEverySixtySeconds() then
         local submarineContacts = side:contactsBy("3")
         localMemoryContactRemoveFromKey(sideShortKey..GLOBAL_SAVED_SUB_CONTACT_KEY)
@@ -1982,7 +1998,7 @@ end
 function observerActionUpdateLandContacts(args)
     -- Local Variables
     local sideShortKey = args.shortKey
-    local side = VP_GetSide({guid=args.guid})
+    local side = AresGetSide(args.guid)
     if canUpdateEverySixtySeconds() then
         local landContacts = side:contactsBy("4")
         localMemoryContactRemoveFromKey(sideShortKey..GLOBAL_SAVED_LAND_CONTACT_KEY)
@@ -2024,7 +2040,7 @@ end
 function observerActionUpdateWeaponContacts(args)
     -- Local Variables
     local sideShortKey = args.shortKey
-    local side = VP_GetSide({guid=args.guid})
+    local side = AresGetSide(args.guid)
     if canUpdateEveryFiveSeconds() then
         local weaponContacts = side:contactsBy("6")
         localMemoryContactRemoveFromKey(sideShortKey..GLOBAL_SAVED_WEAP_CONTACT_KEY)
@@ -2065,7 +2081,7 @@ end
 function observerActionUpdateDatumContacts(args)
     -- Local Variables
     local sideShortKey = args.shortKey
-    local side = VP_GetSide({guid=args.guid})
+    local side = AresGetSide(args.guid)
     if canUpdateEveryTenSeconds() then
 		-- Local Datums
 		local datumContacts = getDatumContacts(sideShortKey)
@@ -2118,7 +2134,6 @@ end
 function actorUpdateReconUnits(args)
     -- Locals
     local sideShortKey = args.shortKey
-    local side = VP_GetSide({guid=args.guid})
     -- Get Recon Units
     local reconUnits = getAirReconInventory(sideShortKey)
     for i = 1, #reconUnits do
@@ -2129,7 +2144,6 @@ end
 function actorUpdateAAWUnits(args)
     -- Locals
     local sideShortKey = args.shortKey
-    local side = VP_GetSide({guid=args.guid})
     -- Get AAW Units
     local aawUnits = getAirAawInventory(sideShortKey)
     for i = 1, #aawUnits do
@@ -2140,7 +2154,6 @@ end
 function actorUpdateAGUnits(args)
     -- Locals
     local sideShortKey = args.shortKey
-    local side = VP_GetSide({guid=args.guid})
     -- Get AG Units
     local agUnits = getAirAgInventory(sideShortKey)
     for i = 1, #agUnits do
@@ -2151,7 +2164,6 @@ end
 function actorUpdateAGAsuWUnits(args)
     -- Locals
     local sideShortKey = args.shortKey
-    local side = VP_GetSide({guid=args.guid})
     -- Get AG-ASUW Units
     local agAsuwUnits = getAirAgAsuwInventory(sideShortKey)
     for i = 1, #agAsuwUnits do
@@ -2162,7 +2174,6 @@ end
 function actorUpdateAsuWUnits(args)
     -- Locals
     local sideShortKey = args.shortKey
-    local side = VP_GetSide({guid=args.guid})
     -- Get ASUW Units
     local asuwUnits = getAirAsuwInventory(sideShortKey)
     for i = 1, #asuwUnits do
@@ -2173,7 +2184,6 @@ end
 function actorUpdateASWUnits(args)
     -- Locals
     local sideShortKey = args.shortKey
-    local side = VP_GetSide({guid=args.guid})
     -- Get ASUW Units
     local asuwUnits = getAirAswInventory(sideShortKey)
     for i = 1, #asuwUnits do
@@ -2184,7 +2194,6 @@ end
 function actorUpdateSeadUnits(args)
     -- Locals
     local sideShortKey = args.shortKey
-    local side = VP_GetSide({guid=args.guid})
     -- Get SEAD Units
     local seadUnits = getAirSeadInventory(sideShortKey)
     for i = 1, #seadUnits do
@@ -2195,7 +2204,6 @@ end
 function actorUpdateSupportUnits(args)
     -- Locals
     local sideShortKey = args.shortKey
-    local side = VP_GetSide({guid=args.guid})
     -- Get Support Units
     local supportUnits = getAirSupportInventory(sideShortKey)
     for i = 1, #supportUnits do
@@ -2206,7 +2214,6 @@ end
 function actorUpdateRTBUnits(args)
     -- Locals
     local sideShortKey = args.shortKey
-    local side = VP_GetSide({guid=args.guid})
     -- Get Support Units
     local rtbUnits = getAirRTBInventory(sideShortKey)
     for i = 1, #rtbUnits do
@@ -2233,28 +2240,28 @@ function initializeAresAI(sideName)
 	local observerActionUpdateMissionTargetZonesBT = BT:make(observerActionUpdateMissionTargetZones,sideGuid,shortSideKey,attributes)
     local observerActionUpdateMissionInventoriesBT = BT:make(observerActionUpdateMissionInventories,sideGuid,shortSideKey,attributes)
     local observerActionUpdateAirContactsBT = BT:make(observerActionUpdateAirContacts,sideGuid,shortSideKey,attributes)
-    local observerActionUpdateSurfaceContactsBT = BT:make(observerActionUpdateSurfaceContacts,sideGuid,shortSideKey,attributes)
+    --[[local observerActionUpdateSurfaceContactsBT = BT:make(observerActionUpdateSurfaceContacts,sideGuid,shortSideKey,attributes)
     local observerActionUpdateSubmarineContactsBT = BT:make(observerActionUpdateSubmarineContacts,sideGuid,shortSideKey,attributes)
     local observerActionUpdateLandContactsBT = BT:make(observerActionUpdateLandContacts,sideGuid,shortSideKey,attributes)
     local observerActionUpdateWeaponContactsBT = BT:make(observerActionUpdateWeaponContacts,sideGuid,shortSideKey,attributes)
 	--local observerActionUpdateDatumContactsBT = BT:make(observerActionUpdateDatumContacts,sideGuid,shortSideKey,attributes)
-	local observerActionUpdateTestMemoryBT = BT:make(observerActionUpdateTestMemory,sideGuid,shortSideKey,attributes)
+	local observerActionUpdateTestMemoryBT = BT:make(observerActionUpdateTestMemory,sideGuid,shortSideKey,attributes)]]--
 	
     -- Add Observers
     aresObserverBTMain:addChild(observerActionUpdateMissionsBT)
 	aresObserverBTMain:addChild(observerActionUpdateMissionTargetZonesBT)
     aresObserverBTMain:addChild(observerActionUpdateMissionInventoriesBT)
     aresObserverBTMain:addChild(observerActionUpdateAirContactsBT)
-    aresObserverBTMain:addChild(observerActionUpdateSurfaceContactsBT)
+    --[[aresObserverBTMain:addChild(observerActionUpdateSurfaceContactsBT)
     aresObserverBTMain:addChild(observerActionUpdateSubmarineContactsBT)
     aresObserverBTMain:addChild(observerActionUpdateLandContactsBT)
     aresObserverBTMain:addChild(observerActionUpdateWeaponContactsBT)
     --aresObserverBTMain:addChild(observerActionUpdateDatumContactsBT)
-    aresObserverBTMain:addChild(observerActionUpdateTestMemoryBT)
+    aresObserverBTMain:addChild(observerActionUpdateTestMemoryBT)]]--
     ----------------------------------------------------------------------------------------------------------------------------
     -- Ares Actor
     ----------------------------------------------------------------------------------------------------------------------------
-    local actorUpdateReconUnitsBT = BT:make(actorUpdateReconUnits,sideGuid,shortSideKey,attributes)
+    --[[local actorUpdateReconUnitsBT = BT:make(actorUpdateReconUnits,sideGuid,shortSideKey,attributes)
     local actorUpdateAAWUnitsBT = BT:make(actorUpdateAAWUnits,sideGuid,shortSideKey,attributes)
     local actorUpdateAGUnitsBT = BT:make(actorUpdateAGUnits,sideGuid,shortSideKey,attributes)
     local actorUpdateAGAsuWUnitsBT = BT:make(actorUpdateAGAsuWUnits,sideGuid,shortSideKey,attributes)
@@ -2272,7 +2279,7 @@ function initializeAresAI(sideName)
     aresActorBTMain:addChild(actorUpdateASWUnitsBT)
     aresActorBTMain:addChild(actorUpdateSeadUnitsBT)
     aresActorBTMain:addChild(actorUpdateSupportUnitsBT)
-    aresActorBTMain:addChild(actorUpdateRTBUnitsBT)
+    aresActorBTMain:addChild(actorUpdateRTBUnitsBT)]]--
     ----------------------------------------------------------------------------------------------------------------------------
     -- Save
     ----------------------------------------------------------------------------------------------------------------------------
