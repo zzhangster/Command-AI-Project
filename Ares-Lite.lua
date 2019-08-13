@@ -1680,7 +1680,7 @@ function getRetreatPathForGenericNoNavZone(sideGuid,shortSideKey,sideAttributes,
         -- Emergency Evasion
 		local diveHeight = 30
 		if unitRole == GLOBAL_ROLE_SUPPORT then
-			diveHeight = unit.altitude
+			diveHeight = heightToHorizon(distanceToContact,unitRole,determineUnitOffensive(unit))
 		end
         local retreatLocation = determineUnitRetreatCoordinate(unit,contact,false,determineUnitRTB(unit))
         return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,diveHeight,GLOBAL_THROTTLE_AFTERBURNER,true,true,true)}
