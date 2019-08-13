@@ -343,7 +343,7 @@ end
 function AresGetSide(guid)
 	local key = guid
     if aresLocalMemory[key] then
-		ScenEdit_SpecialMessage("Blue Force", "AresGetSide - Local")
+		--ScenEdit_SpecialMessage("Blue Force", "AresGetSide - Local")
         return aresLocalMemory[key]
     else
         local side = VP_GetSide({guid=guid})
@@ -355,7 +355,7 @@ end
 function AresGetUnit(sideName,guid)
 	local key = guid
     if aresLocalMemory[key] then
-		ScenEdit_SpecialMessage("Blue Force", "AresGetUnit - Local")
+		--ScenEdit_SpecialMessage("Blue Force", "AresGetUnit - Local")
         return aresLocalMemory[key]
     else
         local unit = ScenEdit_GetUnit({side=sideName, guid=guid})
@@ -367,7 +367,7 @@ end
 function AresGetMission(sideName,guid)
 	local key = guid
     if aresLocalMemory[key] then
-		ScenEdit_SpecialMessage("Blue Force", "AresGetMission - Local")
+		--ScenEdit_SpecialMessage("Blue Force", "AresGetMission - Local")
         return aresLocalMemory[key]
     else
         local mission = ScenEdit_GetMission(sideName,guid)
@@ -379,7 +379,7 @@ end
 function AresGetLoadout(guid,loadout)
 	local key = guid.."_loadout_"..loadout
     if aresLocalMemory[key] then
-		ScenEdit_SpecialMessage("Blue Force", "AresGetLoadout - Local")
+		--ScenEdit_SpecialMessage("Blue Force", "AresGetLoadout - Local")
         return aresLocalMemory[key]
     else
         local loadout = ScenEdit_GetLoadout({UnitName=guid, LoadoutID=loadout})
@@ -391,7 +391,7 @@ end
 function AresGetContact(sideName,guid)
 	local key = guid
     if aresLocalMemory[key] then
-		ScenEdit_SpecialMessage("Blue Force", "AresGetContact - Local")
+		--ScenEdit_SpecialMessage("Blue Force", "AresGetContact - Local")
         return aresLocalMemory[key]
     else
         local contact = ScenEdit_GetContact({side=sideName, guid=guid})
@@ -685,9 +685,49 @@ function heightToHorizon(distance,role,engaged)
         return heightToHorizonUnderRadarApproach(distance,engaged,false)
     elseif role == GLOBAL_ROLE_AG_ASUW or role == GLOBAL_ROLE_ASUW or role == GLOBAL_ROLE_SEAD then
         return heightToHorizonOverRadarApproach(distance,engaged,true)
-    else
+    elseif role == GLOBAL_ROLE_SUPPORT then
+		return heightToHorizonSupportRadarApproach(distance,engaged,true)
+	else
         return heightToHorizonUnderRadarApproach(distance,engaged,false)
     end
+end
+
+function heightToHorizonSupportRadarApproach(distance,engaged,popup)
+	-- Determine Height
+	local height = 0
+	if distance > 200 then
+		return GLOBAL_OFF
+	elseif distance > 180 then
+		height = 10000
+	elseif distance > 160 then
+		height = 6000
+	elseif distance > 140 then
+		height = 5000
+	elseif distance > 120 then
+		height = 4000
+	elseif distance > 100 then
+		height = 2000
+	elseif distance > 80 then
+		height = 1000
+	elseif distance > 60 then
+		height = 500
+	elseif distance > 40 then
+        height = 120
+	elseif distance > 20 then
+		height = 65
+	else
+		height = 30
+	end
+	-- Check Engaged
+	if popup and engaged and height < 4000 then
+		if oscillateEveryMinuteGate() then
+			return height
+		else
+			return GLOBAL_OFF
+		end
+	else
+		return height
+	end
 end
 
 function heightToHorizonOverRadarApproach(distance,engaged,popup)
@@ -1513,7 +1553,7 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
         elseif unitRole == GLOBAL_ROLE_ASUW then
             unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=80},{type=GLOBAL_TYPE_PLANES,range=40},{type=GLOBAL_TYPE_SAMS,range=30},{type=GLOBAL_TYPE_SHIPS,range=0},{type=GLOBAL_TYPE_DATUM,range=0}})
         elseif unitRole == GLOBAL_ROLE_SUPPORT then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=150},{type=GLOBAL_TYPE_PLANES,range=150},{type=GLOBAL_TYPE_SHIPS_AND_SAMS,range=100},{type=GLOBAL_TYPE_DATUM,range=0}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=150},{type=GLOBAL_TYPE_PLANES,range=150},{type=GLOBAL_TYPE_SHIPS_AND_SAMS,range=150},{type=GLOBAL_TYPE_DATUM,range=0}})
         elseif unitRole == GLOBAL_ROLE_ASW then
             unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_PLANES,range=40},{type=GLOBAL_TYPE_SHIPS_AND_SAMS,range=30},{type=GLOBAL_TYPE_DATUM,range=0}})
         elseif unitRole == GLOBAL_ROLE_RECON then
@@ -1633,17 +1673,17 @@ function getRetreatPathForGenericNoNavZone(sideGuid,shortSideKey,sideAttributes,
 			end
 		end
 	end
-
-	
-	--ScenEdit_SpecialMessage("Blue Force", "getRetreatPathForGenericNoNavZone - "..#hostileContacts.." "..distanceToContact)
-
 	-- Find Checks
 	if not contact then
         return nil
     elseif distanceToContact < minDesiredRange then
         -- Emergency Evasion
+		local diveHeight = 30
+		if unitRole == GLOBAL_ROLE_SUPPORT then
+			diveHeight = unit.altitude
+		end
         local retreatLocation = determineUnitRetreatCoordinate(unit,contact,false,determineUnitRTB(unit))
-        return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,30,GLOBAL_THROTTLE_AFTERBURNER,true,true,true)}
+        return {makeWaypoint(retreatLocation.latitude,retreatLocation.longitude,diveHeight,GLOBAL_THROTTLE_AFTERBURNER,true,true,true)}
     elseif distanceToContact < maxDesiredRange then
         if #unit.course > 0 then
             local waypoint = unit.course[#unit.course]
@@ -2060,7 +2100,7 @@ function observerActionUpdateWeaponContacts(args)
             local savedContacts = {}
             for k, v in pairs(weaponContacts) do
                 -- Local Values
-                local contact =AresGetContact(side.name,v.guid)
+                local contact = AresGetContact(side.name,v.guid)
                 local unitType = "weap_con"
                 -- Filter Out By Weapon Speed
                 if contact.speed then
@@ -2102,7 +2142,7 @@ function observerActionUpdateDatumContacts(args)
 		localMemoryContactRemoveFromKey(sideShortKey..GLOBAL_SAVED_DATUM_CONTACT_KEY)
 		-- Loop Alert Datums
 		for i = 1, #weaponContacts do
-			local contact = VP_GetContact({guid=weaponContacts[i]})
+			local contact = AresGetContact(side.name,v.weaponContacts[i])
 			local inside = false
 			if contact then
 				for j = 1, #datumContacts do 
