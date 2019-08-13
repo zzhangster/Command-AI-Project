@@ -283,8 +283,8 @@ function localMemoryRemoveFromKey(primaryKey)
             (aresLocalMemory[GLOBAL_ARES_GENERIC_KEY])[primaryKey] = nil
         end
     end
-	collectgarbage("collect")
-	ScenEdit_SpecialMessage("Blue Force", ""..collectgarbage("count"))
+	--collectgarbage("collect")
+	--ScenEdit_SpecialMessage("Blue Force", ""..collectgarbage("count"))
 end
 
 function localMemoryExistForKey(primaryKey,value)
@@ -385,6 +385,18 @@ function AresGetLoadout(guid,loadout)
         local loadout = ScenEdit_GetLoadout({UnitName=guid, LoadoutID=loadout})
         aresLocalMemory[key] = loadout
         return loadout
+    end
+end
+
+function AresGetContact(sideName,guid)
+	local key = guid
+    if aresLocalMemory[key] then
+		ScenEdit_SpecialMessage("Blue Force", "AresGetContact - Local")
+        return aresLocalMemory[key]
+    else
+        local contact = ScenEdit_GetContact({side=sideName, guid=guid})
+        aresLocalMemory[key] = contact
+        return contact
     end
 end
 
@@ -839,7 +851,7 @@ function findBoundingBoxForGivenContacts(sideName,contacts,padding)
 	local contactCoordinates = {}
     -- Looping
     for k, v in pairs(contacts) do
-        local contact = ScenEdit_GetContact({side=sideName, guid=v})
+        local contact = AresGetContact(sideName,v)
         if contact then
             contactCoordinates[#contactCoordinates + 1] = makeLatLong(contact.latitude,contact.longitude)
         end
@@ -1580,7 +1592,7 @@ function getRetreatPathForAirNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
         return nil
     end
     for k,v in pairs(hostileAirContacts) do
-        local contact = ScenEdit_GetContact({side=side.name, guid=v})
+        local contact = AresGetContact(side.name,v)
         if contact then
             local currentRange = Tool_Range(contact.guid,unitGuid)
             if currentRange < desiredRange then
@@ -1612,7 +1624,7 @@ function getRetreatPathForGenericNoNavZone(sideGuid,shortSideKey,sideAttributes,
 	end
 	-- Find Shortest Range Missile
 	for k,v in pairs(hostileContacts) do
-        local currentContact = ScenEdit_GetContact({side=side.name, guid=v})
+        local currentContact = AresGetContact(side.name,v)
 		if currentContact then
 			local distanceToCurrentContact = Tool_Range(v,unitGuid)
 			if distanceToCurrentContact < distanceToContact then
@@ -1669,7 +1681,7 @@ function getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAt
     
 	-- Find Shortest Range Missile
 	for k,v in pairs(hostileMissilesContacts) do
-        local currentContact = ScenEdit_GetContact({side=side.name, guid=v})
+        local currentContact = AresGetContact(side.name,v)
 		if currentContact then
 			local distanceToCurrentMissile = Tool_Range(v,unitGuid)
 			if distanceToCurrentMissile < distanceToMissile then
@@ -1893,7 +1905,7 @@ function observerActionUpdateAirContacts(args)
             local savedContacts = {}
             for k, v in pairs(aircraftContacts) do
                 -- Local Values
-                local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
+                local contact = AresGetContact(side.name,v.guid)
                 local unitType = "air_con"
                 -- Add To Memory
                 local stringKey = sideShortKey.."_"..unitType.."_"..contact.posture
@@ -1931,7 +1943,7 @@ function observerActionUpdateSurfaceContacts(args)
             local savedContacts = {}
             for k, v in pairs(shipContacts) do
                 -- Local Values
-                local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
+                local contact = AresGetContact(side.name,v.guid)
                 local unitType = "surf_con"
                 -- Add To Memory
                 local stringKey = sideShortKey.."_"..unitType.."_"..contact.posture
@@ -1969,7 +1981,7 @@ function observerActionUpdateSubmarineContacts(args)
             local savedContacts = {}
             for k, v in pairs(submarineContacts) do
                 -- Local Values
-                local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
+                local contact = AresGetContact(side.name,v.guid)
                 local unitType = "sub_con"
                 -- Add To Memory
                 local stringKey = sideShortKey.."_"..unitType.."_"..contact.posture
@@ -2007,7 +2019,7 @@ function observerActionUpdateLandContacts(args)
             local savedContacts = {}
             for k, v in pairs(landContacts) do
                 -- Local Values
-                local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
+                local contact = AresGetContact(side.name,v.guid)
                 local unitType = "land_con"
                 -- Check
                 if string.find(contact.type_description,"SAM") or contact.emissions or string.find(contact.type_description,"Unknown mobile land unit") then 
@@ -2048,7 +2060,7 @@ function observerActionUpdateWeaponContacts(args)
             local savedContacts = {}
             for k, v in pairs(weaponContacts) do
                 -- Local Values
-                local contact = ScenEdit_GetContact({side=side.name, guid=v.guid})
+                local contact =AresGetContact(side.name,v.guid)
                 local unitType = "weap_con"
                 -- Filter Out By Weapon Speed
                 if contact.speed then
@@ -2240,28 +2252,28 @@ function initializeAresAI(sideName)
 	local observerActionUpdateMissionTargetZonesBT = BT:make(observerActionUpdateMissionTargetZones,sideGuid,shortSideKey,attributes)
     local observerActionUpdateMissionInventoriesBT = BT:make(observerActionUpdateMissionInventories,sideGuid,shortSideKey,attributes)
     local observerActionUpdateAirContactsBT = BT:make(observerActionUpdateAirContacts,sideGuid,shortSideKey,attributes)
-    --[[local observerActionUpdateSurfaceContactsBT = BT:make(observerActionUpdateSurfaceContacts,sideGuid,shortSideKey,attributes)
+    local observerActionUpdateSurfaceContactsBT = BT:make(observerActionUpdateSurfaceContacts,sideGuid,shortSideKey,attributes)
     local observerActionUpdateSubmarineContactsBT = BT:make(observerActionUpdateSubmarineContacts,sideGuid,shortSideKey,attributes)
     local observerActionUpdateLandContactsBT = BT:make(observerActionUpdateLandContacts,sideGuid,shortSideKey,attributes)
     local observerActionUpdateWeaponContactsBT = BT:make(observerActionUpdateWeaponContacts,sideGuid,shortSideKey,attributes)
 	--local observerActionUpdateDatumContactsBT = BT:make(observerActionUpdateDatumContacts,sideGuid,shortSideKey,attributes)
-	local observerActionUpdateTestMemoryBT = BT:make(observerActionUpdateTestMemory,sideGuid,shortSideKey,attributes)]]--
+	--[[local observerActionUpdateTestMemoryBT = BT:make(observerActionUpdateTestMemory,sideGuid,shortSideKey,attributes)]]--
 	
     -- Add Observers
     aresObserverBTMain:addChild(observerActionUpdateMissionsBT)
 	aresObserverBTMain:addChild(observerActionUpdateMissionTargetZonesBT)
     aresObserverBTMain:addChild(observerActionUpdateMissionInventoriesBT)
     aresObserverBTMain:addChild(observerActionUpdateAirContactsBT)
-    --[[aresObserverBTMain:addChild(observerActionUpdateSurfaceContactsBT)
+    aresObserverBTMain:addChild(observerActionUpdateSurfaceContactsBT)
     aresObserverBTMain:addChild(observerActionUpdateSubmarineContactsBT)
     aresObserverBTMain:addChild(observerActionUpdateLandContactsBT)
     aresObserverBTMain:addChild(observerActionUpdateWeaponContactsBT)
-    --aresObserverBTMain:addChild(observerActionUpdateDatumContactsBT)
+    --[[--aresObserverBTMain:addChild(observerActionUpdateDatumContactsBT)
     aresObserverBTMain:addChild(observerActionUpdateTestMemoryBT)]]--
     ----------------------------------------------------------------------------------------------------------------------------
     -- Ares Actor
     ----------------------------------------------------------------------------------------------------------------------------
-    --[[local actorUpdateReconUnitsBT = BT:make(actorUpdateReconUnits,sideGuid,shortSideKey,attributes)
+    local actorUpdateReconUnitsBT = BT:make(actorUpdateReconUnits,sideGuid,shortSideKey,attributes)
     local actorUpdateAAWUnitsBT = BT:make(actorUpdateAAWUnits,sideGuid,shortSideKey,attributes)
     local actorUpdateAGUnitsBT = BT:make(actorUpdateAGUnits,sideGuid,shortSideKey,attributes)
     local actorUpdateAGAsuWUnitsBT = BT:make(actorUpdateAGAsuWUnits,sideGuid,shortSideKey,attributes)
@@ -2279,7 +2291,7 @@ function initializeAresAI(sideName)
     aresActorBTMain:addChild(actorUpdateASWUnitsBT)
     aresActorBTMain:addChild(actorUpdateSeadUnitsBT)
     aresActorBTMain:addChild(actorUpdateSupportUnitsBT)
-    aresActorBTMain:addChild(actorUpdateRTBUnitsBT)]]--
+    aresActorBTMain:addChild(actorUpdateRTBUnitsBT)
     ----------------------------------------------------------------------------------------------------------------------------
     -- Save
     ----------------------------------------------------------------------------------------------------------------------------
