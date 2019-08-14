@@ -239,6 +239,7 @@ local GLOBAL_TIME_EVERY_THIRTY_SECONDS = "GlobalTimeEveryThirty"
 local GLOBAL_TIME_EVERY_SIXTY_SECONDS = "GlobalTimeEverySixty"
 local GLOBAL_TIME_EVERY_TWO_MINUTES = "GlobalTimeEveryTwoMinutes"
 local GLOBAL_TIME_EVERY_FIVE_MINUTES = "GlobalTimeEveryFiveMinutes"
+local GLOBAL_TIME_EVERY_TEN_MINUTES = "GlobalTimeEveryTenMinutes"
 -- Misc Values
 local GLOBAL_OFF = "OFF"
 local GLOBAL_ROLE = "role"
@@ -283,8 +284,8 @@ function localMemoryRemoveFromKey(primaryKey)
             (aresLocalMemory[GLOBAL_ARES_GENERIC_KEY])[primaryKey] = nil
         end
     end
-	--collectgarbage("collect")
-	--ScenEdit_SpecialMessage("Blue Force", ""..collectgarbage("count"))
+	collectgarbage("collect")
+	ScenEdit_SpecialMessage("Blue Force", ""..collectgarbage("count"))
 end
 
 function localMemoryExistForKey(primaryKey,value)
@@ -529,6 +530,7 @@ function updateAITimes()
     local timeStampEverySixty = getTimeStampForKey(GLOBAL_TIME_EVERY_SIXTY_SECONDS)
     local timeStampEveryTwoMinutes = getTimeStampForKey(GLOBAL_TIME_EVERY_TWO_MINUTES)
     local timeStampEveryFiveMinutes = getTimeStampForKey(GLOBAL_TIME_EVERY_FIVE_MINUTES)
+    local timeStampEveryTenMinutes = getTimeStampForKey(GLOBAL_TIME_EVERY_TEN_MINUTES)
     local currentTime = ScenEdit_CurrentTime()
     if timeStampEveryTwo < currentTime then
         setTimeStampForKey(GLOBAL_TIME_EVERY_TWO_SECONDS,tostring(currentTime + 2))
@@ -553,6 +555,9 @@ function updateAITimes()
     end
     if timeStampEveryFiveMinutes < currentTime then
         setTimeStampForKey(GLOBAL_TIME_EVERY_FIVE_MINUTES,tostring(currentTime + 300))
+    end
+    if timeStampEveryTenMinutes < currentTime then
+        setTimeStampForKey(GLOBAL_TIME_EVERY_TEN_MINUTES,tostring(currentTime + 600))
     end
 end
 
@@ -628,6 +633,16 @@ end
 
 function canUpdateEveryFiveMinutes()
     local nextTime = getTimeStampForKey(GLOBAL_TIME_EVERY_FIVE_MINUTES)
+    local currentTime = ScenEdit_CurrentTime()
+    if nextTime < currentTime then
+        return true
+    else
+        return false
+    end
+end
+
+function canUpdateEveryTenMinutes()
+    local nextTime = getTimeStampForKey(GLOBAL_TIME_EVERY_TEN_MINUTES)
     local currentTime = ScenEdit_CurrentTime()
     if nextTime < currentTime then
         return true
@@ -1794,7 +1809,7 @@ function observerActionUpdateMissions(args)
     local sideShortKey = args.shortKey
     local side = AresGetSide(args.guid)
     -- Check Every Five Minutes For New Missions
-    if canUpdateEveryFiveMinutes() then
+    if canUpdateEveryTenMinutes() then
         -- Loop Through Aircraft Inventory And Then Find Their Missions (Can't Get List Of Missions Currently)
 		local aircraftInventory = side:unitsBy("1")
         if aircraftInventory then
@@ -1822,7 +1837,7 @@ function observerActionUpdateMissionInventories(args)
     local side = AresGetSide(args.guid)
 	local sideUnitDuplicateKey = {}
     -- Check Every Five Minutes To Update Inventories
-    if canUpdateEverySixtySeconds() then
+    if canUpdateEveryFiveMinutes() then
         local savedMissions = localMemoryGetFromKey(sideShortKey..GLOBAL_SAVED_MISSIONS_KEY)
         local savedInventory = {}
         localMemoryInventoryRemoveFromKey(sideShortKey..GLOBAL_SAVED_AIR_INVENTORY_KEY)
@@ -1905,7 +1920,7 @@ function observerActionUpdateMissionTargetZones(args)
     local side = AresGetSide(args.guid)
 	local sideUnitDuplicateKey = {}
     -- Check Every Five Minutes To Update Inventories
-    if canUpdateEveryTwoMinutes() then
+    if canUpdateEveryTenMinutes() then
         local savedMissions = localMemoryGetFromKey(sideShortKey..GLOBAL_SAVED_MISSIONS_KEY)
         local targetZonesInventory = {}
         localMemoryRemoveFromKey(sideShortKey..GLOBAL_SAVED_MISSIONS_TARGET_ZONES_KEY)
@@ -1938,7 +1953,7 @@ function observerActionUpdateAirContacts(args)
     local sideShortKey = args.shortKey
     local side = AresGetSide(args.guid)
     -- Check Time
-    if canUpdateEverySixtySeconds() then
+    if canUpdateEveryTwoMinutes() then
         local aircraftContacts = side:contactsBy("1")
         localMemoryContactRemoveFromKey(sideShortKey..GLOBAL_SAVED_AIR_CONTACT_KEY)
         if aircraftContacts then
@@ -1976,7 +1991,7 @@ function observerActionUpdateSurfaceContacts(args)
     local sideShortKey = args.shortKey
     local side = AresGetSide(args.guid)
 	local testing = 0
-    if canUpdateEveryThirtySeconds() then
+    if canUpdateEveryTwoMinutes() then
         local shipContacts = side:contactsBy("2")
         localMemoryContactRemoveFromKey(sideShortKey..GLOBAL_SAVED_SHIP_CONTACT_KEY)
         if shipContacts then
@@ -2014,7 +2029,7 @@ function observerActionUpdateSubmarineContacts(args)
     -- Local Variables
     local sideShortKey = args.shortKey
     local side = AresGetSide(args.guid)
-    if canUpdateEverySixtySeconds() then
+    if canUpdateEveryTwoMinutes() then
         local submarineContacts = side:contactsBy("3")
         localMemoryContactRemoveFromKey(sideShortKey..GLOBAL_SAVED_SUB_CONTACT_KEY)
         if submarineContacts then
@@ -2051,7 +2066,7 @@ function observerActionUpdateLandContacts(args)
     -- Local Variables
     local sideShortKey = args.shortKey
     local side = AresGetSide(args.guid)
-    if canUpdateEverySixtySeconds() then
+    if canUpdateEveryTwoMinutes() then
         local landContacts = side:contactsBy("4")
         localMemoryContactRemoveFromKey(sideShortKey..GLOBAL_SAVED_LAND_CONTACT_KEY)
 		--local printString = ""
@@ -2093,7 +2108,7 @@ function observerActionUpdateWeaponContacts(args)
     -- Local Variables
     local sideShortKey = args.shortKey
     local side = AresGetSide(args.guid)
-    if canUpdateEveryFiveSeconds() then
+    if canUpdateEveryTenSeconds() then
         local weaponContacts = side:contactsBy("6")
         localMemoryContactRemoveFromKey(sideShortKey..GLOBAL_SAVED_WEAP_CONTACT_KEY)
         if weaponContacts then
