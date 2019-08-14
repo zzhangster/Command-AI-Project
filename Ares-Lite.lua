@@ -284,8 +284,8 @@ function localMemoryRemoveFromKey(primaryKey)
             (aresLocalMemory[GLOBAL_ARES_GENERIC_KEY])[primaryKey] = nil
         end
     end
-	collectgarbage("collect")
-	ScenEdit_SpecialMessage("Blue Force", ""..collectgarbage("count"))
+	--collectgarbage("collect")
+	--ScenEdit_SpecialMessage("Blue Force", ""..collectgarbage("count"))
 end
 
 function localMemoryExistForKey(primaryKey,value)
