@@ -1837,7 +1837,7 @@ function observerActionUpdateMissionInventories(args)
     local side = AresGetSide(args.guid)
 	local sideUnitDuplicateKey = {}
     -- Check Every Five Minutes To Update Inventories
-    if canUpdateEveryFiveMinutes() then
+    if canUpdateEveryTwoMinutes() then
         local savedMissions = localMemoryGetFromKey(sideShortKey..GLOBAL_SAVED_MISSIONS_KEY)
         local savedInventory = {}
         localMemoryInventoryRemoveFromKey(sideShortKey..GLOBAL_SAVED_AIR_INVENTORY_KEY)
@@ -2108,7 +2108,7 @@ function observerActionUpdateWeaponContacts(args)
     -- Local Variables
     local sideShortKey = args.shortKey
     local side = AresGetSide(args.guid)
-    if canUpdateEveryTenSeconds() then
+    if canUpdateEveryFiveSeconds() then
         local weaponContacts = side:contactsBy("6")
         localMemoryContactRemoveFromKey(sideShortKey..GLOBAL_SAVED_WEAP_CONTACT_KEY)
         if weaponContacts then
@@ -2149,7 +2149,7 @@ function observerActionUpdateDatumContacts(args)
     -- Local Variables
     local sideShortKey = args.shortKey
     local side = AresGetSide(args.guid)
-    if canUpdateEveryTenSeconds() then
+    if canUpdateEveryFiveSeconds() then
 		-- Local Datums
 		local datumContacts = getDatumContacts(sideShortKey)
 		local weaponContacts = getHostileWeaponContacts(sideShortKey)
