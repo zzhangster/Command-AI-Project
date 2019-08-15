@@ -6,7 +6,6 @@ Ares-Lite is a more practical redesign of the original Ares AI. Instead of creat
 Features:
 ------------------------------
 1.) Categorize units by roles (AAW, AG, ASUW) by their payload and assigned mission. No more reference files. (NEW)
-
 2.) Units will avoid missiles on first detection instead of last possible moment. (OLD)
 3.) Updated avoidance to factor in ARH seeker heads. Units will attempt to dive and retreat outside the FOV of ARH missiles. (NEW)
 4.) Avoidance behavior based on roles (EX: AAW will avoid SAMS and Ships) (OLD)
