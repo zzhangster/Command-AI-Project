@@ -1837,7 +1837,7 @@ function observerActionUpdateMissionInventories(args)
     local side = AresGetSide(args.guid)
 	local sideUnitDuplicateKey = {}
     -- Check Every Five Minutes To Update Inventories
-    if canUpdateEveryTwoMinutes() then
+    if canUpdateEverySixtySeconds() then
         local savedMissions = localMemoryGetFromKey(sideShortKey..GLOBAL_SAVED_MISSIONS_KEY)
         local savedInventory = {}
         localMemoryInventoryRemoveFromKey(sideShortKey..GLOBAL_SAVED_AIR_INVENTORY_KEY)
