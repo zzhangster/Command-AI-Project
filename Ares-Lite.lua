@@ -1111,7 +1111,7 @@ function determineUnitRetreatCoordinate(unit,contact,allowPivot,factorBase)
             local headerBearing = Tool_Bearing({latitude=headerLocation.latitude,longitude=headerLocation.longitude},unit.guid)
 			local pivotRange = 0
 			if range < 20 then
-				pivotRange = 30
+				pivotRange = 15
 			elseif range < 100 then
 				pivotRange = 5
 			end
@@ -1560,23 +1560,23 @@ function determineAirUnitToRetreatByRole(sideShortKey,sideGuid,sideAttributes,un
         local unitRetreatPointArray = nil
         -- Determine Retreat Type By Role
         if unitRole == GLOBAL_ROLE_AAW then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_SHIPS_AND_SAMS,range=30},{type=GLOBAL_TYPE_DATUM,range=0}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60,dive=true},{type=GLOBAL_TYPE_SHIPS_AND_SAMS,range=30,dive=true}})
         elseif unitRole == GLOBAL_ROLE_AG_ASUW then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_SHIPS_AND_SAMS,range=0},{type=GLOBAL_TYPE_DATUM,range=0}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60,dive=true},{type=GLOBAL_TYPE_SHIPS_AND_SAMS,range=0,dive=true}})
         elseif unitRole == GLOBAL_ROLE_AG then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_PLANES,range=40},{type=GLOBAL_TYPE_SHIPS,range=30},{type=GLOBAL_TYPE_SAMS,range=0},{type=GLOBAL_TYPE_DATUM,range=0}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60,dive=true},{type=GLOBAL_TYPE_PLANES,range=40,dive=false},{type=GLOBAL_TYPE_SHIPS,range=30,dive=true},{type=GLOBAL_TYPE_SAMS,range=0,dive=true}})
         elseif unitRole == GLOBAL_ROLE_ASUW then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=80},{type=GLOBAL_TYPE_PLANES,range=40},{type=GLOBAL_TYPE_SAMS,range=30},{type=GLOBAL_TYPE_SHIPS,range=0},{type=GLOBAL_TYPE_DATUM,range=0}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=80,dive=true},{type=GLOBAL_TYPE_PLANES,range=40,dive=false},{type=GLOBAL_TYPE_SAMS,range=30,dive=true},{type=GLOBAL_TYPE_SHIPS,range=0,dive=true}})
         elseif unitRole == GLOBAL_ROLE_SUPPORT then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=150},{type=GLOBAL_TYPE_PLANES,range=150},{type=GLOBAL_TYPE_SHIPS_AND_SAMS,range=150},{type=GLOBAL_TYPE_DATUM,range=0}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=150,dive=true},{type=GLOBAL_TYPE_PLANES,range=150,dive=false},{type=GLOBAL_TYPE_SHIPS_AND_SAMS,range=150,dive=false}})
         elseif unitRole == GLOBAL_ROLE_ASW then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_PLANES,range=40},{type=GLOBAL_TYPE_SHIPS_AND_SAMS,range=30},{type=GLOBAL_TYPE_DATUM,range=0}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60,dive=true},{type=GLOBAL_TYPE_PLANES,range=40,dive=false},{type=GLOBAL_TYPE_SHIPS_AND_SAMS,range=30,dive=false}})
         elseif unitRole == GLOBAL_ROLE_RECON then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_PLANES,range=40},{type=GLOBAL_TYPE_SHIPS_AND_SAMS,range=30},{type=GLOBAL_TYPE_DATUM,range=0}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60,dive=true},{type=GLOBAL_TYPE_PLANES,range=40,dive=false},{type=GLOBAL_TYPE_SHIPS_AND_SAMS,range=30,dive=false}})
         elseif unitRole == GLOBAL_ROLE_SEAD then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_PLANES,range=40},{type=GLOBAL_TYPE_SHIPS_AND_SAMS,range=0},{type=GLOBAL_TYPE_DATUM,range=0}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60,dive=true},{type=GLOBAL_TYPE_PLANES,range=40,dive=false},{type=GLOBAL_TYPE_SHIPS_AND_SAMS,range=0,dive=false}})
 		elseif unitRole == GLOBAL_ROLE_RTB then
-            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60},{type=GLOBAL_TYPE_PLANES,range=40},{type=GLOBAL_TYPE_SHIPS_AND_SAMS,range=30},{type=GLOBAL_TYPE_DATUM,range=0}})
+            unitRetreatPointArray = determineRetreatPoint(sideGuid,sideShortKey,sideAttributes,unit.guid,unitRole,{{type=GLOBAL_TYPE_MISSILES,range=60,dive=true},{type=GLOBAL_TYPE_PLANES,range=40,dive=false},{type=GLOBAL_TYPE_SHIPS_AND_SAMS,range=30,dive=false}})
         else
             unitRetreatPointArray = nil
         end
@@ -1617,11 +1617,11 @@ function determineRetreatPoint(sideGuid,shortSideKey,sideAttributes,unitGuid,uni
         if avoidanceTypes[i].type == GLOBAL_TYPE_PLANES then
             retreatPointArray = getRetreatPathForAirNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole,avoidanceTypes[i].range)
         elseif avoidanceTypes[i].type == GLOBAL_TYPE_SHIPS then
-            retreatPointArray = getRetreatPathForGenericNoNavZone(sideGuid,shortSideKey,sideAttributes,getAllSurfaceShipContacts(shortSideKey),unitGuid,unitRole,avoidanceTypes[i].range)
+            retreatPointArray = getRetreatPathForGenericNoNavZone(sideGuid,shortSideKey,sideAttributes,getAllSurfaceShipContacts(shortSideKey),unitGuid,unitRole,avoidanceTypes[i].range,avoidanceTypes[i].dive)
         elseif avoidanceTypes[i].type == GLOBAL_TYPE_SAMS then
-            retreatPointArray = getRetreatPathForGenericNoNavZone(sideGuid,shortSideKey,sideAttributes,getAllSAMContacts(shortSideKey),unitGuid,unitRole,avoidanceTypes[i].range)
+            retreatPointArray = getRetreatPathForGenericNoNavZone(sideGuid,shortSideKey,sideAttributes,getAllSAMContacts(shortSideKey),unitGuid,unitRole,avoidanceTypes[i].range,avoidanceTypes[i].dive)
         elseif avoidanceTypes[i].type == GLOBAL_TYPE_SHIPS_AND_SAMS then
-            retreatPointArray = getRetreatPathForGenericNoNavZone(sideGuid,shortSideKey,sideAttributes,getAllSurfaceShipAndSAMContacts(shortSideKey),unitGuid,unitRole,avoidanceTypes[i].range)
+            retreatPointArray = getRetreatPathForGenericNoNavZone(sideGuid,shortSideKey,sideAttributes,getAllSurfaceShipAndSAMContacts(shortSideKey),unitGuid,unitRole,avoidanceTypes[i].range,avoidanceTypes[i].dive)
         elseif avoidanceTypes[i].type == GLOBAL_TYPE_MISSILES then
             retreatPointArray = getRetreatPathForEmergencyMissileNoNavZone(sideGuid,shortSideKey,sideAttributes,unitGuid,unitRole)
         elseif avoidanceTypes[i].type == GLOBAL_TYPE_DATUM then
@@ -1659,7 +1659,7 @@ function getRetreatPathForAirNoNavZone(sideGuid,shortSideKey,sideAttributes,unit
     return nil
 end
 
-function getRetreatPathForGenericNoNavZone(sideGuid,shortSideKey,sideAttributes,contacts,unitGuid,unitRole,range)
+function getRetreatPathForGenericNoNavZone(sideGuid,shortSideKey,sideAttributes,contacts,unitGuid,unitRole,range,dive)
     -- Variables
     local side = AresGetSide(sideGuid)
     local unit = AresGetUnit(side.name,unitGuid)
@@ -1694,7 +1694,7 @@ function getRetreatPathForGenericNoNavZone(sideGuid,shortSideKey,sideAttributes,
     elseif distanceToContact < minDesiredRange then
         -- Emergency Evasion
 		local diveHeight = 30
-		if unitRole == GLOBAL_ROLE_SUPPORT then
+		if not dive then
 			diveHeight = heightToHorizon(distanceToContact,unitRole,determineUnitOffensive(unit))
 		end
         local retreatLocation = determineUnitRetreatCoordinate(unit,contact,false,determineUnitRTB(unit))
