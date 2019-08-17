@@ -733,6 +733,7 @@ function heightToHorizonSupportRadarApproach(distance,engaged,popup)
 	else
 		height = 30
 	end
+	return height
 end
 
 function heightToHorizonOverRadarApproach(distance,engaged,popup)
