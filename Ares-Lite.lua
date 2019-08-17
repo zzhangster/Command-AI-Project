@@ -715,11 +715,11 @@ function heightToHorizonSupportRadarApproach(distance,engaged,popup)
 	elseif distance > 180 then
 		height = 10000
 	elseif distance > 160 then
-		height = 6000
+		height = 10000
 	elseif distance > 140 then
-		height = 5000
+		height = 10000
 	elseif distance > 120 then
-		height = 4000
+		height = 10000
 	elseif distance > 100 then
 		height = 2000
 	elseif distance > 80 then
@@ -732,16 +732,6 @@ function heightToHorizonSupportRadarApproach(distance,engaged,popup)
 		height = 65
 	else
 		height = 30
-	end
-	-- Check Engaged
-	if popup and engaged and height < 4000 then
-		if oscillateEveryMinuteGate() then
-			return height
-		else
-			return GLOBAL_OFF
-		end
-	else
-		return height
 	end
 end
 
